@@ -61,6 +61,16 @@ src/
 - **Import lives in the component.** Because the catalog is the component's own tables, the
   import/sync/repair engine + sync-status lifecycle run here (writing its own tables), driven by
   mount policy. It **composes** `@convex-dev/workflow` / `workpool`; it never re-implements them.
+- **One component — no search/catalog split.** Search is *over the durable catalog*, and the catalog
+  has ≥3 consumers (songtrivia full, spotzic artists, heardzic/bandzic tracks). A standalone
+  `convex-music-search` would sever search from the catalog it queries for no consumer gain, so
+  catalog + search + cache + import stay one component. (Revisit only if a real
+  provider-search-without-catalog consumer appears — composition keeps it a clean later extraction.)
+- **Daily selection: primitive here, assignment in the gaming layer.** The component offers a generic
+  `selectEligible(kind, filter, weight, excludeIds)` query over its catalog (it owns the data). The
+  daily-puzzle assignment — today's frozen answer, no-repeat-within-N, scheduling — is the shared
+  daily-game engine's job (gameplay); it calls `selectEligible` and freezes the result host-side.
+  `excludeIds` (recently-used) is gameplay data the host passes in; the component never tracks it.
 - **Per-deployment data.** Component tables are sandboxed per mount — each app's catalog is its own
   data (shared schema + engine, isolated data), not a shared catalog across apps.
 - **Provider-neutral, not vendor-named.** Providers are adapters behind one interface; adding Deezer

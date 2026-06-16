@@ -13,12 +13,16 @@ is never deleted — mark status, don't remove.
 
 | App | Needs | Mode |
 |-----|-------|------|
-| songtrivia | tracks + artists + playlists catalog; getTrack/Artist/Album/Playlist; ISRC | live, reference consumer |
-| spotzic | artist facts (genre, popularity, nationality, gender, members, debut) | seed + editorial |
-| heardzic | tracks + `previewUrl` (audio) | ops-authored |
-| bandzic | tracks + `previewUrl`/clip (audio) | ops-authored |
+| songtrivia | full catalog + import; search **over the catalog**; getTrack/Artist/Album/Playlist; ISRC | live, reference consumer |
+| spotzic | artist catalog + artist search; daily **artist** selection | catalog (artists) + editorial host-side |
+| heardzic | track search (also via artist→tracks) + `previewUrl`; daily **track** selection | catalog (tracks) |
+| bandzic | track search + `previewUrl`/clip; daily **track** selection | catalog (tracks) |
 
 `harmonies` and `wordzic` are NOT consumers (word games — no catalog data).
+
+Search is **over the durable catalog** (not just provider search) and the catalog has ≥3 consumers,
+so search and catalog are one component — they are NOT split into `convex-music-search` /
+`convex-music-catalog` (that would sever search from the catalog it queries, for no consumer gain).
 
 ## Design decisions (load-bearing)
 
@@ -36,6 +40,17 @@ is never deleted — mark status, don't remove.
 - **Import lives in the component.** Because the catalog is the component's own tables, the
   import/sync/repair engine runs here (writing its own tables — allowed) — driven by mount policy.
   It **composes** `@convex-dev/workflow` / `workpool` for orchestration; it never re-implements them.
+- **One component, no search/catalog split.** Search is *over the durable catalog*, and the catalog
+  has ≥3 consumers (songtrivia full, spotzic artists, heardzic/bandzic tracks). Splitting search into
+  a sibling `convex-music-search` would sever it from the catalog it queries with no consumer benefit
+  (no one wants provider-search without the catalog). Catalog + search + cache + import stay one
+  component. (A standalone search component is only revisited if a real provider-search-without-catalog
+  consumer ever appears — composition keeps that a clean later extraction.)
+- **Daily selection: primitive here, assignment in the gaming layer.** `convex-music` offers a generic
+  `selectEligible(kind, filter, weight, excludeIds)` query over its catalog (it owns the data). The
+  **daily-puzzle assignment** — today's frozen answer, no-repeat-within-N, scheduling — is the shared
+  daily-game engine's job (gameplay), which calls `selectEligible` and freezes the result host-side.
+  `excludeIds` (recently-used subjects) is gameplay data the host passes in; the component never tracks it.
 - **Factual vs editorial.** The component owns the *factual* catalog. Editorial precedence,
   overrides, `sourceRefs`, and the gameplay-frozen snapshot remain the host's.
 - **Live vs synced popularity.** The component serves *live* popularity (cache-through); the host
@@ -59,6 +74,11 @@ is never deleted — mark status, don't remove.
   `workpool`; the import engine composes them and never re-implements them.
 - **Not a shared cross-app database.** Component tables are per-mount — each deployment has its own
   catalog data; the reuse is of schema + engine, not data.
+- **Not the daily-game.** `convex-music` provides a `selectEligible` primitive over the catalog; the
+  daily-puzzle assignment (frozen answer, no-repeat-within-N, scheduling, gameplay) is the shared
+  daily-game engine's job (host / a gaming-vertical layer), which calls into `convex-music`.
+- **Not split into search vs catalog.** Search is over the catalog; they are one component (see
+  Design decisions).
 
 ## cache-core — `done`
 
@@ -77,6 +97,7 @@ The durable music database — generic, modeled on songtrivia's `music_*` shape.
 - `catalog-store.2` `planned` — read/search API over the catalog (`getArtist`/`getTrack`/`getPlaylist`, `searchArtists`/`searchTracks`, `getTrackByIsrc`) + reactive queries for hosts.
 - `catalog-store.3` `planned` — cache↔catalog table design: decide whether `cacheEntries` persists as a short-lived raw-response dedup layer behind the catalog, or freshness folds into catalog rows via sync-status (songtrivia's single-table model). Document the chosen seam.
 - `catalog-store.4` `planned` — upsert/merge into the catalog from normalized provider facts (dedup by ISRC/provider id; multi-provider `providers[]` junction).
+- `catalog-store.5` `planned` — `selectEligible({ kind, filter, weight?, excludeIds?, limit })` — generic random/weighted/filtered selection over the catalog (host passes `excludeIds` of recently-used subjects). The selection *primitive* for daily-game pickers; the daily-puzzle assignment (freeze, no-repeat, schedule) stays in the host/daily-game layer.
 
 ## provider-adapters — `planned`
 
