@@ -1,0 +1,6 @@
+import { defineApp } from "convex/server";
+import component from "../../src/component/convex.config";
+const app = defineApp();
+app.use(component);
+export default app;
+//# sourceMappingURL=convex.config.js.map

@@ -2,7 +2,15 @@ import convex from "@vllnt/eslint-config/convex";
 import tseslint from "typescript-eslint";
 
 export default [
-  { ignores: ["example/**", "dist/**", "src/component/_generated/**", "coverage/**"] },
+  {
+    ignores: [
+      "example/**",
+      "dist/**",
+      "src/component/_generated/**",
+      "coverage/**",
+      "src/**/*.test.ts",
+    ],
+  },
   ...convex,
   // Apply convex rules to component source (same structure as a convex/ folder)
   {

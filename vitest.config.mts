@@ -18,6 +18,8 @@ export default defineConfig({
         "src/component/queries.ts",
         "src/component/validators.ts",
         "src/component/schema.ts",
+        "src/component/providers/fetch.ts",
+        "src/component/providers/apple/jwt.ts",
       ],
       thresholds: {
         statements: 100,
