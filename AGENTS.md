@@ -154,8 +154,8 @@ src/
 - Provider env vars (Convex environment variables, set on the host deployment): Spotify
   `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`; Apple `APPLE_MUSIC_ISSUER` / `APPLE_MUSIC_KID` /
   `APPLE_MUSIC_PRIVATE_KEY` (sourced from songtrivia's backend). Enabled-providers + preference is
-  mount policy (there are no `SPOTIFY_ONLY`/`APPLE_ONLY` env flags in songtrivia — provider selection
-  is the per-request `providerScope: spotify|apple|any`, which maps to the import-time provider select).
+  mount policy (no `SPOTIFY_ONLY`/`APPLE_ONLY` env/config flags exist — those strings are test-mock
+  scenario names only; provider selection is the per-request `providerScope: spotify|apple|any`).
 - Resilience: retry `429` **and** overload `5xx` (incl. `529` / `503`) — honor `Retry-After`, capped
   backoff + jitter, per-request timeout, bounded concurrency. songtrivia retries only `429`; the
   component must also survive provider overload (`529`) so an import never hard-fails on it.
