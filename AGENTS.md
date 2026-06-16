@@ -158,11 +158,13 @@ src/
 - Resilience: retry `429` **and** overload `5xx` (incl. `529` / `503`) — honor `Retry-After`, capped
   backoff + jitter, per-request timeout, bounded concurrency. songtrivia retries only `429`; the
   component must also survive provider overload (`529`) so an import never hard-fails on it.
-- Automation (`auto-import`): **opt-in, off by default.** When enabled, throughput is a configurable
-  **budget** (e.g. "2 artists/hour") via a `@convex-dev/rate-limiter` token bucket per `(catalog,
-  kind)`, **decoupled from cron frequency** — distinct from the provider-API 429/529 rate above. A
-  cursored, idempotent, per-mount cron sweeps the `sources` registry + stale rows within budget. See
-  `ROADMAP.md` › `auto-import`.
+- Automation (`auto-import`): **opt-in, off by default.** Two modes on one cursored, idempotent,
+  per-mount cron — **import** (pull NEW sources) and **sync/refresh** (keep EXISTING rows current per
+  a `refresh` freshness config: per-kind, optionally per-field staleAfter — volatile `popularity`
+  refreshes faster than static facts). Throughput is a configurable **budget** ("2 artists/hour") via
+  a `@convex-dev/rate-limiter` token bucket per `(catalog, kind)`, decoupled from cron frequency,
+  separate budgets for import vs refresh — all distinct from the provider-API 429/529 rate.
+  `sync-lifecycle` is the mechanism; this is the policy. See `ROADMAP.md` › `auto-import`.
 
 ## Docs sync
 
