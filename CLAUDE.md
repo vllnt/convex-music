@@ -61,6 +61,12 @@ src/
 - **Import lives in the component.** Because the catalog is the component's own tables, the
   import/sync/repair engine + sync-status lifecycle run here (writing its own tables), driven by
   mount policy. It **composes** `@convex-dev/workflow` / `workpool`; it never re-implements them.
+- **Catalog content is runtime + host-owned, not mount-config.** Mount config governs HOW (providers,
+  TTLs, filters, schedule, image policy), never WHAT. The host populates the catalog at runtime via
+  the import primitives + a generic `sources` registry; its *curated, categorized* definitions
+  (which playlists/artists, genre rules, game categories/attribution) stay host-side and reconcile
+  into the registry (like songtrivia's crons driving `PLAYLIST_DEFINITIONS`/`ArtistDefinition`). The
+  component owns the generic "keep these synced" input, never the curated/categorized list.
 - **One component — no search/catalog split.** Search is *over the durable catalog*, and the catalog
   has ≥3 consumers (songtrivia full, spotzic artists, heardzic/bandzic tracks). A standalone
   `convex-music-search` would sever search from the catalog it queries for no consumer gain, so

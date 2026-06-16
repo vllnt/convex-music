@@ -40,6 +40,13 @@ so search and catalog are one component — they are NOT split into `convex-musi
 - **Import lives in the component.** Because the catalog is the component's own tables, the
   import/sync/repair engine runs here (writing its own tables — allowed) — driven by mount policy.
   It **composes** `@convex-dev/workflow` / `workpool` for orchestration; it never re-implements them.
+- **Catalog content is runtime + host-owned, NOT mount-config.** Mount config governs HOW (providers,
+  TTLs, filters, schedule, image policy), never WHAT. The host selects content at runtime via the
+  import primitives + a generic `sources` registry (`import-engine.5`). The host's *curated,
+  categorized* definitions — which playlists/artists, genre-enforcement rules, game categories /
+  attribution — stay host-side (domain) and reconcile into the registry (e.g. a host cron over its
+  own definition lists, exactly as songtrivia's crons drive `PLAYLIST_DEFINITIONS`/`ArtistDefinition`).
+  The component owns the *generic* "keep these synced" input, never the curated/categorized list.
 - **One component, no search/catalog split.** Search is *over the durable catalog*, and the catalog
   has ≥3 consumers (songtrivia full, spotzic artists, heardzic/bandzic tracks). Splitting search into
   a sibling `convex-music-search` would sever it from the catalog it queries with no consumer benefit
@@ -130,6 +137,7 @@ Policy-driven import of provider data into the component's catalog (writes its O
 - `import-engine.2` `planned` — traversal: playlist → tracks → artists; promote normalized provider facts into the catalog tables (dedup by ISRC/provider id).
 - `import-engine.3` `planned` — orchestration via `@convex-dev/workflow` + `workpool` (batch concurrency, step retries); config-driven import filters (title/quality), never game-specific rules.
 - `import-engine.4` `planned` — import request ledger (status, phases, events) for ops visibility — component-owned, mirrors songtrivia's `music_imports` control plane.
+- `import-engine.5` `planned` — generic **`sources` registry**: runtime host-managed CRUD (`addSource`/`removeSource`/`listSources`) of `{ provider, kind, externalId|url, cadence }` the engine keeps synced. Optional `initialSources` mount seed for zero-config. This is the generic "what to keep imported" input — the host's *curated, categorized* definitions (which playlists/artists, genre rules, game categories) stay host-side and reconcile INTO this registry (e.g. a host cron over its own `PLAYLIST_DEFINITIONS`-style lists, like songtrivia).
 
 ## sync-lifecycle — `planned`
 
