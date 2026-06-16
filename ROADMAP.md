@@ -116,6 +116,11 @@ so search and catalog are one component — they are NOT split into `convex-musi
   schemas stay private in adapters; the normalized row keeps per-provider **provenance** (`providers[]`)
   so the field-source policy projects per provider. We do NOT expose N public schemas — normalized +
   provenance covers it.
+- **Three provider levels — don't conflate.** (1) **Catalog `providers`** (mount) = the universe a
+  catalog aggregates. (2) **Import `providers`/`excludeProviders`** (per import) = the subset to FETCH
+  for that import (⊆ catalog) — what gets stored. (3) **Field-source policy** (per read) = which
+  provider(s) to PROJECT per field, over what's stored. "Which providers when importing" is level 2
+  (fetch/store); "preview from Apple" is level 3 (project). See `import-engine.7` + `field-source-policy`.
 - **V8 only.** A component runs in V8 → Apple ES256 JWT uses Web Crypto, not `jsonwebtoken`.
 - **Official children.** Workflow / retry / rate-limit / response-cache compose `@convex-dev/*`,
   never hand-rolled.
@@ -205,12 +210,14 @@ artist-image policy to every field.
 
 Policy-driven import of provider data into the component's catalog (writes its OWN tables).
 
-- `import-engine.1` `planned` — import entry points by natural identifier (the `targetMode` set `name`|`url`|`isrc`|`providerId`): `importArtist({ by:"name"|"providerId" })`, `importPlaylist({ url })`, `importTrack({ isrc })` (host-triggered; provider auto-detect from a url/id).
+- `import-engine.1` `planned` — import entry points by natural identifier (the `targetMode` set `name`|`url`|`isrc`|`providerId`): `importArtist({ by:"name"|"providerId" })`, `importPlaylist({ url })`, `importTrack({ isrc })` (host-triggered; provider auto-detect from a url/id). Each accepts a per-call **`ImportOptions`** (see `import-engine.7`).
 - `import-engine.2` `planned` — traversal: playlist → tracks → artists; promote normalized provider facts into the catalog tables (dedup by ISRC/provider id).
 - `import-engine.3` `planned` — orchestration via `@convex-dev/workflow` + `workpool` (batch concurrency, step retries); config-driven import filters (title/quality), never game-specific rules.
 - `import-engine.4` `planned` — import request ledger (status, phases, events) for ops visibility — component-owned, mirrors songtrivia's `music_imports` control plane.
 - `import-engine.5` `planned` — generic **`sources` registry**: runtime host-managed CRUD (`addSource`/`removeSource`/`listSources`) of `{ kind, by: "name"|"url"|"isrc"|"providerId", value, providers?, cadence? }` the engine keeps synced; typed (no `v.any()`). Optional `initialSources` mount seed (small/static, zero-config bootstrap). This is the generic "what to keep imported" input — the host's *curated, categorized* definitions (which playlists/artists, genre rules, game categories) stay host-side and reconcile INTO this registry (e.g. a host cron over its own `PLAYLIST_DEFINITIONS`-style lists, like songtrivia).
 - `import-engine.6` `planned` — **import-request dedup**: a stable dedup key over (entityType, targetMode, provider, ref) so concurrent/duplicate import requests collapse to one (mirrors songtrivia's `buildMusicImportDedupeKey`).
+- `import-engine.7` `planned` — typed **`ImportOptions`** per call (no `v.any()`): **provider select** `providers?: Provider[]` (only these) OR `excludeProviders?: Provider[]` (default = catalog set) — what to FETCH this import; **traversal/depth** — artist `tracks?: false | { mode: "top"|"all"|"viaAlbums", limit?, importArtists?: bool }` + `albums?: false | { limit? }`, playlist `tracks?: { limit?, importArtists?: bool }`, track `withArtists?: bool` + `withAlbum?: bool`; **`mode`** `import|refresh|reimport|repair`; **`priority`** `high|normal|low`; **`catalog`** scope. Generalizes songtrivia's import request (provider scope `spotify|apple|any` → N-provider select; `withTracks` → traversal; `requestType`/`priority`). Conservative defaults (artist = artist only; playlist = its tracks, not their artists; track = just the track). Traversal `limit`s bound the workflow fan-out.
+- `import-engine.8` `planned` — **default import options** layered: per-catalog `defaultImport` at mount + per-`sources`-entry options (so cron re-imports honor them) + per-call override (deep-merge, per-call wins).
 
 ## sync-lifecycle — `planned`
 

@@ -111,6 +111,13 @@ src/
   registry entry — no core edits (open/closed). ONE internal normalized schema is the public contract;
   per-provider raw schemas stay private; provenance (`providers[]`) keeps per-provider values for the
   field-source policy. Provider ids are an open union. Never expose N public schemas.
+- **Three provider levels — don't conflate.** (1) catalog `providers` (mount) = the universe a
+  catalog aggregates; (2) import `providers`/`excludeProviders` (per import) = the subset to FETCH +
+  store (⊆ catalog); (3) field-source policy (per read) = which provider(s) to PROJECT per field. Each
+  import also takes a typed `ImportOptions` (provider select, traversal depth — artist `tracks` off/
+  top-N/all + `albums`, playlist `tracks.limit`/`importArtists`, track `withArtists`/`withAlbum` —
+  `mode` import/refresh/reimport/repair, `priority`), with per-catalog `defaultImport` + per-call
+  override. See `ROADMAP.md` › `import-engine.7`.
 - **Provider-neutral, not vendor-named.** Providers are adapters behind one interface; adding Deezer
   or MusicBrainz never changes the public API. The capability is "music catalog," not any one vendor
   — swapping the backing provider must never force a rename.
