@@ -79,6 +79,16 @@ src/
   `excludeIds` (recently-used) is gameplay data the host passes in; the component never tracks it.
 - **Per-deployment data.** Component tables are sandboxed per mount — each app's catalog is its own
   data (shared schema + engine, isolated data), not a shared catalog across apps.
+- **Multiple searches per host.** Two ways: (a) **named profiles** over one catalog — presets
+  `{ kinds, providers, sources }` defined at mount, invoked by name (`search({ profile: "artists" })`);
+  (b) **named mounts** (`app.use(music, { name })` × N) for hard isolation (separate data/providers/
+  creds), per the BLOCKING mount-safety rule. Profiles for "artists + tracks search over one library";
+  mounts when instances must not share data.
+- **Pluggable providers — one adapter, one internal schema.** Adding a provider is one adapter folder
+  (`client` · `types` = the provider's RAW schema, private · `mappers` raw→internal · `impl`) + a
+  registry entry — no core edits (open/closed). ONE internal normalized schema is the public contract;
+  per-provider raw schemas stay private; provenance (`providers[]`) keeps per-provider values for the
+  field-source policy. Provider ids are an open union. Never expose N public schemas.
 - **Provider-neutral, not vendor-named.** Providers are adapters behind one interface; adding Deezer
   or MusicBrainz never changes the public API. The capability is "music catalog," not any one vendor
   — swapping the backing provider must never force a rename.

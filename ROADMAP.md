@@ -74,6 +74,20 @@ so search and catalog are one component — they are NOT split into `convex-musi
   applied to `image`.
 - **Per-deployment data.** Sandboxed per mount — each app's catalog is its own data (shared schema +
   engine, isolated data). Not one shared catalog across apps.
+- **Multiple searches per host — profiles or named mounts.** A host can run several search types side
+  by side, two ways: (a) **named profiles** over one catalog — presets `{ kinds, providers, sources }`
+  defined at mount and invoked by name (`search({ profile: "artists" })`); shared catalog + creds,
+  lighter. (b) **named mounts** — `app.use(music, { name })` × N for hard isolation (separate data,
+  providers, creds per instance), relying on the BLOCKING mount-safety requirement (no cross-mount
+  singletons; per-instance idempotent crons). Use profiles for "artists search + tracks search over
+  one library"; use mounts when the instances must not share data/creds.
+- **Pluggable providers — one adapter, one internal schema.** Adding a provider is a localized change:
+  a new adapter (`client` auth/fetch · `types` the provider's RAW response schema, private · `mappers`
+  raw→internal · `impl` the `MusicProvider` interface) registered in the registry — **no core edits**
+  (open/closed). There is ONE internal **normalized schema** as the public contract; per-provider raw
+  schemas stay private in adapters; the normalized row keeps per-provider **provenance** (`providers[]`)
+  so the field-source policy projects per provider. We do NOT expose N public schemas — normalized +
+  provenance covers it.
 - **V8 only.** A component runs in V8 → Apple ES256 JWT uses Web Crypto, not `jsonwebtoken`.
 - **Official children.** Workflow / retry / rate-limit / response-cache compose `@convex-dev/*`,
   never hand-rolled.
@@ -124,12 +138,13 @@ The durable music database — generic, modeled on songtrivia's `music_*` shape.
 
 One normalize adapter per provider, behind a single interface. No host coupling.
 
-- `provider-adapters.1` `planned` — adapter interface + normalized mappers (track/artist/album).
+- `provider-adapters.1` `planned` — the `MusicProvider` adapter **interface** (search/getTrack/getArtist/getAlbum/…) + the internal **normalized schema** (track/artist/album) as the single public contract. Each adapter is a folder: `client` (auth/fetch) · `types` (the provider's RAW response schema, private) · `mappers` (raw→normalized) · `impl` (implements the interface).
 - `provider-adapters.2` `planned` — Spotify adapter (client-credentials OAuth; token cached via `@convex-dev/action-cache`).
 - `provider-adapters.3` `planned` — Apple Music adapter (ES256 developer JWT via **Web Crypto**, zero-dep — port from `jsonwebtoken`).
 - `provider-adapters.4` `planned` — MusicBrainz adapter (nationality/country, gender, `members` solo/group, debut/begin-date).
 - `provider-adapters.5` `planned` — Wikidata adapter (overlap + gap-fill for artist facts).
 - `provider-adapters.6` `planned` — Deezer adapter.
+- `provider-adapters.7` `planned` — **extension point**: a `registry` that maps provider id → adapter; adding a provider = drop in its adapter folder + one registry entry, no core changes (open/closed). Document the "add a provider" steps in `docs/API.md`. Provider ids are an open union so a new provider just extends it.
 
 ## read-through-fetch — `planned`
 
@@ -154,6 +169,7 @@ artist-image policy to every field.
 - `field-source-policy.3` `planned` — one resolver applied to BOTH provider search (`read-through-fetch`) and catalog search/get (`catalog-store`). Worked cases: artists-only + `image` from Spotify; tracks + `previewUrl` from Apple (not Spotify); both.
 - `field-source-policy.4` `planned` — depends on per-provider field provenance retained in the catalog (`providers[]`, `catalog-store.4`); the resolver projects each field from the chosen provider(s).
 - `field-source-policy.5` `planned` — **N-proof typed returns**: single/`prefer` → a resolved scalar; subset/`all` → a `Partial<Record<Provider, V>>` map for that field (only present providers are keys). Adding a 4th/5th provider only adds keys — the field's type never changes. No `v.any()`; the client type is generic over the policy.
+- `field-source-policy.6` `planned` — **named search profiles**: define presets `{ kinds, providers, sources }` at mount (`profiles: { artists: …, tracks: … }`) and invoke by name (`search({ profile: "artists", query })`) or a per-profile client accessor — multiple search types over one catalog without repeating the policy. (For hard isolation across instances, use named mounts instead — see Design decisions › Multiple searches per host.)
 
 ## import-engine — `planned`
 

@@ -47,6 +47,10 @@ const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalI
   entity kinds, which fields, and — for **every field independently** — which provider(s) supply it:
   one, an ordered pick, an explicit subset (e.g. 3 of 4 preview URLs), or all. Multi-select returns a
   provider-keyed map, so adding providers never changes a field's type. Default at mount, override per call.
+- `[planned]` Multiple searches per host — named profiles over one catalog, or named mounts for
+  isolated instances (e.g. an artists-only search and a tracks-only search side by side).
+- `[planned]` Pluggable providers — add a provider as one adapter (its raw schema + a mapper to the
+  internal normalized schema) registered in the registry; no core changes.
 - `[planned]` Artist-image auto-sync with a configurable provider-selection policy.
 
 ## Installation
