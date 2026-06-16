@@ -2,11 +2,12 @@ import { defineSchema, defineTable } from "convex/server";
 import { cacheEntryFields } from "./validators.js";
 
 /**
- * Sandboxed cache tables — the component's own concern only. Each row is one
- * provider's normalized facts for one entity, keyed by an opaque provider id
- * (and ISRC for tracks). The component never models or reaches the host's
- * domain: the host keeps its own curated tables and the cache never replaces
- * them.
+ * Sandboxed tables — the component's own concern only. `0.1.0` ships the raw
+ * provider-fetch cache (`cacheEntries`); the durable catalog tables
+ * (artists/tracks/playlists) the component will own are planned (see ROADMAP).
+ * Each cache row is one provider's normalized facts for one entity, keyed by an
+ * opaque provider id (and ISRC for tracks). The component never reaches the
+ * host's tables; the host keeps gameplay + editorial, referencing catalog rows.
  */
 export default defineSchema({
   cacheEntries: defineTable(cacheEntryFields)

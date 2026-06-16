@@ -39,22 +39,30 @@ src/
 
 | Domain | Owner |
 |--------|-------|
-| `cacheEntries` table (normalized provider facts) | **Component** — sandboxed, never reached by host or siblings |
+| Music catalog — `artists` / `tracks` / `playlists` (the music database) + raw `cacheEntries` | **Component** — sandboxed; the factual record, read by hosts via API |
+| Import / sync / repair + sync-status lifecycle (over the catalog) | **Component** — writes its own catalog tables; composes `@convex-dev/workflow`/`workpool` |
 | Provider ids / ISRC (opaque refs) | **Host** — supplies them; the component stores and indexes as-is |
-| Provider credentials (Spotify/Apple keys, tokens) | **Host** — env vars in the host deployment; never enter the component cache |
-| The curated, gameplay/editorial copy of music data | **Host** — its own domain tables; the cache never replaces them |
-| Auth / access control | **Host** — gates `put` / `invalidate` / `pruneExpired` behind its own mutations |
-| TTL / freshness / expiry | **Component** — per-entry `expiresAt`, read-time miss on expiry, prune sweep |
+| Provider credentials (Spotify/Apple keys, tokens) | **Host** — env vars in the host deployment; never persisted by the component |
+| Editorial overrides + `sourceRefs` + frozen gameplay snapshot | **Host** — its own domain tables, referencing catalog rows by id / ISRC |
+| Gameplay + game categories / attribution / genre→category taxonomy | **Host** — game domain; never baked into the component |
+| Auth / access control | **Host** — gates the component's write methods behind its own mutations |
 
 ## Key design decisions
 
-- **Cache, never replace.** The component is an acceleration layer in front of external providers,
-  not a system of record. Hosts persist their own curated/editorial copy in their own tables and
-  read through the cache; the cache holds only public provider facts with a TTL. This keeps the
-  component domain-neutral (a stranger's app can use it) and keeps host domain opinions out of it.
-- **Per-deployment cache.** Component tables are sandboxed per mount/deployment — the cache dedupes
-  provider calls *within* one app; it is not a shared catalog across separate apps. Document this so
-  consumers don't expect cross-app sharing.
+- **Owns the catalog (cache + music database).** The component holds durable `artists` / `tracks` /
+  `playlists` tables — the factual music database — populated from providers (cache) and read by
+  hosts via API. It IS the system of record for the factual catalog (this supersedes the earlier
+  "cache, never replace"). The host no longer keeps its own copy of the raw catalog.
+- **Tier-0 boundary (stays host-side).** To remain a horizontal music-catalog component, the host
+  keeps gameplay, **editorial overrides + `sourceRefs` + the frozen gameplay snapshot**, and game
+  **categories / attribution / genre→category taxonomy**, referencing catalog rows by id / ISRC. App
+  import rules that can't be config are host-side or a Tier-1 `vllnt/convex-gaming-music` — never
+  baked into `convex-music`.
+- **Import lives in the component.** Because the catalog is the component's own tables, the
+  import/sync/repair engine + sync-status lifecycle run here (writing its own tables), driven by
+  mount policy. It **composes** `@convex-dev/workflow` / `workpool`; it never re-implements them.
+- **Per-deployment data.** Component tables are sandboxed per mount — each app's catalog is its own
+  data (shared schema + engine, isolated data), not a shared catalog across apps.
 - **Provider-neutral, not vendor-named.** Providers are adapters behind one interface; adding Deezer
   or MusicBrainz never changes the public API. The capability is "music catalog," not any one vendor
   — swapping the backing provider must never force a rename.
@@ -65,16 +73,16 @@ src/
   real number, not `undefined`) so the `by_expiry` index never sweeps a never-expiring row.
 - **Read-time expiry + prune.** `get`/`getByIsrc` treat expired entries as misses; `pruneExpired`
   reclaims storage and is idempotent (bounded to expired rows), safe on a schedule.
-- **Scope at 0.1.0 = cache core.** Provider fetch/search adapters (the V8 ES256 signer for Apple,
-  Spotify client-credentials, then Deezer/MusicBrainz/Wikidata) and the artist-image auto-sync
-  policy are planned — see `ROADMAP.md`. Agents MUST NOT implement planned surface without an
-  explicit instruction.
+- **Scope at 0.1.0 = raw cache core only.** The durable catalog (`catalog-store`), provider adapters
+  (Apple V8 ES256 signer, Spotify, then Deezer/MusicBrainz/Wikidata), read-through fetch, the
+  `import-engine`, `sync-lifecycle`, and artist-image auto-sync are all planned — see `ROADMAP.md`.
+  Agents MUST NOT implement planned surface without an explicit instruction.
 
 ## Conventions
 
 - Mutations in `mutations.ts`, queries in `queries.ts` (enforced by `@vllnt/eslint-config/convex`).
 - Explicit `args` + `returns` on every Convex function.
-- Sandboxed `cacheEntries` table only — the component never reads host or sibling tables.
+- Sandboxed tables only (`cacheEntries` today; `artists`/`tracks`/`playlists` catalog planned) — the component never reads host or sibling tables.
 - No bare `v.any()` — host data is typed via the `*Value` validators.
 - 100% test coverage is BLOCKING (`vitest.config.mts` thresholds).
 - Runtime deps: only official `@convex-dev/*` + `@vllnt/*`. The provider-fetch phase composes

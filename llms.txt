@@ -6,10 +6,10 @@
 normalized music facts — tracks, artists, and albums — in its own sandboxed tables, keyed by an
 opaque provider id and cross-referenced by ISRC, each entry with an optional TTL. One typed API
 spans every provider (Spotify and Apple Music today; Deezer, MusicBrainz, and Wikidata as adapters).
-The host owns auth and its own domain tables: the cache accelerates provider lookups and never
-replaces the host's curated copy. `0.1.0` ships the cache core (`put`, `get`, `getByIsrc`,
-`invalidate`, `pruneExpired`, `stats`); provider fetch/search adapters and artist-image auto-sync
-are planned (see the README).
+The host owns auth; the component owns the factual catalog and the host keeps gameplay + editorial,
+referencing catalog rows by id / ISRC. `0.1.0` ships the raw cache core (`put`, `get`, `getByIsrc`,
+`invalidate`, `pruneExpired`, `stats`); the durable catalog (artists/tracks/playlists), provider
+adapters, the in-component import/sync engine, and artist-image auto-sync are planned (see the README).
 
 ## Docs
 

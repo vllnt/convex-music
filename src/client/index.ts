@@ -55,9 +55,10 @@ interface RunMutationCtx {
  * Consumer-facing client for `@vllnt/convex-music`. Construct with the mounted
  * component ref, then call from host queries/mutations/actions.
  *
- * The component is a TTL'd cache of provider facts: the host owns its own
- * domain tables and persists its curated copy — the cache never replaces them.
- * The host owns auth and gates write methods behind its own mutations.
+ * `0.1.0` is the raw provider-fetch cache; the durable music catalog
+ * (artists/tracks/playlists) the component will own is planned (see ROADMAP).
+ * The host owns auth and gates write methods behind its own mutations, and keeps
+ * gameplay + editorial, referencing catalog rows by id / ISRC.
  *
  * @example
  * ```ts

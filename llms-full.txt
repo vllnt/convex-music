@@ -38,8 +38,10 @@ const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalI
 - Tracks, artists, and albums, cached by opaque provider id and cross-referenced by ISRC.
 - `getByIsrc` resolves the same recording across every provider you've cached.
 - `pruneExpired` is an idempotent sweep, safe to run on a schedule.
-- Caches only public catalog facts; your app keeps its own curated tables — the cache never
-  replaces them.
+- Stores only public catalog facts — no secrets or credentials.
+- `[planned]` Owns a durable music catalog (artists / tracks / playlists) populated from providers
+  and read via API; your app keeps gameplay + editorial, referencing catalog rows by id / ISRC.
+- `[planned]` In-component import / sync / repair engine, driven by mount policy.
 - `[planned]` Provider fetch/search adapters (`search`, `getTrack` / `getArtist` / `getAlbum`).
 - `[planned]` Artist-image auto-sync with a configurable provider-selection policy.
 
@@ -469,9 +471,10 @@ interface RunMutationCtx {
  * Consumer-facing client for `@vllnt/convex-music`. Construct with the mounted
  * component ref, then call from host queries/mutations/actions.
  *
- * The component is a TTL'd cache of provider facts: the host owns its own
- * domain tables and persists its curated copy — the cache never replaces them.
- * The host owns auth and gates write methods behind its own mutations.
+ * `0.1.0` is the raw provider-fetch cache; the durable music catalog
+ * (artists/tracks/playlists) the component will own is planned (see ROADMAP).
+ * The host owns auth and gates write methods behind its own mutations, and keeps
+ * gameplay + editorial, referencing catalog rows by id / ISRC.
  *
  * @example
  * ```ts
@@ -535,11 +538,12 @@ import { defineSchema, defineTable } from "convex/server";
 import { cacheEntryFields } from "./validators.js";
 
 /**
- * Sandboxed cache tables — the component's own concern only. Each row is one
- * provider's normalized facts for one entity, keyed by an opaque provider id
- * (and ISRC for tracks). The component never models or reaches the host's
- * domain: the host keeps its own curated tables and the cache never replaces
- * them.
+ * Sandboxed tables — the component's own concern only. `0.1.0` ships the raw
+ * provider-fetch cache (`cacheEntries`); the durable catalog tables
+ * (artists/tracks/playlists) the component will own are planned (see ROADMAP).
+ * Each cache row is one provider's normalized facts for one entity, keyed by an
+ * opaque provider id (and ISRC for tracks). The component never reaches the
+ * host's tables; the host keeps gameplay + editorial, referencing catalog rows.
  */
 export default defineSchema({
   cacheEntries: defineTable(cacheEntryFields)

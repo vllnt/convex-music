@@ -28,8 +28,10 @@ const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalI
 - Tracks, artists, and albums, cached by opaque provider id and cross-referenced by ISRC.
 - `getByIsrc` resolves the same recording across every provider you've cached.
 - `pruneExpired` is an idempotent sweep, safe to run on a schedule.
-- Caches only public catalog facts; your app keeps its own curated tables — the cache never
-  replaces them.
+- Stores only public catalog facts — no secrets or credentials.
+- `[planned]` Owns a durable music catalog (artists / tracks / playlists) populated from providers
+  and read via API; your app keeps gameplay + editorial, referencing catalog rows by id / ISRC.
+- `[planned]` In-component import / sync / repair engine, driven by mount policy.
 - `[planned]` Provider fetch/search adapters (`search`, `getTrack` / `getArtist` / `getAlbum`).
 - `[planned]` Artist-image auto-sync with a configurable provider-selection policy.
 
