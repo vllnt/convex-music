@@ -58,6 +58,13 @@ so search and catalog are one component — they are NOT split into `convex-musi
   attribution — stay host-side (domain) and reconcile into the registry (e.g. a host cron over its
   own definition lists, exactly as songtrivia's crons drive `PLAYLIST_DEFINITIONS`/`ArtistDefinition`).
   The component owns the *generic* "keep these synced" input, never the curated/categorized list.
+  Seed/source entries are given by natural identifier — artist **name**, playlist **link/url**,
+  track **ISRC**, or provider id (the `targetMode` set: `name`|`url`|`isrc`|`providerId`). A small
+  `initialSources` seed in `app.use` is supported (zero-config/static bootstrap), but a real, evolving
+  catalog is best filled via the **runtime `sources` registry + import primitives** — don't put a
+  large/evolving list in the mount. "Fill" is a **declaration**: import is async + external, so the
+  engine *reconciles toward* the declared sources (`listSources` + sync-status report what's actually
+  populated) — there is no synchronous "filled at mount" guarantee.
 - **One component, no search/catalog split.** Search is *over the durable catalog*, and the catalog
   has ≥3 consumers (songtrivia full, spotzic artists, heardzic/bandzic tracks). Splitting search into
   a sibling `convex-music-search` would sever it from the catalog it queries with no consumer benefit
@@ -197,11 +204,11 @@ artist-image policy to every field.
 
 Policy-driven import of provider data into the component's catalog (writes its OWN tables).
 
-- `import-engine.1` `planned` — `importPlaylist(url|id)` / `importArtist` / `importTrack(isrc)` entry points (host-triggered; provider auto-detect).
+- `import-engine.1` `planned` — import entry points by natural identifier (the `targetMode` set `name`|`url`|`isrc`|`providerId`): `importArtist({ by:"name"|"providerId" })`, `importPlaylist({ url })`, `importTrack({ isrc })` (host-triggered; provider auto-detect from a url/id).
 - `import-engine.2` `planned` — traversal: playlist → tracks → artists; promote normalized provider facts into the catalog tables (dedup by ISRC/provider id).
 - `import-engine.3` `planned` — orchestration via `@convex-dev/workflow` + `workpool` (batch concurrency, step retries); config-driven import filters (title/quality), never game-specific rules.
 - `import-engine.4` `planned` — import request ledger (status, phases, events) for ops visibility — component-owned, mirrors songtrivia's `music_imports` control plane.
-- `import-engine.5` `planned` — generic **`sources` registry**: runtime host-managed CRUD (`addSource`/`removeSource`/`listSources`) of `{ provider, kind, externalId|url, cadence }` the engine keeps synced. Optional `initialSources` mount seed for zero-config. This is the generic "what to keep imported" input — the host's *curated, categorized* definitions (which playlists/artists, genre rules, game categories) stay host-side and reconcile INTO this registry (e.g. a host cron over its own `PLAYLIST_DEFINITIONS`-style lists, like songtrivia).
+- `import-engine.5` `planned` — generic **`sources` registry**: runtime host-managed CRUD (`addSource`/`removeSource`/`listSources`) of `{ kind, by: "name"|"url"|"isrc"|"providerId", value, providers?, cadence? }` the engine keeps synced; typed (no `v.any()`). Optional `initialSources` mount seed (small/static, zero-config bootstrap). This is the generic "what to keep imported" input — the host's *curated, categorized* definitions (which playlists/artists, genre rules, game categories) stay host-side and reconcile INTO this registry (e.g. a host cron over its own `PLAYLIST_DEFINITIONS`-style lists, like songtrivia).
 - `import-engine.6` `planned` — **import-request dedup**: a stable dedup key over (entityType, targetMode, provider, ref) so concurrent/duplicate import requests collapse to one (mirrors songtrivia's `buildMusicImportDedupeKey`).
 
 ## sync-lifecycle — `planned`

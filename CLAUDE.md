@@ -74,7 +74,12 @@ src/
   the import primitives + a generic `sources` registry; its *curated, categorized* definitions
   (which playlists/artists, genre rules, game categories/attribution) stay host-side and reconcile
   into the registry (like songtrivia's crons driving `PLAYLIST_DEFINITIONS`/`ArtistDefinition`). The
-  component owns the generic "keep these synced" input, never the curated/categorized list.
+  component owns the generic "keep these synced" input, never the curated/categorized list. Sources
+  are given by natural identifier — artist **name**, playlist **url**, track **ISRC**, or provider id
+  (`targetMode`: `name`|`url`|`isrc`|`providerId`). A small `initialSources` mount seed is supported
+  (zero-config bootstrap); a real evolving catalog uses the runtime `sources` registry + import
+  primitives. "Fill" is a declaration — import is async/external, so the engine reconciles toward the
+  sources (no synchronous "filled at mount"); `listSources` + sync-status report what's populated.
 - **One component — no search/catalog split.** Search is *over the durable catalog*, and the catalog
   has ≥3 consumers (songtrivia full, spotzic artists, heardzic/bandzic tracks). A standalone
   `convex-music-search` would sever search from the catalog it queries for no consumer gain, so
