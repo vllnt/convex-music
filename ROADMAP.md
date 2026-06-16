@@ -32,8 +32,30 @@ mark status, don't remove.
 - **Official children.** Retry/rate-limit/response-cache compose `@convex-dev/*`, never hand-rolled.
 - **Audio + image binaries are the host's.** The component caches metadata + URLs (and resolves an
   image policy); downloading/storing/licensing bytes is the host's concern.
+- **Import stays host-side; the component owns fetch + cache + catalog policy only.** A sandboxed
+  component cannot write host tables, so import orchestration that persists to the host's catalog
+  (filter/dedup/genre-map) and the host's sync-status lifecycle (`pending→synced→stale`, repair)
+  CANNOT live here — and shouldn't: a policy rich enough to express per-app import judgment is
+  knob-soup, and "orchestration Convex executes" is already `@convex-dev/workflow`/`workpool`
+  (duplicating it = the retired `convex-async-operations` mistake; it would also turn this
+  horizontal into a vertical). What the component DOES own, policy-driven from mount: provider
+  fetch, the cache, provider-preference order, TTLs, ISRC resolution, image policy, and a bulk
+  **prefetch/warm** traversal whose output is the component's *own* cache + a returned list (never
+  host writes). The reusable host-side machinery (retry ladder, budgeted batch-repair, cursor state)
+  graduates to `@vllnt/convex-helpers` (runs on host `ctx` → may write host tables), composed by
+  each app's thin importer.
 
 ---
+
+## Non-goals (boundary — durable)
+
+- **Not an importer.** Import orchestration, host-catalog persistence (filter / dedup / genre-map),
+  and the host sync-status lifecycle (`pending→synced→stale`, repair) stay in the host app — a
+  component can't write host tables. The component is fetch + normalize + cache + catalog policy.
+- **Not an orchestrator.** Generic retry / backoff / batch orchestration is `@convex-dev/workflow` /
+  `workpool`; reusable host-side sync machinery is `@vllnt/convex-helpers`. This component composes
+  the former for its own provider calls and never re-implements them.
+- **Not a system of record.** The cache is TTL'd acceleration, never the host's source of truth.
 
 ## cache-core — `done`
 
@@ -64,7 +86,8 @@ Fetch-on-miss verbs that fill the cache and return normalized facts. Compose off
 - `read-through-fetch.3` `planned` — `resolveByIsrc` cross-provider track resolution.
 - `read-through-fetch.4` `planned` — wire `@convex-dev/action-retrier` (backoff) + `@convex-dev/rate-limiter` (429) + `@convex-dev/workpool` (batch concurrency).
 - `read-through-fetch.5` `planned` — live vs cached popularity option (`live: true` bypass / short TTL).
-- `read-through-fetch.6` `planned` — mount config: enabled providers, secret env-var names, market/locale, per-entity TTLs, rate limits, batch sizes (sensible zero-config defaults).
+- `read-through-fetch.6` `planned` — mount-policy config: enabled providers + **preference order**, secret env-var names, market/locale, per-entity TTLs, rate limits, batch sizes, ISRC resolution strategy, prefetch concurrency budget (sensible zero-config defaults). This is the "managed by policy from init" surface — catalog/cache behavior only, never host import rules.
+- `read-through-fetch.7` `planned` — policy-driven bulk **`prefetch` / `warmPlaylist`**: traverse playlist→tracks→artists, fetch + cache them under the mount policy, and return the normalized list. Output is the component's *own* cache + the returned data — it never writes host tables (the host persists + applies its own filters/lifecycle). This is the slice of "import workflow" that legitimately lives in the component.
 
 ## artist-image-auto-sync — `planned`
 
@@ -84,7 +107,7 @@ Configurable artist profile-image resolution across providers + scheduled refres
 
 Land each real consumer on the component; songtrivia is the reference.
 
-- `consumer-migration.1` `planned` — migrate songtrivia's `music/providers/*` onto the component (track-centric; reference consumer).
+- `consumer-migration.1` `planned` — migrate songtrivia's `music/providers/*` onto the component (track-centric; reference consumer). Its import system stays host-side — control plane (`music/imports`), filters, persistence, sync-status lifecycle, and batched repair untouched; only the provider-fetch substrate is swapped for the component, and the shared sync machinery (`lib/music_sync`) graduates to `@vllnt/convex-helpers`.
 - `consumer-migration.2` `planned` — spotzic artist-catalog seed on the component (artist facts; host owns editorial merge + frozen snapshot).
 - `consumer-migration.3` `planned` — heardzic ops track-search + `getTrack` (audio source/licensing host-side).
 - `consumer-migration.4` `planned` — bandzic ops `getTrack` + clip handling (host-side audio).
