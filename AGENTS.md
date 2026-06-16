@@ -79,18 +79,20 @@ src/
   `excludeIds` (recently-used) is gameplay data the host passes in; the component never tracks it.
 - **Per-deployment data.** Component tables are sandboxed per mount — each app's catalog is its own
   data (shared schema + engine, isolated data), not a shared catalog across apps.
-- **Multiple searches per host.** Two ways: (a) **named profiles** over one catalog — presets
-  `{ kinds, providers, sources }` defined at mount, invoked by name (`search({ profile: "artists" })`);
-  (b) **named mounts** (`app.use(music, { name })` × N) for hard isolation (separate data/providers/
-  creds), per the BLOCKING mount-safety rule. Profiles for "artists + tracks search over one library";
-  mounts when instances must not share data.
-- **Multiple catalogs = named mounts; `scope` only if runtime/multi-tenant.** Per the hub mandate
-  (default single namespace, no `scope` field, rely on multi-mount), a static set of catalogs is
-  named mounts (each its own config + isolated data). Do NOT add a "many catalogs" init config — it
-  duplicates multi-mount and forces scoped indexes everywhere. Add an opaque `scope` ONLY for
-  runtime/multi-tenant catalogs (can't `app.use` at runtime) — not needed today (each game is its own
-  deployment). Per-catalog field/provider differences = field-source policy + profiles; other-domain
-  catalogs (podcasts) are out of scope.
+- **Multiple searches per host.** A search targets a **catalog** (the partition — see Multiple
+  catalogs per mount); each catalog has its own kinds/providers/field-source policy, so "artists
+  search" + "tracks search" are two catalogs in one mount. Within a catalog, use **named profiles**
+  (presets) and/or a per-call policy. **Named mounts** remain for hard cross-deployment isolation
+  (mount-safety holds either way).
+- **Multiple catalogs per mount (opaque `catalog` dimension) — owner decision.** One
+  `app.use(music, { catalogs: {…} })` holds N catalogs, each with its own config (kinds, providers,
+  field-source policy, profiles, retention); plus runtime `createCatalog`/`listCatalogs`. Opaque
+  `catalog` ref on every table + scoped indexes + scoped reads; a **default catalog** keeps
+  single-catalog usage zero-config. **BLOCKING:** a non-scoped read must NEVER silently span catalogs
+  — every catalog read carries the `catalog` id. Deliberate deviation from the fleet's default
+  multi-mount lean, favoring host DX (one mount, one ref); native multi-mount still works for hard
+  cross-deployment isolation. Other-domain catalogs (podcasts) out of scope. See `ROADMAP.md`
+  › `catalog-store.6`.
 - **Pluggable providers — one adapter, one internal schema.** Adding a provider is one adapter folder
   (`client` · `types` = the provider's RAW schema, private · `mappers` raw→internal · `impl`) + a
   registry entry — no core edits (open/closed). ONE internal normalized schema is the public contract;

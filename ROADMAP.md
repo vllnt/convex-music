@@ -74,24 +74,23 @@ so search and catalog are one component — they are NOT split into `convex-musi
   applied to `image`.
 - **Per-deployment data.** Sandboxed per mount — each app's catalog is its own data (shared schema +
   engine, isolated data). Not one shared catalog across apps.
-- **Multiple searches per host — profiles or named mounts.** A host can run several search types side
-  by side, two ways: (a) **named profiles** over one catalog — presets `{ kinds, providers, sources }`
-  defined at mount and invoked by name (`search({ profile: "artists" })`); shared catalog + creds,
-  lighter. (b) **named mounts** — `app.use(music, { name })` × N for hard isolation (separate data,
-  providers, creds per instance), relying on the BLOCKING mount-safety requirement (no cross-mount
-  singletons; per-instance idempotent crons). Use profiles for "artists search + tracks search over
-  one library"; use mounts when the instances must not share data/creds.
-- **Multiple catalogs = named mounts (static); `scope` only if runtime/multi-tenant.** Per the hub
-  multi-instance mandate (*default single namespace, no `scope` field, rely on native multi-mount*),
-  a static set of catalogs configured at init IS named mounts — `app.use(music, { name })` × N, each
-  its own kinds/providers/field-source policy + hard-isolated data. We deliberately do NOT add a
-  separate "many catalogs" init config: it would duplicate multi-mount and force a `scope` column +
-  scoped indexes on every table + scoped reads everywhere (over-namespacing + cross-scope leak risk).
-  An opaque **`scope`** dimension (scoped indexes + reads, default single scope, zero-config) is added
-  ONLY if catalogs must be created at **runtime / per-tenant** (can't `app.use` a new one without a
-  redeploy) — not needed today (each game is its own deployment → its own catalog). Per-catalog
-  field/provider differences are the field-source policy + profiles; different-domain catalogs
-  (e.g. podcasts) are out of scope — this is a music catalog.
+- **Multiple searches per host.** A search targets a **catalog** (the partition — see *Multiple
+  catalogs per mount*); each catalog carries its own kinds/providers/field-source policy, so an
+  "artists search" and a "tracks search" are just two catalogs in one mount. Within a catalog, define
+  **named profiles** (search presets) and/or pass a per-call field-source policy. **Named mounts**
+  (`app.use(music, { name })` × N) remain available for hard cross-deployment isolation (the BLOCKING
+  mount-safety requirement holds either way).
+- **Multiple catalogs per mount (opaque `catalog` dimension) — owner decision.** One
+  `app.use(music, { catalogs: { … } })` holds N catalogs, each with its own config (kinds, providers,
+  field-source policy, profiles, retention), plus runtime `createCatalog` / `listCatalogs` so a
+  catalog can be added without a redeploy. Implemented as an opaque `catalog` ref on every table +
+  **scoped indexes + scoped reads**; a **default catalog** keeps single-catalog usage zero-config.
+  **BLOCKING:** a non-scoped read must NEVER silently span catalogs (the mandate's footgun) — every
+  catalog read carries the `catalog` id (or explicitly opts into cross-catalog). This favors host DX
+  (one mount, one ref) over the fleet's default multi-mount lean — a deliberate deviation; native
+  multi-mount still works for hard cross-deployment isolation. Different-domain catalogs (e.g.
+  podcasts) remain out of scope — this is a music catalog. (Supersedes the earlier "named mounts
+  only" decision.)
 - **Pluggable providers — one adapter, one internal schema.** Adding a provider is a localized change:
   a new adapter (`client` auth/fetch · `types` the provider's RAW response schema, private · `mappers`
   raw→internal · `impl` the `MusicProvider` interface) registered in the registry — **no core edits**
@@ -144,6 +143,7 @@ The durable music database — generic, modeled on songtrivia's `music_*` shape.
 - `catalog-store.3` `planned` — cache↔catalog table design: decide whether `cacheEntries` persists as a short-lived raw-response dedup layer behind the catalog, or freshness folds into catalog rows via sync-status (songtrivia's single-table model). Document the chosen seam.
 - `catalog-store.4` `planned` — upsert/merge into the catalog from normalized provider facts (dedup by ISRC/provider id; multi-provider `providers[]` junction).
 - `catalog-store.5` `planned` — `selectEligible({ kind, filter, weight?, excludeIds?, limit })` — generic random/weighted/filtered selection over the catalog (host passes `excludeIds` of recently-used subjects). The selection *primitive* for daily-game pickers; the daily-puzzle assignment (freeze, no-repeat, schedule) stays in the host/daily-game layer.
+- `catalog-store.6` `planned` — **multi-catalog scope**: an opaque `catalog` ref on every table (cache, catalog, sources, sync rows) + **scoped indexes** (`by_catalog_*`) + a `catalogs` config table (mount-seeded `catalogs: {…}` AND runtime `createCatalog`/`listCatalogs`), each catalog holding its own kinds/providers/field-source policy/retention. **Default catalog** so single-catalog usage is zero-config. BLOCKING: every catalog read carries the `catalog` id — a non-scoped read must never silently span catalogs. Crons iterate catalogs (per-catalog prune/sync), idempotent. Client: `music.catalog("artists").search(…)` / per-call `catalog`.
 
 ## provider-adapters — `planned`
 
