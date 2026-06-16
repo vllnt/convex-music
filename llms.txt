@@ -1,0 +1,32 @@
+# @vllnt/convex-music
+
+> Provider-neutral, cached music catalog as a Convex component — Spotify, Apple Music, and more behind one API.
+
+`@vllnt/convex-music` is a publishable Convex component targeting `convex@^1.36.1`. It caches
+normalized music facts — tracks, artists, and albums — in its own sandboxed tables, keyed by an
+opaque provider id and cross-referenced by ISRC, each entry with an optional TTL. One typed API
+spans every provider (Spotify and Apple Music today; Deezer, MusicBrainz, and Wikidata as adapters).
+The host owns auth and its own domain tables: the cache accelerates provider lookups and never
+replaces the host's curated copy. `0.1.0` ships the cache core (`put`, `get`, `getByIsrc`,
+`invalidate`, `pruneExpired`, `stats`); provider fetch/search adapters and artist-image auto-sync
+are planned (see the README).
+
+## Docs
+
+- [README](README.md): Overview, installation, usage, API summary
+- [API Reference](docs/API.md): Client methods, value shapes, TTL/cache semantics
+- [Changelog](CHANGELOG.md): Version history and release notes
+- [Contributing](CONTRIBUTING.md): Development setup, validation commands, release workflow
+
+## Examples
+
+- [Example component wrapper](example/convex/example.ts): Host-app wrapper functions
+- [Example tests](example/convex/example.test.ts): End-to-end usage coverage with `convex-test`
+
+## Optional
+
+- [AGENTS](AGENTS.md): Canonical agent instructions for this repository
+- [Security Policy](SECURITY.md): Vulnerability reporting policy
+- [Code of Conduct](CODE_OF_CONDUCT.md): Community participation guidelines
+- [License](LICENSE): MIT license
+- [Full source bundle](llms-full.txt): Aggregated README, changelog, API docs, and key source files
