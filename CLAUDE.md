@@ -104,6 +104,13 @@ src/
 - Runtime deps: only official `@convex-dev/*` + `@vllnt/*`. The provider-fetch phase composes
   `@convex-dev/action-cache` / `action-retrier` / `rate-limiter` as child components — never
   hand-rolled. A component runs in V8: Apple's ES256 JWT must use Web Crypto, not `jsonwebtoken`.
+- Provider env vars (Convex environment variables, set on the host deployment): Spotify
+  `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`; Apple `APPLE_MUSIC_ISSUER` / `APPLE_MUSIC_KID` /
+  `APPLE_MUSIC_PRIVATE_KEY` (sourced from songtrivia's backend). Enabled-providers + preference is
+  mount policy, superseding songtrivia's `SPOTIFY_ONLY` / `APPLE_ONLY` toggles.
+- Resilience: retry `429` **and** overload `5xx` (incl. `529` / `503`) — honor `Retry-After`, capped
+  backoff + jitter, per-request timeout, bounded concurrency. songtrivia retries only `429`; the
+  component must also survive provider overload (`529`) so an import never hard-fails on it.
 
 ## Docs sync
 

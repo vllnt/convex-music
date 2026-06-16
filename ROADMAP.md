@@ -67,6 +67,10 @@ so search and catalog are one component — they are NOT split into `convex-musi
 - **V8 only.** A component runs in V8 → Apple ES256 JWT uses Web Crypto, not `jsonwebtoken`.
 - **Official children.** Workflow / retry / rate-limit / response-cache compose `@convex-dev/*`,
   never hand-rolled.
+- **Resilient against provider overload (429 + 5xx/529).** songtrivia handles only `429`; the
+  component must also retry overload `5xx` (incl. `529`, `503`) with `Retry-After` + capped backoff +
+  jitter + per-request timeout + bounded concurrency, so a Spotify/Apple `529` never hard-fails an
+  import. (See `read-through-fetch.4`.)
 - **Audio + image binaries are the host's.** The component stores metadata + URLs (and resolves an
   image policy); downloading/storing/licensing bytes is the host's concern.
 
@@ -124,10 +128,10 @@ Fetch-on-miss verbs that fill the cache + catalog and return normalized facts. C
 - `read-through-fetch.1` `planned` — `search({ provider?, query, types })` (track + artist).
 - `read-through-fetch.2` `planned` — `getTrack` / `getArtist` / `getAlbum` (cache-through → catalog).
 - `read-through-fetch.3` `planned` — `resolveByIsrc` cross-provider track resolution.
-- `read-through-fetch.4` `planned` — wire `@convex-dev/action-retrier` (backoff) + `@convex-dev/rate-limiter` (429) + `@convex-dev/workpool` (batch concurrency).
+- `read-through-fetch.4` `planned` — **resilient provider calls**: retry on `429` **AND overload `5xx` (500/502/503/504/`529`)** — songtrivia retries ONLY 429, so overload `529`/`503` currently throw un-retried (the gap to fix). Honor `Retry-After`, capped exponential backoff + jitter (cap ~60s, bounded attempts), per-request timeout, bounded concurrency. Compose `@convex-dev/action-retrier` + `@convex-dev/rate-limiter` + `@convex-dev/workpool`; optional circuit-breaker per provider.
 - `read-through-fetch.5` `planned` — live vs cached popularity option (`live: true` bypass / short TTL).
 - `read-through-fetch.6` `planned` — mount-policy config: enabled providers + **preference order**, secret env-var names, market/locale, per-entity TTLs, rate limits, batch sizes, ISRC resolution strategy, prefetch budget, import filters-as-config (sensible zero-config defaults). The "managed by policy from init" surface.
-- `read-through-fetch.7` `planned` — host wiring + credentials: the host mounts via `app.use(music)` in its `convex.config.ts`; provider credentials are supplied as **Convex environment variables** ([docs](https://docs.convex.dev/production/environment-variables)) on the deployment — Spotify (`SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`), Apple (`APPLE_MUSIC_ISSUER`, `APPLE_MUSIC_KID`, `APPLE_MUSIC_PRIVATE_KEY`), then Deezer/MusicBrainz/Wikidata — with env-var names overridable via the mount policy. Decide the consumption seam: component actions read `process.env` directly vs the host passes values at `app.use`. Document the required env vars per provider in the README.
+- `read-through-fetch.7` `planned` — host wiring + credentials: the host mounts via `app.use(music)` in its `convex.config.ts`; provider credentials are supplied as **Convex environment variables** ([docs](https://docs.convex.dev/production/environment-variables)) on the deployment — Spotify (`SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`), Apple (`APPLE_MUSIC_ISSUER`, `APPLE_MUSIC_KID`, `APPLE_MUSIC_PRIVATE_KEY`), then Deezer/MusicBrainz/Wikidata — with env-var names overridable via the mount policy. Decide the consumption seam: component actions read `process.env` directly vs the host passes values at `app.use`. Document the required env vars per provider in the README. Provider enable/preference (the mount policy's `providers` list) supersedes songtrivia's `SPOTIFY_ONLY` / `APPLE_ONLY` env toggles — those become config, not env flags.
 
 ## import-engine — `planned`
 
@@ -138,6 +142,7 @@ Policy-driven import of provider data into the component's catalog (writes its O
 - `import-engine.3` `planned` — orchestration via `@convex-dev/workflow` + `workpool` (batch concurrency, step retries); config-driven import filters (title/quality), never game-specific rules.
 - `import-engine.4` `planned` — import request ledger (status, phases, events) for ops visibility — component-owned, mirrors songtrivia's `music_imports` control plane.
 - `import-engine.5` `planned` — generic **`sources` registry**: runtime host-managed CRUD (`addSource`/`removeSource`/`listSources`) of `{ provider, kind, externalId|url, cadence }` the engine keeps synced. Optional `initialSources` mount seed for zero-config. This is the generic "what to keep imported" input — the host's *curated, categorized* definitions (which playlists/artists, genre rules, game categories) stay host-side and reconcile INTO this registry (e.g. a host cron over its own `PLAYLIST_DEFINITIONS`-style lists, like songtrivia).
+- `import-engine.6` `planned` — **import-request dedup**: a stable dedup key over (entityType, targetMode, provider, ref) so concurrent/duplicate import requests collapse to one (mirrors songtrivia's `buildMusicImportDedupeKey`).
 
 ## sync-lifecycle — `planned`
 
@@ -147,6 +152,8 @@ Keep the catalog fresh; recover failures. Operates on the component's own catalo
 - `sync-lifecycle.2` `planned` — retry with backoff (entity-level, hours-scale) distinct from provider-call retry (seconds, via action-retrier).
 - `sync-lifecycle.3` `planned` — budgeted, cursored batch-repair (find unsynced/failed/stale → re-sync), idempotent + per-mount.
 - `sync-lifecycle.4` `planned` — maintenance crons (find-unsynced, retry-failed) — mount-safe, idempotent.
+- `sync-lifecycle.5` `planned` — concurrency-safe batch claims: acquire/release a lease (claim token + lease TTL) so parallel sync workers don't double-process; scavenge expired claims; ISRC chunking + dedup guardrails (mirrors `tracks/claims.ts` + `track_sync_guardrails.ts`).
+- `sync-lifecycle.6` `planned` — repair-status state machine (`clean → needs_repair → repairing → failed_repair`, validated transitions) + atomic repair claim — the GENERIC repair infra. The specific *what* to repair (e.g. genre links, junctions) is host-domain; the component owns the state machine + claim + budgeted runner, not the domain repair rules.
 
 ## artist-image-auto-sync — `planned`
 

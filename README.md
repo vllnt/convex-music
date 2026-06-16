@@ -43,6 +43,17 @@ npm install @vllnt/convex-music
 
 Requires `convex@^1.36.1` as a peer dependency.
 
+### Environment variables `[planned]`
+
+Provider credentials are supplied as [Convex environment variables](https://docs.convex.dev/production/environment-variables) on your deployment (used once the provider adapters ship):
+
+| Provider | Variables |
+| --- | --- |
+| Spotify | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` |
+| Apple Music | `APPLE_MUSIC_ISSUER`, `APPLE_MUSIC_KID`, `APPLE_MUSIC_PRIVATE_KEY` |
+
+Which providers are enabled (and their preference order) is set in the mount policy, not via env flags.
+
 ## Usage
 
 Mount the component in your app's `convex.config.ts`:
