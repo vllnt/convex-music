@@ -43,6 +43,9 @@ const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalI
   and read via API; your app keeps gameplay + editorial, referencing catalog rows by id / ISRC.
 - `[planned]` In-component import / sync / repair engine, driven by mount policy.
 - `[planned]` Provider fetch/search adapters (`search`, `getTrack` / `getArtist` / `getAlbum`).
+- `[planned]` Field-source policy — configure what comes back from search + catalog reads: which
+  entity kinds, which fields, and per-field which provider supplies it (e.g. artists with Spotify
+  image, tracks with Apple `previewUrl`, or both). Default at mount, override per call.
 - `[planned]` Artist-image auto-sync with a configurable provider-selection policy.
 
 ## Installation

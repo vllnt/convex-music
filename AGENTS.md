@@ -85,6 +85,12 @@ src/
 - **Typed facts, no `v.any()`.** Cached values are typed unions (`trackValue` / `artistValue` /
   `albumValue`). Provider-varying fields are optional (e.g. `popularity` is Spotify; `country` /
   `gender` / `members` / `debutYear` are MusicBrainz/Wikidata).
+- **Field-source projection policy.** Search + catalog reads take a policy choosing entity **kinds**,
+  **fields** (projection), and **per-field provider source** (single `{ provider }` · `{ order }`
+  preference · `{ mode: "all" }` per-provider map) — e.g. artists + image from Spotify; tracks +
+  `previewUrl` from Apple; or both. Default at mount, override per call. Requires per-provider
+  provenance (`providers[]`); the return type is generic over the policy (no `v.any()`). The
+  artist-image policy is this applied to `image`. See `ROADMAP.md` › `field-source-policy`.
 - **Never-expires sentinel.** Entries without a TTL store `expiresAt = Number.MAX_SAFE_INTEGER` (a
   real number, not `undefined`) so the `by_expiry` index never sweeps a never-expiring row.
 - **Read-time expiry + prune.** `get`/`getByIsrc` treat expired entries as misses; `pruneExpired`

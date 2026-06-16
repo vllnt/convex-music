@@ -62,6 +62,14 @@ so search and catalog are one component — they are NOT split into `convex-musi
   overrides, `sourceRefs`, and the gameplay-frozen snapshot remain the host's.
 - **Live vs synced popularity.** The component serves *live* popularity (cache-through); the host
   freezes a *synced* snapshot for deterministic gameplay grading.
+- **Field-source projection policy.** Consumers configure *what comes back*: which entity **kinds**
+  (artists / tracks / albums), which **fields** (projection), and **per-field which provider supplies
+  it** — e.g. artists only with image from Spotify; tracks with `previewUrl` from Apple not Spotify;
+  or "both" (return each provider's value). Set as a **default at mount**, **overridable per call**;
+  zero-config default = the mount preference order, all fields. Applies to BOTH provider search and
+  catalog search/get via one resolver. Requires per-provider field provenance retained in the catalog
+  (`providers[]`); the return shape is typed/generic over the policy (scalar for single/order, a
+  provider→value map for "both") — never `v.any()`. The artist-image policy is this applied to `image`.
 - **Per-deployment data.** Sandboxed per mount — each app's catalog is its own data (shared schema +
   engine, isolated data). Not one shared catalog across apps.
 - **V8 only.** A component runs in V8 → Apple ES256 JWT uses Web Crypto, not `jsonwebtoken`.
@@ -105,7 +113,7 @@ The raw provider-fetch cache substrate: TTL'd entries, keyed lookups, ISRC cross
 The durable music database — generic, modeled on songtrivia's `music_*` shape.
 
 - `catalog-store.1` `planned` — `artists` / `tracks` / `playlists` catalog tables (durable), ISRC-keyed track identity, artist↔track + playlist↔track relations, raw provider genres/popularity (no game taxonomy).
-- `catalog-store.2` `planned` — read/search API over the catalog (`getArtist`/`getTrack`/`getPlaylist`, `searchArtists`/`searchTracks`, `getTrackByIsrc`) + reactive queries for hosts.
+- `catalog-store.2` `planned` — read/search API over the catalog (`getArtist`/`getTrack`/`getPlaylist`, `searchArtists`/`searchTracks`, `getTrackByIsrc`) + reactive queries for hosts; every read/search accepts a per-call **field-source policy** override (kinds, fields, per-field provider source — see `field-source-policy`).
 - `catalog-store.3` `planned` — cache↔catalog table design: decide whether `cacheEntries` persists as a short-lived raw-response dedup layer behind the catalog, or freshness folds into catalog rows via sync-status (songtrivia's single-table model). Document the chosen seam.
 - `catalog-store.4` `planned` — upsert/merge into the catalog from normalized provider facts (dedup by ISRC/provider id; multi-provider `providers[]` junction).
 - `catalog-store.5` `planned` — `selectEligible({ kind, filter, weight?, excludeIds?, limit })` — generic random/weighted/filtered selection over the catalog (host passes `excludeIds` of recently-used subjects). The selection *primitive* for daily-game pickers; the daily-puzzle assignment (freeze, no-repeat, schedule) stays in the host/daily-game layer.
@@ -125,13 +133,25 @@ One normalize adapter per provider, behind a single interface. No host coupling.
 
 Fetch-on-miss verbs that fill the cache + catalog and return normalized facts. Compose official children.
 
-- `read-through-fetch.1` `planned` — `search({ provider?, query, types })` (track + artist).
+- `read-through-fetch.1` `planned` — `search({ provider?, query, types, policy? })` (track + artist); accepts a per-call **field-source policy** override (see `field-source-policy`).
 - `read-through-fetch.2` `planned` — `getTrack` / `getArtist` / `getAlbum` (cache-through → catalog).
 - `read-through-fetch.3` `planned` — `resolveByIsrc` cross-provider track resolution.
 - `read-through-fetch.4` `planned` — **resilient provider calls**: retry on `429` **AND overload `5xx` (500/502/503/504/`529`)** — songtrivia retries ONLY 429, so overload `529`/`503` currently throw un-retried (the gap to fix). Honor `Retry-After`, capped exponential backoff + jitter (cap ~60s, bounded attempts), per-request timeout, bounded concurrency. Compose `@convex-dev/action-retrier` + `@convex-dev/rate-limiter` + `@convex-dev/workpool`; optional circuit-breaker per provider.
 - `read-through-fetch.5` `planned` — live vs cached popularity option (`live: true` bypass / short TTL).
 - `read-through-fetch.6` `planned` — mount-policy config: enabled providers + **preference order**, secret env-var names, market/locale, per-entity TTLs, rate limits, batch sizes, ISRC resolution strategy, prefetch budget, import filters-as-config (sensible zero-config defaults). The "managed by policy from init" surface.
 - `read-through-fetch.7` `planned` — host wiring + credentials: the host mounts via `app.use(music)` in its `convex.config.ts`; provider credentials are supplied as **Convex environment variables** ([docs](https://docs.convex.dev/production/environment-variables)) on the deployment — Spotify (`SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`), Apple (`APPLE_MUSIC_ISSUER`, `APPLE_MUSIC_KID`, `APPLE_MUSIC_PRIVATE_KEY`), then Deezer/MusicBrainz/Wikidata — with env-var names overridable via the mount policy. Decide the consumption seam: component actions read `process.env` directly vs the host passes values at `app.use`. Document the required env vars per provider in the README. Provider enable/preference (the mount policy's `providers` list) supersedes songtrivia's `SPOTIFY_ONLY` / `APPLE_ONLY` env toggles — those become config, not env flags.
+
+## field-source-policy — `planned`
+
+Configure *what comes back* from search + catalog reads: entity kinds, field projection, and per-field
+provider source. One resolver over the per-provider `providers[]` provenance. Generalizes the
+artist-image policy to every field.
+
+- `field-source-policy.1` `planned` — policy shape: `kinds` (which of artist/track/album to return), `fields` (include/exclude projection), `sources` (per-field provider resolution: `{ provider }` single · `{ order: [...] }` preference · `{ mode: "all" }` both/per-provider).
+- `field-source-policy.2` `planned` — **default at mount**, **per-call override** (deep-merge, per-call wins); zero-config default = mount preference order, all fields.
+- `field-source-policy.3` `planned` — one resolver applied to BOTH provider search (`read-through-fetch`) and catalog search/get (`catalog-store`). Worked cases: artists-only + `image` from Spotify; tracks + `previewUrl` from Apple (not Spotify); both.
+- `field-source-policy.4` `planned` — depends on per-provider field provenance retained in the catalog (`providers[]`, `catalog-store.4`); the resolver projects each field from the chosen provider(s).
+- `field-source-policy.5` `planned` — typed/generic returns: single/order → resolved scalar; `mode: "all"` → a `provider→value` map for that field. No `v.any()`; the client type is generic over the policy.
 
 ## import-engine — `planned`
 
@@ -160,7 +180,7 @@ Keep the catalog fresh; recover failures. Operates on the component's own catalo
 Configurable artist profile-image resolution across providers + scheduled refresh. (Owner request.)
 
 - `artist-image-auto-sync.1` `planned` — store per-provider artist image URLs alongside the artist row.
-- `artist-image-auto-sync.2` `planned` — **provider-selection policy**: ordered preference (e.g. `["spotify","apple","wikidata"]`) + `strategy` (`first-available` | `highest-resolution`) + optional `fallback`. Configurable at mount and overridable per call. Resolves a single `profileImageUrl`.
+- `artist-image-auto-sync.2` `planned` — **image provider-selection** = the `field-source-policy` applied to the `image` field: ordered preference (e.g. `["spotify","apple","wikidata"]`) + `strategy` (`first-available` | `highest-resolution`) + optional `fallback`, resolving a single `profileImageUrl`. Reuses the general resolver, not a separate mechanism.
 - `artist-image-auto-sync.3` `planned` — `getArtistImage(key, { policyOverride? })` returns the policy-resolved URL.
 - `artist-image-auto-sync.4` `planned` — auto-sync cron: idempotent, per-mount, re-fetches images on a configurable cadence and re-applies the policy (URLs only; binary storage stays host-side).
 - `artist-image-auto-sync.5` `planned` — front-tooling analysis: a reactive `useArtistImage` hook only if a consumer renders catalog images.
