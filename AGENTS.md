@@ -53,6 +53,14 @@ src/
   `playlists` tables — the factual music database — populated from providers (cache) and read by
   hosts via API. It IS the system of record for the factual catalog (this supersedes the earlier
   "cache, never replace"). The host no longer keeps its own copy of the raw catalog.
+- **Three layers — provider-granular underneath, identity-unified on top (not a catalog per provider).**
+  (1) **Raw cache** (`cacheEntries`): ephemeral TTL'd **per-provider rows** keyed `(catalog, kind,
+  provider, externalId)`. (2) **Catalog**: durable, **one unified canonical entity per identity**
+  (track by ISRC, artist by resolved id — MBID then name, album by id) with per-provider `providers[]`
+  provenance — NOT one row per provider, NOT a view. (3) **View**: the field-source policy/profiles
+  project per-field across `providers[]`. A catalog per provider is wrong — the field-source policy
+  needs one entity holding all providers. Identity resolution (ISRC / MBID+name / id) is the merge
+  (`catalog-store.4`). See `ROADMAP.md` › `catalog-store`.
 - **Tier-0 boundary (stays host-side).** To remain a horizontal music-catalog component, the host
   keeps gameplay, **editorial overrides + `sourceRefs` + the frozen gameplay snapshot**, and game
   **categories / attribution / genre→category taxonomy**, referencing catalog rows by id / ISRC. App

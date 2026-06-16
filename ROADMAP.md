@@ -31,6 +31,17 @@ so search and catalog are one component — they are NOT split into `convex-musi
   via API. It is the system of record for the **factual catalog**, not just a TTL cache. (This
   supersedes the earlier "cache, never replace": the host no longer keeps its own copy of the raw
   catalog — it reads from the component.)
+- **Three layers — provider-granular underneath, identity-unified on top (not a catalog per provider).**
+  (1) **Raw cache** (`cacheEntries`) — ephemeral, TTL'd, **per-provider rows** keyed `(catalog, kind,
+  provider, externalId)` = the verbatim provider response. (2) **Catalog** — durable; **one unified
+  canonical entity per real-world identity** (track by ISRC, artist by resolved id, album by id) with a
+  per-provider **`providers[]` provenance** — NOT one row per provider, and NOT a view. (3) **View** —
+  the field-source policy / profiles project per-field across an entity's `providers[]`. A catalog
+  **per provider is wrong**: the field-source policy ("preview from Apple, image from Spotify, 3 of 4")
+  needs one entity holding all providers to project across — per-provider data lives in the provenance,
+  not in separate catalogs. Identity resolution (ISRC / MBID+name / id) is the merge step
+  (`catalog-store.4`). Matches all four games (songtrivia ISRC tracks + `providers[]`; spotzic
+  artist facts aggregated across Spotify+MusicBrainz+Wikidata; heardzic/bandzic track previews).
 - **Tier-0 boundary — what stays host-side.** To remain a horizontal music-catalog component (not a
   game-specific store), the host keeps: gameplay (puzzles, guesses, stats), **editorial overrides +
   `sourceRefs` + the frozen gameplay snapshot**, and game **categories / attribution / genre→category
@@ -138,10 +149,10 @@ The raw provider-fetch cache substrate: TTL'd entries, keyed lookups, ISRC cross
 
 The durable music database — generic, modeled on songtrivia's `music_*` shape.
 
-- `catalog-store.1` `planned` — `artists` / `tracks` / `playlists` catalog tables (durable), ISRC-keyed track identity, artist↔track + playlist↔track relations, raw provider genres/popularity (no game taxonomy).
+- `catalog-store.1` `planned` — durable `artists` / `tracks` / `playlists` tables as **one unified canonical entity per real-world identity** (track by **ISRC**, artist by **resolved id — MBID preferred, name fallback**, album by id/(artist+title+year)) — NOT one row per provider. Each entity carries a per-provider **`providers[]` provenance** (each provider's id + its field values), enabling the field-source policy. Artist↔track + playlist↔track relations; raw provider genres/popularity (no game taxonomy).
 - `catalog-store.2` `planned` — read/search API over the catalog (`getArtist`/`getTrack`/`getPlaylist`, `searchArtists`/`searchTracks`, `getTrackByIsrc`) + reactive queries for hosts; every read/search accepts a per-call **field-source policy** override (kinds, fields, per-field provider source — see `field-source-policy`).
 - `catalog-store.3` `planned` — cache↔catalog table design: decide whether `cacheEntries` persists as a short-lived raw-response dedup layer behind the catalog, or freshness folds into catalog rows via sync-status (songtrivia's single-table model). Document the chosen seam.
-- `catalog-store.4` `planned` — upsert/merge into the catalog from normalized provider facts (dedup by ISRC/provider id; multi-provider `providers[]` junction).
+- `catalog-store.4` `planned` — **identity resolution + merge**: unify a provider's normalized facts into the canonical entity — tracks by ISRC (with a fallback when a provider omits ISRC), artists by MBID then name (configurable strategy), albums by id/(artist+title+year) — upserting that provider's slice into the entity's `providers[]` (idempotent; no duplicate canonical rows). This is the layer-1-raw → layer-2-unified promotion.
 - `catalog-store.5` `planned` — `selectEligible({ kind, filter, weight?, excludeIds?, limit })` — generic random/weighted/filtered selection over the catalog (host passes `excludeIds` of recently-used subjects). The selection *primitive* for daily-game pickers; the daily-puzzle assignment (freeze, no-repeat, schedule) stays in the host/daily-game layer.
 - `catalog-store.6` `planned` — **multi-catalog scope**: an opaque `catalog` ref on every table (cache, catalog, sources, sync rows) + **scoped indexes** (`by_catalog_*`) + a `catalogs` config table (mount-seeded `catalogs: {…}` AND runtime `createCatalog`/`listCatalogs`), each catalog holding its own kinds/providers/field-source policy/retention. **Default catalog** so single-catalog usage is zero-config. BLOCKING: every catalog read carries the `catalog` id — a non-scoped read must never silently span catalogs. Crons iterate catalogs (per-catalog prune/sync), idempotent. Client: `music.catalog("artists").search(…)` / per-call `catalog`.
 
