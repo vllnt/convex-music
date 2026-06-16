@@ -128,6 +128,12 @@ so search and catalog are one component — they are NOT split into `convex-musi
   component must also retry overload `5xx` (incl. `529`, `503`) with `Retry-After` + capped backoff +
   jitter + per-request timeout + bounded concurrency, so a Spotify/Apple `529` never hard-fails an
   import. (See `read-through-fetch.4`.)
+- **Automation is opt-in + budgeted; two rate layers.** Auto-import is **off by default** (a fresh
+  mount never auto-hammers providers). When enabled, throughput is a configurable **budget** — e.g.
+  "2 artists/hour" — enforced by a `@convex-dev/rate-limiter` token bucket per `(catalog, kind)`,
+  **decoupled from cron frequency** (not "cron-hourly-do-1"). This entity-throughput budget is
+  **distinct** from the provider-API rate (429/529 protection): one paces how many entities we import,
+  the other protects the provider's HTTP API. (See `auto-import`.)
 - **Audio + image binaries are the host's.** The component stores metadata + URLs (and resolves an
   image policy); downloading/storing/licensing bytes is the host's concern.
 
@@ -229,6 +235,16 @@ Keep the catalog fresh; recover failures. Operates on the component's own catalo
 - `sync-lifecycle.4` `planned` — maintenance crons (find-unsynced, retry-failed) — mount-safe, idempotent.
 - `sync-lifecycle.5` `planned` — concurrency-safe batch claims: acquire/release a lease (claim token + lease TTL) so parallel sync workers don't double-process; scavenge expired claims; ISRC chunking + dedup guardrails (mirrors `tracks/claims.ts` + `track_sync_guardrails.ts`).
 - `sync-lifecycle.6` `planned` — repair-status state machine (`clean → needs_repair → repairing → failed_repair`, validated transitions) + atomic repair claim — the GENERIC repair infra. The specific *what* to repair (e.g. genre links, junctions) is host-domain; the component owns the state machine + claim + budgeted runner, not the domain repair rules.
+
+## auto-import — `planned`
+
+Scheduled, **budgeted** automatic import/refresh of the `sources` registry + stale catalog rows.
+**Opt-in** (off by default — a fresh mount never auto-hammers providers).
+
+- `auto-import.1` `planned` — per-catalog `autoImport` config: `enabled` (default false), `schedule` (`{ cron }` | `{ everyMs }`), `select` (`unsynced-first` | `stale-oldest` | `priority`), `maxConcurrent` (workpool bound). Typed, zero-config default = disabled.
+- `auto-import.2` `planned` — **throughput budget** decoupled from cron: a `@convex-dev/rate-limiter` token bucket per `(catalog, kind)` — `rate: { artist: { count: 2, per: "1h" }, track: { count: 20, per: "1h" } }` ("2 artists/hour"). The bucket is the authoritative cap regardless of cron frequency, survives restarts. **Distinct from the provider-API rate** (`read-through-fetch.4`, 429/529): this paces *entity throughput*, that protects the *provider HTTP API*.
+- `auto-import.3` `planned` — the sweep cron: per-mount, idempotent, **cursored** (resume across runs, reuse songtrivia's `runBudgetedBatchedJob` pattern) — picks unsynced sources + stale catalog rows within the rate budget, enqueues imports via workpool honoring each source's `ImportOptions`. Backpressure: budget exhausted → no-op until the window refills (no unbounded queue).
+- `auto-import.4` `planned` — separate budgets/priority for **new import vs refresh** (optional): new-source imports take priority over stale-row refreshes; oldest-first within each.
 
 ## artist-image-auto-sync — `planned`
 
