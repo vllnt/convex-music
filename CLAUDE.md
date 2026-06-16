@@ -84,6 +84,13 @@ src/
   (b) **named mounts** (`app.use(music, { name })` × N) for hard isolation (separate data/providers/
   creds), per the BLOCKING mount-safety rule. Profiles for "artists + tracks search over one library";
   mounts when instances must not share data.
+- **Multiple catalogs = named mounts; `scope` only if runtime/multi-tenant.** Per the hub mandate
+  (default single namespace, no `scope` field, rely on multi-mount), a static set of catalogs is
+  named mounts (each its own config + isolated data). Do NOT add a "many catalogs" init config — it
+  duplicates multi-mount and forces scoped indexes everywhere. Add an opaque `scope` ONLY for
+  runtime/multi-tenant catalogs (can't `app.use` at runtime) — not needed today (each game is its own
+  deployment). Per-catalog field/provider differences = field-source policy + profiles; other-domain
+  catalogs (podcasts) are out of scope.
 - **Pluggable providers — one adapter, one internal schema.** Adding a provider is one adapter folder
   (`client` · `types` = the provider's RAW schema, private · `mappers` raw→internal · `impl`) + a
   registry entry — no core edits (open/closed). ONE internal normalized schema is the public contract;

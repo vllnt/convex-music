@@ -81,6 +81,17 @@ so search and catalog are one component — they are NOT split into `convex-musi
   providers, creds per instance), relying on the BLOCKING mount-safety requirement (no cross-mount
   singletons; per-instance idempotent crons). Use profiles for "artists search + tracks search over
   one library"; use mounts when the instances must not share data/creds.
+- **Multiple catalogs = named mounts (static); `scope` only if runtime/multi-tenant.** Per the hub
+  multi-instance mandate (*default single namespace, no `scope` field, rely on native multi-mount*),
+  a static set of catalogs configured at init IS named mounts — `app.use(music, { name })` × N, each
+  its own kinds/providers/field-source policy + hard-isolated data. We deliberately do NOT add a
+  separate "many catalogs" init config: it would duplicate multi-mount and force a `scope` column +
+  scoped indexes on every table + scoped reads everywhere (over-namespacing + cross-scope leak risk).
+  An opaque **`scope`** dimension (scoped indexes + reads, default single scope, zero-config) is added
+  ONLY if catalogs must be created at **runtime / per-tenant** (can't `app.use` a new one without a
+  redeploy) — not needed today (each game is its own deployment → its own catalog). Per-catalog
+  field/provider differences are the field-source policy + profiles; different-domain catalogs
+  (e.g. podcasts) are out of scope — this is a music catalog.
 - **Pluggable providers — one adapter, one internal schema.** Adding a provider is a localized change:
   a new adapter (`client` auth/fetch · `types` the provider's RAW response schema, private · `mappers`
   raw→internal · `impl` the `MusicProvider` interface) registered in the registry — **no core edits**
