@@ -44,8 +44,9 @@ const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalI
 - `[planned]` In-component import / sync / repair engine, driven by mount policy.
 - `[planned]` Provider fetch/search adapters (`search`, `getTrack` / `getArtist` / `getAlbum`).
 - `[planned]` Field-source policy — configure what comes back from search + catalog reads: which
-  entity kinds, which fields, and per-field which provider supplies it (e.g. artists with Spotify
-  image, tracks with Apple `previewUrl`, or both). Default at mount, override per call.
+  entity kinds, which fields, and — for **every field independently** — which provider(s) supply it:
+  one, an ordered pick, an explicit subset (e.g. 3 of 4 preview URLs), or all. Multi-select returns a
+  provider-keyed map, so adding providers never changes a field's type. Default at mount, override per call.
 - `[planned]` Artist-image auto-sync with a configurable provider-selection policy.
 
 ## Installation

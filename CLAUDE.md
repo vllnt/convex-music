@@ -85,11 +85,13 @@ src/
 - **Typed facts, no `v.any()`.** Cached values are typed unions (`trackValue` / `artistValue` /
   `albumValue`). Provider-varying fields are optional (e.g. `popularity` is Spotify; `country` /
   `gender` / `members` / `debutYear` are MusicBrainz/Wikidata).
-- **Field-source projection policy.** Search + catalog reads take a policy choosing entity **kinds**,
-  **fields** (projection), and **per-field provider source** (single `{ provider }` · `{ order }`
-  preference · `{ mode: "all" }` per-provider map) — e.g. artists + image from Spotify; tracks +
-  `previewUrl` from Apple; or both. Default at mount, override per call. Requires per-provider
-  provenance (`providers[]`); the return type is generic over the policy (no `v.any()`). The
+- **Field-source projection policy (every field, any subset, N-proof).** Search + catalog reads take
+  a policy choosing entity **kinds**, **fields**, and — for **every field independently** — which
+  provider(s) supply it: `{ from: "<p>" }` single · `{ prefer: [...] }` ordered-pick-one · `{ from:
+  ["p1","p2","p3"] }` explicit subset (e.g. 3 of 4) · `{ from: "all", limit? }`. Multi-select returns
+  a provider-keyed partial map `Partial<Record<Provider, V>>` — adding a 4th/5th provider only adds
+  keys, never changes a field's type; single/`prefer` returns a scalar. Default at mount, override
+  per call. Projects from per-provider provenance (`providers[]`); fully typed (no `v.any()`). The
   artist-image policy is this applied to `image`. See `ROADMAP.md` › `field-source-policy`.
 - **Never-expires sentinel.** Entries without a TTL store `expiresAt = Number.MAX_SAFE_INTEGER` (a
   real number, not `undefined`) so the `by_expiry` index never sweeps a never-expiring row.

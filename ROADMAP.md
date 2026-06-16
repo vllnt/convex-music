@@ -62,14 +62,16 @@ so search and catalog are one component — they are NOT split into `convex-musi
   overrides, `sourceRefs`, and the gameplay-frozen snapshot remain the host's.
 - **Live vs synced popularity.** The component serves *live* popularity (cache-through); the host
   freezes a *synced* snapshot for deterministic gameplay grading.
-- **Field-source projection policy.** Consumers configure *what comes back*: which entity **kinds**
-  (artists / tracks / albums), which **fields** (projection), and **per-field which provider supplies
-  it** — e.g. artists only with image from Spotify; tracks with `previewUrl` from Apple not Spotify;
-  or "both" (return each provider's value). Set as a **default at mount**, **overridable per call**;
-  zero-config default = the mount preference order, all fields. Applies to BOTH provider search and
-  catalog search/get via one resolver. Requires per-provider field provenance retained in the catalog
-  (`providers[]`); the return shape is typed/generic over the policy (scalar for single/order, a
-  provider→value map for "both") — never `v.any()`. The artist-image policy is this applied to `image`.
+- **Field-source projection policy (every field, any subset, N-proof).** Consumers configure *what
+  comes back*: which entity **kinds**, which **fields**, and — for **every field independently** —
+  which provider(s) supply it: one (`from`), ordered-pick-one (`prefer`), an **explicit subset**
+  (e.g. 3 of 4 `previewUrl`s), or **all** (optionally capped). Multi-select returns a provider-keyed
+  **partial map** (`Partial<Record<Provider, V>>`) — so adding a 4th/5th provider only adds keys and
+  never changes a field's type (the future-proofing principle). Single/`prefer` returns a scalar.
+  **Default at mount**, **override per call**; zero-config default = mount preference order, all
+  fields. One resolver over BOTH provider search and catalog reads, projecting from per-provider
+  provenance (`providers[]`); fully typed/generic — never `v.any()`. The artist-image policy is this
+  applied to `image`.
 - **Per-deployment data.** Sandboxed per mount — each app's catalog is its own data (shared schema +
   engine, isolated data). Not one shared catalog across apps.
 - **V8 only.** A component runs in V8 → Apple ES256 JWT uses Web Crypto, not `jsonwebtoken`.
@@ -147,11 +149,11 @@ Configure *what comes back* from search + catalog reads: entity kinds, field pro
 provider source. One resolver over the per-provider `providers[]` provenance. Generalizes the
 artist-image policy to every field.
 
-- `field-source-policy.1` `planned` — policy shape: `kinds` (which of artist/track/album to return), `fields` (include/exclude projection), `sources` (per-field provider resolution: `{ provider }` single · `{ order: [...] }` preference · `{ mode: "all" }` both/per-provider).
+- `field-source-policy.1` `planned` — policy shape: `kinds` (which of artist/track/album to return), `fields` (include/exclude projection), and `sources` — a `Partial<Record<Field, SourceSpec>>` over **every** field (image, previewUrl, popularity, genres, coverUrl, url, country, gender, …), each field independently configurable. `SourceSpec`: `{ from: "<provider>" }` single → scalar · `{ prefer: ["p1","p2",…] }` ordered first-available → scalar · `{ from: ["p1","p2","p3"] }` **explicit subset** (e.g. 3 of 4) → provider-keyed map · `{ from: "all", limit? }` every available (optionally capped by preference) → provider-keyed map. Unspecified fields fall back to the mount default.
 - `field-source-policy.2` `planned` — **default at mount**, **per-call override** (deep-merge, per-call wins); zero-config default = mount preference order, all fields.
 - `field-source-policy.3` `planned` — one resolver applied to BOTH provider search (`read-through-fetch`) and catalog search/get (`catalog-store`). Worked cases: artists-only + `image` from Spotify; tracks + `previewUrl` from Apple (not Spotify); both.
 - `field-source-policy.4` `planned` — depends on per-provider field provenance retained in the catalog (`providers[]`, `catalog-store.4`); the resolver projects each field from the chosen provider(s).
-- `field-source-policy.5` `planned` — typed/generic returns: single/order → resolved scalar; `mode: "all"` → a `provider→value` map for that field. No `v.any()`; the client type is generic over the policy.
+- `field-source-policy.5` `planned` — **N-proof typed returns**: single/`prefer` → a resolved scalar; subset/`all` → a `Partial<Record<Provider, V>>` map for that field (only present providers are keys). Adding a 4th/5th provider only adds keys — the field's type never changes. No `v.any()`; the client type is generic over the policy.
 
 ## import-engine — `planned`
 
