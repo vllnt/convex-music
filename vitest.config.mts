@@ -43,6 +43,7 @@ export default defineConfig({
         "src/component/sources/mutations.ts",
         "src/component/sources/queries.ts",
         "src/component/sync/lifecycle.ts",
+        "src/component/sync/mutations.ts",
         "src/component/crons.ts",
       ],
       thresholds: {

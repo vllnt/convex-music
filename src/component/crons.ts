@@ -15,4 +15,13 @@ crons.interval(
   {},
 );
 
+// Daily freshness sweep: flip past-window synced rows to stale (the auto-import
+// sweep re-syncs them). Per-kind so each batch is bounded.
+crons.interval("music:mark-stale-artists", { hours: 24 }, api.sync.mutations.markStale, {
+  kind: "artist",
+});
+crons.interval("music:mark-stale-tracks", { hours: 24 }, api.sync.mutations.markStale, {
+  kind: "track",
+});
+
 export default crons;

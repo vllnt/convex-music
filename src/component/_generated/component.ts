@@ -1339,4 +1339,15 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         >;
       };
     };
+    sync: {
+      mutations: {
+        markStale: FunctionReference<
+          "mutation",
+          "internal",
+          { kind: "artist" | "track"; limit?: number; now?: number },
+          number,
+          Name
+        >;
+      };
+    };
   };

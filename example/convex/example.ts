@@ -335,6 +335,17 @@ export const listSources = query({
     ctx.runQuery(components.music.sources.queries.listSources, args),
 });
 
+export const markStale = mutation({
+  args: {
+    kind: v.union(v.literal("artist"), v.literal("track")),
+    limit: v.optional(v.number()),
+    now: v.optional(v.number()),
+  },
+  returns: v.number(),
+  handler: (ctx, args) =>
+    ctx.runMutation(components.music.sync.mutations.markStale, args),
+});
+
 /** Host setup: read deployment env vars and configure the component once. */
 export const configureFromEnv = action({
   args: {},
