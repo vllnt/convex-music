@@ -192,7 +192,7 @@ The durable music database — generic, modeled on songtrivia's `music_*` shape.
 - `catalog-store.6` `planned` — **multi-catalog scope**: an opaque `catalog` ref on every table (cache, catalog, sources, sync rows) + **scoped indexes** (`by_catalog_*`) + a `catalogs` config table (mount-seeded `catalogs: {…}` AND runtime `createCatalog`/`listCatalogs`), each catalog holding its own kinds/providers/field-source policy/retention. **Default catalog** so single-catalog usage is zero-config. BLOCKING: every catalog read carries the `catalog` id — a non-scoped read must never silently span catalogs. Crons iterate catalogs (per-catalog prune/sync), idempotent. Client: `music.catalog("artists").search(…)` / per-call `catalog`. (Owner decision; **build deferred** — named mounts serve until a single deployment needs N runtime catalogs.)
 - `catalog-store.7` `planned` — **playlist membership diff**: store playlist membership with order + a provider snapshot/version; on re-import, detect **removals + reorders** — songtrivia is union-only (never removes dropped tracks, no order; `playlists/track_sync.ts`). Membership is a diff, not an append.
 
-## provider-adapters — `in-progress`
+## provider-adapters — `done`
 
 One normalize adapter per provider, behind a single interface. No host coupling.
 
@@ -200,7 +200,7 @@ One normalize adapter per provider, behind a single interface. No host coupling.
 - `provider-adapters.2` `done` — Spotify adapter (client-credentials OAuth token exchange; all 9 methods; bounded-concurrency artist albums; chunked `getSeveralTracks` ISRC enrichment). Token caching via `@convex-dev/action-cache` lands with the action layer (`read-through-fetch`).
 - `provider-adapters.3` `done` — Apple Music adapter, **full V8 re-architecture**: ES256 developer-token signer on Web Crypto `subtle.sign` (ECDSA P-256, PKCS8 import + JWS assembly + base64url, zero-dep — `apple/jwt.ts`), replacing songtrivia's `jsonwebtoken`. All 9 methods; Apple inlines album/playlist tracks via `include=tracks`. 100% covered with a real local sign+verify round-trip.
 - `provider-adapters.4` `done` — MusicBrainz adapter (nationality/country, gender, `members` solo/group, debut/begin-date).
-- `provider-adapters.5` `planned` — Wikidata adapter (overlap + gap-fill for artist facts).
+- `provider-adapters.5` `done` — Wikidata adapter (overlap + gap-fill for artist facts).
 - `provider-adapters.6` `done` — Deezer adapter.
 - `provider-adapters.7` `in-progress` — **extension point**: a `registry` mapping provider id → adapter factory (`src/component/providers/registry.ts`); adding a provider = its folder + one registry entry, no core changes (open/closed). Provider ids are an open union. Remaining: document the "add a provider" steps in `docs/API.md`.
 

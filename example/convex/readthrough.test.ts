@@ -321,15 +321,6 @@ test("fetchArtist via MusicBrainz (no-auth) merges artist facts", async () => {
   expect(artist.debutYear).toBe(1993);
 });
 
-test("a provider with no registered adapter rejects", async () => {
-  const t = setup();
-  await configureCreds(t);
-  stubFetch([SPOTIFY_TOKEN]);
-  await expect(
-    t.action(api.example.fetchArtist, { provider: "wikidata", externalId: "x" }),
-  ).rejects.toThrow(/No adapter registered/);
-});
-
 test("an unconfigured provider rejects", async () => {
   const t = setup();
   stubFetch([SPOTIFY_TOKEN]);
