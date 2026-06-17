@@ -242,6 +242,7 @@ export const importArtist = action({
     targetMode: v.union(v.literal("name"), v.literal("providerId")),
     name: v.optional(v.string()),
     providerId: v.optional(v.string()),
+    withTracks: v.optional(v.boolean()),
     mode: v.optional(importMode),
     priority: v.optional(importPriority),
   },

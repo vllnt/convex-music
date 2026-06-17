@@ -121,6 +121,45 @@ test("importArtist by providerId with no providerId fails", async () => {
   expect(result.status).toBe("failed");
 });
 
+test("importArtist withTracks promotes the artist's ISRC-bearing top tracks", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([
+    TOKEN,
+    ARTIST,
+    {
+      match: /\/v1\/artists\/a1\/top-tracks/,
+      body: {
+        tracks: [
+          {
+            id: "t1",
+            name: "Genesis",
+            artists: [{ id: "a1", name: "Justice" }],
+            external_ids: { isrc: "FR1234567890" },
+          },
+          // a market-edge track with no ISRC is skipped (can't be unified)
+          { id: "t2", name: "No ISRC", artists: [{ id: "a1", name: "Justice" }] },
+        ],
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importArtist, {
+    provider: "spotify",
+    targetMode: "providerId",
+    providerId: "a1",
+    withTracks: true,
+  });
+  expect(result.status).toBe("completed");
+  const request = await t.query(api.example.getImportRequest, {
+    requestId: result.requestId,
+  });
+  expect(request.resultSummary).toContain("+1 tracks");
+  const track = await t.query(api.example.getTrackByIsrc, {
+    isrc: "FR1234567890",
+  });
+  expect(track.title).toBe("Genesis");
+});
+
 test("re-importing the same artist keeps a single catalog row", async () => {
   const t = setup();
   await configure(t);

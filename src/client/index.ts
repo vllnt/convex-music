@@ -36,6 +36,7 @@ export type ImportArtistInput = {
   targetMode: "name" | "providerId";
   name?: string;
   providerId?: string;
+  withTracks?: boolean;
   mode?: "import" | "refresh" | "reimport" | "repair";
   priority?: "high" | "normal" | "low";
 };

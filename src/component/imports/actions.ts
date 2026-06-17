@@ -33,6 +33,7 @@ export const runArtistImport = action({
     targetMode: artistTargetMode,
     name: v.string(),
     providerId: v.string(),
+    withTracks: v.optional(v.boolean()),
   },
   returns: v.object({ status: importStatus }),
   handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
@@ -72,10 +73,28 @@ export const runArtistImport = action({
           value: result.value,
         },
       );
+      let trackCount = 0;
+      if (args.withTracks === true) {
+        const topTracks = await adapter.getArtistTopTracks(externalId);
+        const promotable = topTracks.filter(
+          (track) => track.value.isrc !== undefined,
+        );
+        await Promise.all(
+          promotable.map((track) =>
+            ctx.runMutation(api.catalog.mutations.upsertTrack, {
+              provider: args.provider,
+              externalId: track.externalId,
+              value: track.value,
+              artistIds: [artistId],
+            }),
+          ),
+        );
+        trackCount = promotable.length;
+      }
       await ctx.runMutation(internal.imports.mutations.markCompleted, {
         requestId: args.requestId,
         resolvedArtistId: artistId,
-        resultSummary: `imported artist ${result.value.name}`,
+        resultSummary: `imported artist ${result.value.name} (+${trackCount} tracks)`,
       });
       return { status: "completed" };
     } catch (err) {
@@ -100,6 +119,7 @@ export const importArtist = action({
     targetMode: artistTargetMode,
     name: v.optional(v.string()),
     providerId: v.optional(v.string()),
+    withTracks: v.optional(v.boolean()),
     mode: v.optional(importMode),
     priority: v.optional(importPriority),
   },
@@ -118,6 +138,7 @@ export const importArtist = action({
         provider: args.provider,
         providerId: args.providerId,
         name: args.name,
+        withTracks: args.withTracks,
         priority: args.priority,
       },
     );
@@ -127,6 +148,7 @@ export const importArtist = action({
       targetMode: args.targetMode,
       name: args.name ?? "",
       providerId: args.providerId ?? "",
+      withTracks: args.withTracks,
     });
     return { requestId, status: result.status };
   },

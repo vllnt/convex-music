@@ -747,6 +747,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "deezer";
             providerId?: string;
             targetMode: "name" | "providerId";
+            withTracks?: boolean;
           },
           {
             requestId: string;
@@ -776,6 +777,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             providerId: string;
             requestId: string;
             targetMode: "name" | "providerId";
+            withTracks?: boolean;
           },
           {
             status:
