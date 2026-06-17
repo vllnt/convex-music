@@ -29,6 +29,11 @@ export type CatalogTrack = StringifyIds<Infer<typeof trackDoc>>;
 /** A playlist (source-provider identity + ordered membership), as returned. */
 export type CatalogPlaylist = StringifyIds<Infer<typeof playlistDoc>>;
 
+/** A normalized search hit (provider id + value), discriminated by kind. */
+export type SearchHit =
+  | { type: "artist"; externalId: string; value: NormalizedArtist }
+  | { type: "track"; externalId: string; value: NormalizedTrack };
+
 /** A credited artist reference inside a track/album value. */
 export interface ArtistRef {
   name: string;

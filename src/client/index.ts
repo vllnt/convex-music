@@ -13,7 +13,22 @@ import type {
   NormalizedArtist,
   NormalizedTrack,
   PutInput,
+  SearchHit,
 } from "./types.js";
+
+/** Arguments to fetch a provider entity into the catalog (read-through). */
+export type FetchInput = {
+  provider: Provider;
+  externalId: string;
+  force?: boolean;
+};
+
+/** Arguments to search a provider for artists or tracks. */
+export type SearchInput = {
+  provider: Provider;
+  query: string;
+  type: "artist" | "track";
+};
 
 /** Arguments to upsert a provider's artist into the catalog. */
 export type UpsertArtistInput = {
@@ -147,6 +162,21 @@ export interface MusicComponent {
       >;
     };
   };
+  actions: {
+    fetchArtist: FunctionReference<
+      "action",
+      "internal",
+      FetchInput,
+      CatalogArtist | null
+    >;
+    fetchTrack: FunctionReference<
+      "action",
+      "internal",
+      FetchInput,
+      CatalogTrack | null
+    >;
+    search: FunctionReference<"action", "internal", SearchInput, SearchHit[]>;
+  };
 }
 
 interface RunQueryCtx {
@@ -161,6 +191,13 @@ interface RunMutationCtx {
     reference: M,
     args: FunctionArgs<M>,
   ): Promise<FunctionReturnType<M>>;
+}
+
+interface RunActionCtx {
+  runAction<A extends FunctionReference<"action", "internal">>(
+    reference: A,
+    args: FunctionArgs<A>,
+  ): Promise<FunctionReturnType<A>>;
 }
 
 /**
@@ -283,6 +320,27 @@ export class Music {
   ): Promise<Array<CatalogArtist | CatalogTrack>> {
     return ctx.runQuery(this.component.catalog.queries.selectEligible, input);
   }
+
+  /**
+   * Read-through fetch an artist by provider id, promoting it into the catalog.
+   * Cache-through unless `force`. Returns the unified artist row.
+   */
+  fetchArtist(ctx: RunActionCtx, input: FetchInput): Promise<CatalogArtist | null> {
+    return ctx.runAction(this.component.actions.fetchArtist, input);
+  }
+
+  /**
+   * Read-through fetch a track by provider id, promoting it + its artists.
+   * Cache-through unless `force`. Returns the unified track row.
+   */
+  fetchTrack(ctx: RunActionCtx, input: FetchInput): Promise<CatalogTrack | null> {
+    return ctx.runAction(this.component.actions.fetchTrack, input);
+  }
+
+  /** Search a provider for artists or tracks (discovery; no promotion). */
+  search(ctx: RunActionCtx, input: SearchInput): Promise<SearchHit[]> {
+    return ctx.runAction(this.component.actions.search, input);
+  }
 }
 
 export type {
@@ -297,4 +355,5 @@ export type {
   NormalizedArtist,
   NormalizedTrack,
   PutInput,
+  SearchHit,
 } from "./types.js";

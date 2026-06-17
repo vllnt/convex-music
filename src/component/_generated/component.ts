@@ -23,6 +23,146 @@ import type { FunctionReference } from "convex/server";
  */
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
+    actions: {
+      fetchArtist: FunctionReference<
+        "action",
+        "internal",
+        {
+          externalId: string;
+          force?: boolean;
+          provider: "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
+        },
+        null | {
+          _creationTime: number;
+          _id: string;
+          country?: string;
+          debutYear?: number;
+          gender?: string;
+          genres: Array<string>;
+          imageUrl?: string;
+          lastRepairAt?: number;
+          lastSyncError?: string;
+          lastSyncedAt?: number;
+          members?: "solo" | "group";
+          name: string;
+          nameKey: string;
+          nextSyncAt?: number;
+          popularity?: number;
+          providers: Array<{
+            genres?: Array<string>;
+            imageUrl?: string;
+            popularity?: number;
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+            url?: string;
+          }>;
+          repairAttempts?: number;
+          repairError?: string;
+          repairStartedAt?: number;
+          repairStatus?:
+            | "clean"
+            | "needs_repair"
+            | "repairing"
+            | "failed_repair";
+          syncRetryCount?: number;
+          syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
+          updatedAt: number;
+        },
+        Name
+      >;
+      fetchTrack: FunctionReference<
+        "action",
+        "internal",
+        {
+          externalId: string;
+          force?: boolean;
+          provider: "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
+        },
+        null | {
+          _creationTime: number;
+          _id: string;
+          artistIds: Array<string>;
+          durationMs?: number;
+          genres: Array<string>;
+          isrc: string;
+          lastRepairAt?: number;
+          lastSyncError?: string;
+          lastSyncedAt?: number;
+          nextSyncAt?: number;
+          popularity?: number;
+          providers: Array<{
+            coverUrl?: string;
+            previewUrl?: string;
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+            url?: string;
+          }>;
+          repairAttempts?: number;
+          repairError?: string;
+          repairStartedAt?: number;
+          repairStatus?:
+            | "clean"
+            | "needs_repair"
+            | "repairing"
+            | "failed_repair";
+          syncRetryCount?: number;
+          syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
+          title: string;
+          updatedAt: number;
+        },
+        Name
+      >;
+      search: FunctionReference<
+        "action",
+        "internal",
+        {
+          provider: "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
+          query: string;
+          type: "artist" | "track";
+        },
+        Array<
+          | {
+              externalId: string;
+              type: "artist";
+              value: {
+                country?: string;
+                debutYear?: number;
+                gender?: string;
+                genres: Array<string>;
+                imageUrl?: string;
+                members?: "solo" | "group";
+                name: string;
+                popularity?: number;
+                url?: string;
+              };
+            }
+          | {
+              externalId: string;
+              type: "track";
+              value: {
+                artists: Array<{ externalId?: string; name: string }>;
+                coverUrl?: string;
+                durationMs?: number;
+                isrc?: string;
+                previewUrl?: string;
+                title: string;
+                url?: string;
+              };
+            }
+        >,
+        Name
+      >;
+    };
     catalog: {
       mutations: {
         upsertArtist: FunctionReference<
@@ -103,6 +243,61 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "query",
           "internal",
           { id: string },
+          null | {
+            _creationTime: number;
+            _id: string;
+            country?: string;
+            debutYear?: number;
+            gender?: string;
+            genres: Array<string>;
+            imageUrl?: string;
+            lastRepairAt?: number;
+            lastSyncError?: string;
+            lastSyncedAt?: number;
+            members?: "solo" | "group";
+            name: string;
+            nameKey: string;
+            nextSyncAt?: number;
+            popularity?: number;
+            providers: Array<{
+              genres?: Array<string>;
+              imageUrl?: string;
+              popularity?: number;
+              provider:
+                | "spotify"
+                | "apple"
+                | "musicbrainz"
+                | "wikidata"
+                | "deezer";
+              providerId: string;
+              url?: string;
+            }>;
+            repairAttempts?: number;
+            repairError?: string;
+            repairStartedAt?: number;
+            repairStatus?:
+              | "clean"
+              | "needs_repair"
+              | "repairing"
+              | "failed_repair";
+            syncRetryCount?: number;
+            syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
+            updatedAt: number;
+          },
+          Name
+        >;
+        getArtistByProvider: FunctionReference<
+          "query",
+          "internal",
+          {
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+          },
           null | {
             _creationTime: number;
             _id: string;
@@ -232,6 +427,57 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "query",
           "internal",
           { isrc: string },
+          null | {
+            _creationTime: number;
+            _id: string;
+            artistIds: Array<string>;
+            durationMs?: number;
+            genres: Array<string>;
+            isrc: string;
+            lastRepairAt?: number;
+            lastSyncError?: string;
+            lastSyncedAt?: number;
+            nextSyncAt?: number;
+            popularity?: number;
+            providers: Array<{
+              coverUrl?: string;
+              previewUrl?: string;
+              provider:
+                | "spotify"
+                | "apple"
+                | "musicbrainz"
+                | "wikidata"
+                | "deezer";
+              providerId: string;
+              url?: string;
+            }>;
+            repairAttempts?: number;
+            repairError?: string;
+            repairStartedAt?: number;
+            repairStatus?:
+              | "clean"
+              | "needs_repair"
+              | "repairing"
+              | "failed_repair";
+            syncRetryCount?: number;
+            syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
+            title: string;
+            updatedAt: number;
+          },
+          Name
+        >;
+        getTrackByProvider: FunctionReference<
+          "query",
+          "internal",
+          {
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+          },
           null | {
             _creationTime: number;
             _id: string;

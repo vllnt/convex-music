@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel.js";
 import { query } from "../_generated/server.js";
-import { artistDoc, playlistDoc, trackDoc } from "../validators.js";
+import { artistDoc, playlistDoc, provider, trackDoc } from "../validators.js";
 import { orderByDailyRotation, utcDateBucket } from "./browse_order.js";
 
 /** Default rows scanned by `selectEligible` before ordering. */
@@ -39,6 +39,36 @@ export const getTrackByIsrc = query({
       .query("tracks")
       .withIndex("by_isrc", (q) => q.eq("isrc", args.isrc))
       .unique(),
+});
+
+/** Resolve the unified artist a provider id maps to (via the reverse index). */
+export const getArtistByProvider = query({
+  args: { provider, providerId: v.string() },
+  returns: v.union(v.null(), artistDoc),
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("artistProviders")
+      .withIndex("by_provider_id", (q) =>
+        q.eq("provider", args.provider).eq("providerId", args.providerId),
+      )
+      .first();
+    return link === null ? null : await ctx.db.get(link.artistId);
+  },
+});
+
+/** Resolve the unified track a provider id maps to (via the reverse index). */
+export const getTrackByProvider = query({
+  args: { provider, providerId: v.string() },
+  returns: v.union(v.null(), trackDoc),
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("trackProviders")
+      .withIndex("by_provider_id", (q) =>
+        q.eq("provider", args.provider).eq("providerId", args.providerId),
+      )
+      .first();
+    return link === null ? null : await ctx.db.get(link.trackId);
+  },
 });
 
 /** Full-text search artists by name. */

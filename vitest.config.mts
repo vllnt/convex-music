@@ -30,6 +30,8 @@ export default defineConfig({
         "src/component/catalog/merge.ts",
         "src/component/catalog/mutations.ts",
         "src/component/catalog/queries.ts",
+        "src/component/providers/actions.ts",
+        "src/component/actions.ts",
       ],
       thresholds: {
         statements: 100,

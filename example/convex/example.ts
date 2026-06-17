@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { components } from "./_generated/api.js";
-import { mutation, query } from "./_generated/server.js";
+import { action, mutation, query } from "./_generated/server.js";
 import { Music } from "../../src/client/index.js";
 import {
   artistDoc,
@@ -13,6 +13,19 @@ import {
   trackDoc,
   trackValue,
 } from "../../src/component/validators.js";
+
+const searchResult = v.union(
+  v.object({
+    type: v.literal("artist"),
+    externalId: v.string(),
+    value: artistValue,
+  }),
+  v.object({
+    type: v.literal("track"),
+    externalId: v.string(),
+    value: trackValue,
+  }),
+);
 
 /**
  * Host-app wrappers. The host owns auth: in a real app you would resolve and
@@ -142,4 +155,26 @@ export const selectEligible = query({
   },
   returns: v.array(v.union(artistDoc, trackDoc)),
   handler: (ctx, args) => music.selectEligible(ctx, args),
+});
+
+export const fetchArtist = action({
+  args: { provider, externalId: v.string(), force: v.optional(v.boolean()) },
+  returns: v.union(v.null(), artistDoc),
+  handler: (ctx, args) => music.fetchArtist(ctx, args),
+});
+
+export const fetchTrack = action({
+  args: { provider, externalId: v.string(), force: v.optional(v.boolean()) },
+  returns: v.union(v.null(), trackDoc),
+  handler: (ctx, args) => music.fetchTrack(ctx, args),
+});
+
+export const search = action({
+  args: {
+    provider,
+    query: v.string(),
+    type: v.union(v.literal("artist"), v.literal("track")),
+  },
+  returns: v.array(searchResult),
+  handler: (ctx, args) => music.search(ctx, args),
 });
