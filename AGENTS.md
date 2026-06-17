@@ -145,12 +145,19 @@ src/
 
 - Mutations in `mutations.ts`, queries in `queries.ts` (enforced by `@vllnt/eslint-config/convex`).
 - Explicit `args` + `returns` on every Convex function.
-- Sandboxed tables only (`cacheEntries` today; `artists`/`tracks`/`playlists` catalog planned) — the component never reads host or sibling tables.
+- Sandboxed tables only (`cacheEntries` raw cache + the durable `artists`/`tracks`/`playlists` catalog + `*Providers` reverse-index junctions + `trackClaims`) — the component never reads host or sibling tables.
 - No bare `v.any()` — host data is typed via the `*Value` validators.
 - 100% test coverage is BLOCKING (`vitest.config.mts` thresholds).
-- Runtime deps: only official `@convex-dev/*` + `@vllnt/*`. The provider-fetch phase composes
-  `@convex-dev/action-cache` / `action-retrier` / `rate-limiter` as child components — never
-  hand-rolled. A component runs in V8: Apple's ES256 JWT must use Web Crypto, not `jsonwebtoken`.
+- Runtime deps: only official `@convex-dev/*` + `@vllnt/*` — compose, never hand-roll. Committed
+  child components (mounted in `convex.config.ts` as each layer lands): **`@convex-dev/action-cache`**
+  (provider token cache — Spotify token + Apple JWT, wired as the adapters' `getToken`),
+  **`@convex-dev/workflow`** + **`@convex-dev/workpool`** (import traversal orchestration + step
+  retries + bounded batch concurrency), **`@convex-dev/rate-limiter`** (two buckets: auto-import
+  throughput budget AND provider-API 429/529 guard), **`@vllnt/convex-idempotency`** (import-request
+  dedup — the exactly-once seam under the component-owned control-plane). Deliberate NON-composition:
+  the per-HTTP-request resilient fetch (429/Retry-After/backoff, `providers/fetch.ts`) is inline, not
+  `@convex-dev/action-retrier` (that retries whole actions — a different layer). A component runs in
+  V8: Apple's ES256 JWT uses Web Crypto, not `jsonwebtoken`.
 - Provider env vars (Convex environment variables, set on the host deployment): Spotify
   `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`; Apple `APPLE_MUSIC_ISSUER` / `APPLE_MUSIC_KID` /
   `APPLE_MUSIC_PRIVATE_KEY` (sourced from songtrivia's backend). Enabled-providers + preference is

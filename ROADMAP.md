@@ -122,8 +122,25 @@ so search and catalog are one component — they are NOT split into `convex-musi
   provider(s) to PROJECT per field, over what's stored. "Which providers when importing" is level 2
   (fetch/store); "preview from Apple" is level 3 (project). See `import-engine.7` + `field-source-policy`.
 - **V8 only.** A component runs in V8 → Apple ES256 JWT uses Web Crypto, not `jsonwebtoken`.
-- **Official children.** Workflow / retry / rate-limit / response-cache compose `@convex-dev/*`,
-  never hand-rolled.
+- **Composed components — official `@convex-dev/*` + our `@vllnt/*`, never hand-rolled (BLOCKING).**
+  The engine COMPOSES, it does not re-implement. Committed mapping (mounted as child components in
+  `src/component/convex.config.ts` via `component.use(...)` when each layer lands):
+  - **`@convex-dev/action-cache`** — provider token cache: the cached Spotify client-credentials
+    token (~55min TTL) and the signed Apple developer JWT (6-month TTL). Wired as the adapters'
+    injected `getToken` (`read-through-fetch.6/7`, `provider-adapters.2/3`).
+  - **`@convex-dev/workflow`** + **`@convex-dev/workpool`** — import traversal orchestration: durable
+    multi-step playlist→tracks→artists fan-out, step retries, bounded batch concurrency
+    (`import-engine.3`).
+  - **`@convex-dev/rate-limiter`** — TWO distinct token buckets: the auto-import throughput budget
+    ("2 artists/hour", per `(catalog, kind)` — `auto-import.2`) AND the provider-API rate guard
+    (429/529 protection — `read-through-fetch.4`). Distinct layers, same primitive.
+  - **`@vllnt/convex-idempotency`** (our own) — import-request dedup: backs the stable dedupe-key so a
+    duplicate in-flight import collapses idempotently (`import-engine.6`). The 8-state control-plane
+    table stays component-owned (the *active-only* dedup + `withTracks` distinction is state-machine
+    semantics); idempotency provides the exactly-once execution seam underneath it.
+  The only deliberate NON-composition: the per-HTTP-request resilient fetch (429/Retry-After/backoff)
+  is inline, NOT `@convex-dev/action-retrier` — action-retrier retries whole *actions*, a different
+  layer than per-request rate-limit handling (songtrivia is inline here too).
 - **Resilient against provider overload (429 + 5xx/529).** songtrivia handles only `429`; the
   component must also retry overload `5xx` (incl. `529`, `503`) with `Retry-After` + capped backoff +
   jitter + per-request timeout + bounded concurrency, so a Spotify/Apple `529` never hard-fails an
@@ -223,7 +240,7 @@ Policy-driven import of provider data into the component's catalog (writes its O
 - `import-engine.3` `planned` — orchestration via `@convex-dev/workflow` + `workpool` (batch concurrency, step retries); config-driven import filters (title/quality — adopt songtrivia's generic word-boundary title heuristics, `filters/title.ts`), never game-specific rules. **Partial-failure tolerance**: traversal uses `Promise.allSettled` so one failed album/track fetch doesn't abort the import; surface an `isPartial` flag + truncation cap (songtrivia `MAX_ALBUMS_PER_ARTIST=30`, semaphore 5, `spotify/impl.ts:243`).
 - `import-engine.4` `planned` — import **control-plane state machine** (not just a ledger): request status `queued→claimed→running→{retry_waiting↺}→completed|failed|canceled|stale` with validated transitions + a phase/event ledger + a **manual-recovery surface** (`canRepair`/`canRetry`/`retryMode`) + provider-contribution & queue summaries — component-owned, modeling songtrivia's 8-state `music_imports` control plane (`imports/schemas.ts:51`). Per-request retry budget **2 × [15s, 60s]** → `stale`.
 - `import-engine.5` `planned` — generic **`sources` registry**: runtime host-managed CRUD (`addSource`/`removeSource`/`listSources`) of `{ kind, by: "name"|"url"|"isrc"|"providerId", value, providers?, cadence? }` the engine keeps synced; typed (no `v.any()`). Optional `initialSources` mount seed (small/static, zero-config bootstrap). This is the generic "what to keep imported" input — the host's *curated, categorized* definitions (which playlists/artists, genre rules, game categories) stay host-side and reconcile INTO this registry (e.g. a host cron over its own `PLAYLIST_DEFINITIONS`-style lists, like songtrivia).
-- `import-engine.6` `planned` — **import-request dedup**: a stable pipe-joined key over (`entityType`, `mode`/requestType, `targetMode`, `providerScope`, `provider`, `providerId`, `entityId`, name→lowercased, isrc→UPPERCASED, `url`, `withTracks`) collapsing **only against ACTIVE requests** (`queued|claimed|running|retry_waiting`) — so a `refresh` doesn't dedup into an `import` and a `withTracks` import doesn't collapse into a shallow one (matches songtrivia `buildMusicImportDedupeKey`, `imports/actions.ts:48`, incl. case-normalization).
+- `import-engine.6` `planned` — **import-request dedup**, backed by **`@vllnt/convex-idempotency`** (compose, don't hand-roll the dedup store): a stable pipe-joined key over (`entityType`, `mode`/requestType, `targetMode`, `providerScope`, `provider`, `providerId`, `entityId`, name→lowercased, isrc→UPPERCASED, `url`, `withTracks`) collapsing **only against ACTIVE requests** (`queued|claimed|running|retry_waiting`) — so a `refresh` doesn't dedup into an `import` and a `withTracks` import doesn't collapse into a shallow one (matches songtrivia `buildMusicImportDedupeKey`, `imports/actions.ts:48`, incl. case-normalization). The 8-state control-plane table (`import-engine.4`) stays component-owned for the active-only + `withTracks` semantics; `@vllnt/convex-idempotency` provides the exactly-once execution seam keyed by the dedupe key.
 - `import-engine.7` `planned` — typed **`ImportOptions`** per call (no `v.any()`): **provider select** `providers?: Provider[]` (only these) OR `excludeProviders?: Provider[]` (default = catalog set) — what to FETCH this import; **traversal/depth** — artist `tracks?: false | { mode: "top"|"all"|"viaAlbums", limit?, importArtists?: bool }` + `albums?: false | { limit? }`, playlist `tracks?: { limit?, importArtists?: bool }`, track `withArtists?: bool` + `withAlbum?: bool`; **`mode`** `import|refresh|reimport|repair`; **`priority`** `high|normal|low`; **`catalog`** scope. Generalizes songtrivia's import request (provider scope `spotify|apple|any` → N-provider select; `withTracks` → traversal; `requestType`/`priority`). Conservative defaults (artist = artist only; playlist = its tracks, not their artists; track = just the track). Traversal `limit`s bound the workflow fan-out. **Ship first:** `withTracks`-equivalent + `mode` (songtrivia's proven surface); **defer** `viaAlbums` + album-limit traversal until a consumer needs it.
 - `import-engine.8` `planned` — **default import options** layered: per-catalog `defaultImport` at mount + per-`sources`-entry options (so cron re-imports honor them) + per-call override (deep-merge, per-call wins).
 
