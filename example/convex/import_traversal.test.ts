@@ -439,3 +439,93 @@ test("re-importing the same artist keeps a single catalog row", async () => {
   const found = await t.query(api.example.searchArtists, { query: "Daft" });
   expect(found).toHaveLength(1);
 });
+
+test("importAlbum promotes ISRC tracks (+enrich) + artists + stores the album", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([
+    TOKEN,
+    {
+      match: /\/v1\/albums\/al1/,
+      body: {
+        id: "al1",
+        name: "Discovery",
+        artists: [{ id: "a1", name: "Daft Punk" }],
+        release_date: "2001-03-12",
+        tracks: {
+          items: [
+            { id: "t1", name: "One More Time", artists: [{ id: "a1", name: "Daft Punk" }], external_ids: { isrc: "GBALB0000001" } },
+            { id: "t2", name: "Aerodynamic", artists: [{ id: "a1", name: "Daft Punk" }] },
+          ],
+        },
+      },
+    },
+    {
+      match: /\/v1\/tracks\?.*ids=t2/,
+      body: { tracks: [{ id: "t2", name: "Aerodynamic", artists: [{ id: "a1", name: "Daft Punk" }], external_ids: { isrc: "GBALB0000002" } }] },
+    },
+  ]);
+  const result = await t.action(api.example.importAlbum, { provider: "spotify", providerId: "al1" });
+  expect(result.status).toBe("completed");
+  const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  expect(request.resultSummary).toContain("2 tracks");
+  const album = await t.query(api.example.getAlbum, { id: request.resolvedAlbumId });
+  expect(album.title).toBe("Discovery");
+  expect(album.trackIds).toHaveLength(2);
+  expect(album.artistIds).toHaveLength(1);
+});
+
+test("importAlbum with no providerId fails", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([TOKEN]);
+  const result = await t.action(api.example.importAlbum, { provider: "spotify", providerId: "" });
+  expect(result.status).toBe("failed");
+});
+
+test("importAlbum caps tracks at the limit (every track already has an ISRC)", async () => {
+  const t = setup();
+  await configure(t);
+  // no /v1/tracks route -> a needless enrichment call would fail; all tracks have ISRC
+  stubFetch([
+    TOKEN,
+    {
+      match: /\/v1\/albums\/al2/,
+      body: {
+        id: "al2",
+        name: "Capped",
+        artists: [{ id: "a1", name: "X" }],
+        tracks: {
+          items: [
+            { id: "t1", name: "A", artists: [], external_ids: { isrc: "GBCAP0000001" } },
+            { id: "t2", name: "B", artists: [], external_ids: { isrc: "GBCAP0000002" } },
+          ],
+        },
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importAlbum, { provider: "spotify", providerId: "al2", limit: 1 });
+  const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  expect(request.resultSummary).toContain("1 tracks");
+});
+
+test("importAlbum on a provider without batch fetch drops ISRC-less tracks", async () => {
+  const t = setup();
+  stubFetch([
+    {
+      match: /api\.deezer\.com\/album\/9/,
+      body: {
+        id: 9,
+        title: "Deezer Album",
+        artist: { id: 1, name: "X" },
+        tracks: { data: [
+          { id: 1, title: "Has ISRC", isrc: "DEALB0000001", artist: { id: 1, name: "X" } },
+          { id: 2, title: "No ISRC", artist: { id: 1, name: "X" } },
+        ] },
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importAlbum, { provider: "deezer", providerId: "9" });
+  const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  expect(request.resultSummary).toContain("1 tracks");
+});

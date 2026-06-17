@@ -343,6 +343,18 @@ export const importPlaylist = action({
   handler: (ctx, args) => music.importPlaylist(ctx, args),
 });
 
+export const importAlbum = action({
+  args: {
+    provider,
+    providerId: v.string(),
+    limit: v.optional(v.number()),
+    mode: v.optional(importMode),
+    priority: v.optional(importPriority),
+  },
+  returns: v.object({ requestId: v.string(), status: v.string() }),
+  handler: (ctx, args) => music.importAlbum(ctx, args),
+});
+
 export const addSource = mutation({
   args: {
     kind: importEntityType,

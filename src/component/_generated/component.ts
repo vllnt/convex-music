@@ -944,6 +944,35 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
     };
     imports: {
       actions: {
+        importAlbum: FunctionReference<
+          "action",
+          "internal",
+          {
+            limit?: number;
+            mode?: "import" | "refresh" | "reimport" | "repair";
+            priority?: "high" | "normal" | "low";
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+          },
+          {
+            requestId: string;
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+          },
+          Name
+        >;
         importArtist: FunctionReference<
           "action",
           "internal",
@@ -1021,6 +1050,33 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           },
           {
             requestId: string;
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+          },
+          Name
+        >;
+        runAlbumImport: FunctionReference<
+          "action",
+          "internal",
+          {
+            limit?: number;
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+            requestId: string;
+          },
+          {
             status:
               | "queued"
               | "claimed"
@@ -1123,7 +1179,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "internal",
           {
             entityId?: string;
-            entityType: "artist" | "track" | "playlist";
+            entityType: "artist" | "track" | "playlist" | "album";
             isrc?: string;
             name?: string;
             priority?: "high" | "normal" | "low";
@@ -1154,7 +1210,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             _id: string;
             dedupeKey: string;
             entityId?: string;
-            entityType: "artist" | "track" | "playlist";
+            entityType: "artist" | "track" | "playlist" | "album";
             errorSummary?: string;
             finishedAt?: number;
             isrc?: string;
@@ -1171,6 +1227,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             providerScope: string;
             requestType: "import" | "refresh" | "reimport" | "repair";
             requestedAt: number;
+            resolvedAlbumId?: string;
             resolvedArtistId?: string;
             resolvedPlaylistId?: string;
             resolvedTrackId?: string;
@@ -1214,7 +1271,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             _id: string;
             dedupeKey: string;
             entityId?: string;
-            entityType: "artist" | "track" | "playlist";
+            entityType: "artist" | "track" | "playlist" | "album";
             errorSummary?: string;
             finishedAt?: number;
             isrc?: string;
@@ -1231,6 +1288,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             providerScope: string;
             requestType: "import" | "refresh" | "reimport" | "repair";
             requestedAt: number;
+            resolvedAlbumId?: string;
             resolvedArtistId?: string;
             resolvedPlaylistId?: string;
             resolvedTrackId?: string;
@@ -1447,7 +1505,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             by: "name" | "url" | "isrc" | "providerId" | "entityId";
             cadenceMs?: number;
             enabled?: boolean;
-            kind: "artist" | "track" | "playlist";
+            kind: "artist" | "track" | "playlist" | "album";
             provider?:
               | "spotify"
               | "apple"
@@ -1494,7 +1552,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             cadenceMs?: number;
             createdAt: number;
             enabled: boolean;
-            kind: "artist" | "track" | "playlist";
+            kind: "artist" | "track" | "playlist" | "album";
             lastImportedAt?: number;
             provider?:
               | "spotify"

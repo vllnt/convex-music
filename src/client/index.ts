@@ -59,6 +59,12 @@ export type ImportPlaylistInput = ImportTrackInput & {
   limit?: number;
 };
 
+/** Arguments to import an album by provider id (+ its tracks + artists). */
+export type ImportAlbumInput = ImportTrackInput & {
+  /** Cap how many of the album's tracks to import. */
+  limit?: number;
+};
+
 /** The outcome of an import: the request id + its terminal status. */
 export type ImportResult = { requestId: string; status: string };
 
@@ -274,6 +280,12 @@ export interface MusicComponent {
         "action",
         "internal",
         ImportPlaylistInput,
+        ImportResult
+      >;
+      importAlbum: FunctionReference<
+        "action",
+        "internal",
+        ImportAlbumInput,
         ImportResult
       >;
     };
@@ -519,6 +531,11 @@ export class Music {
     input: ImportPlaylistInput,
   ): Promise<ImportResult> {
     return ctx.runAction(this.component.imports.actions.importPlaylist, input);
+  }
+
+  /** Import an album by provider id (+ its tracks + artists) into the catalog. */
+  importAlbum(ctx: RunActionCtx, input: ImportAlbumInput): Promise<ImportResult> {
+    return ctx.runAction(this.component.imports.actions.importAlbum, input);
   }
 }
 

@@ -286,6 +286,7 @@ export const importEntityType = v.union(
   v.literal("artist"),
   v.literal("track"),
   v.literal("playlist"),
+  v.literal("album"),
 );
 
 /** The kind of import work. */
@@ -364,6 +365,7 @@ export const importRequestFields = {
   resolvedArtistId: v.optional(v.id("artists")),
   resolvedTrackId: v.optional(v.id("tracks")),
   resolvedPlaylistId: v.optional(v.id("playlists")),
+  resolvedAlbumId: v.optional(v.id("albums")),
   errorSummary: v.optional(v.string()),
   resultSummary: v.optional(v.string()),
   requestedAt: v.number(),

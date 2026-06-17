@@ -131,6 +131,7 @@ export const markCompleted = internalMutation({
     resolvedArtistId: v.optional(v.id("artists")),
     resolvedTrackId: v.optional(v.id("tracks")),
     resolvedPlaylistId: v.optional(v.id("playlists")),
+    resolvedAlbumId: v.optional(v.id("albums")),
     resultSummary: v.optional(v.string()),
   },
   returns: v.null(),
@@ -143,6 +144,7 @@ export const markCompleted = internalMutation({
       resolvedArtistId: args.resolvedArtistId,
       resolvedTrackId: args.resolvedTrackId,
       resolvedPlaylistId: args.resolvedPlaylistId,
+      resolvedAlbumId: args.resolvedAlbumId,
       resultSummary: args.resultSummary,
     });
     return null;
