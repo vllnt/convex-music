@@ -346,6 +346,13 @@ export const markStale = mutation({
     ctx.runMutation(components.music.sync.mutations.markStale, args),
 });
 
+export const runAutoImport = action({
+  args: { limit: v.optional(v.number()), now: v.optional(v.number()) },
+  returns: v.object({ imported: v.number(), skipped: v.number() }),
+  handler: (ctx, args) =>
+    ctx.runAction(components.music.sources.actions.runAutoImport, args),
+});
+
 /** Host setup: read deployment env vars and configure the component once. */
 export const configureFromEnv = action({
   args: {},

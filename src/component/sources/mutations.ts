@@ -52,3 +52,16 @@ export const setSourceEnabled = mutation({
     return null;
   },
 });
+
+/** Stamp a source's `lastImportedAt` after the sweep imports it. */
+export const touchSource = mutation({
+  args: { sourceId: v.id("sources"), now: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.sourceId, {
+      lastImportedAt: args.now,
+      updatedAt: args.now,
+    });
+    return null;
+  },
+});

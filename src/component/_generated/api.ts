@@ -36,6 +36,7 @@ import type * as providers_spotify_mappers from "../providers/spotify/mappers.js
 import type * as providers_spotify_types from "../providers/spotify/types.js";
 import type * as providers_types from "../providers/types.js";
 import type * as queries from "../queries.js";
+import type * as sources_actions from "../sources/actions.js";
 import type * as sources_mutations from "../sources/mutations.js";
 import type * as sources_queries from "../sources/queries.js";
 import type * as sync_lifecycle from "../sync/lifecycle.js";
@@ -78,6 +79,7 @@ const fullApi: ApiFromModules<{
   "providers/spotify/types": typeof providers_spotify_types;
   "providers/types": typeof providers_types;
   queries: typeof queries;
+  "sources/actions": typeof sources_actions;
   "sources/mutations": typeof sources_mutations;
   "sources/queries": typeof sources_queries;
   "sync/lifecycle": typeof sync_lifecycle;

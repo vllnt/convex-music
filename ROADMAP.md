@@ -256,7 +256,7 @@ Keep the catalog fresh; recover failures. Operates on the component's own catalo
 - `sync-lifecycle.6` `planned` — repair-status state machine (`clean → needs_repair → repairing → failed_repair`, validated transitions) + atomic repair claim — the GENERIC repair infra. The specific *what* to repair (e.g. genre links, junctions) is host-domain; the component owns the state machine + claim + budgeted runner, not the domain repair rules. Adopt songtrivia's repair constants (`MAX_REPAIR_ATTEMPTS=3`, in-progress reset `15min`, error cap 256).
 - `sync-lifecycle.7` `planned` — **recovery from abandonment**: (a) **stuck-pending/running watchdog** — rows whose workflow died (no update for `≈5min`) reset to `failed`; (b) **stale-salvage** — periodic capped recovery of `stale` rows (songtrivia: weekly, `7d` threshold, `MAX_SALVAGE_ATTEMPTS=3`) rather than leaving `stale` terminal.
 
-## auto-import — `planned`
+## auto-import — `in-progress`
 
 Scheduled, **budgeted** automation with two modes on one cron: **import** (pull NEW entities from the
 `sources` registry) and **sync/refresh** (keep EXISTING catalog rows current per a freshness config).
@@ -264,9 +264,9 @@ Scheduled, **budgeted** automation with two modes on one cron: **import** (pull 
 mechanism (sync-status state machine); this phase is the schedule + budgets + freshness policy that
 drives it.
 
-- `auto-import.1` `planned` — per-catalog `autoImport` config: `enabled` (default false), `schedule` (`{ cron }` | `{ everyMs }`), `select` (`unsynced-first` | `stale-oldest` | `priority`), `maxConcurrent` (workpool bound). Typed, zero-config default = disabled.
+- `auto-import.1` `in-progress` — per-catalog `autoImport` config: `enabled` (default false), `schedule` (`{ cron }` | `{ everyMs }`), `select` (`unsynced-first` | `stale-oldest` | `priority`), `maxConcurrent` (workpool bound). Typed, zero-config default = disabled.
 - `auto-import.2` `planned` — **throughput budget** decoupled from cron: a `@convex-dev/rate-limiter` token bucket per `(catalog, kind)` — `rate: { artist: { count: 2, per: "1h" }, track: { count: 20, per: "1h" } }` ("2 artists/hour"). The bucket is the authoritative cap regardless of cron frequency, survives restarts. **Distinct from the provider-API rate** (`read-through-fetch.4`, 429/529): this paces *entity throughput*, that protects the *provider HTTP API*.
-- `auto-import.3` `planned` — the sweep cron: per-mount, idempotent, **cursored** (resume across runs, reuse songtrivia's `runBudgetedBatchedJob` pattern) — picks unsynced sources + stale catalog rows within the rate budget, enqueues imports via workpool honoring each source's `ImportOptions`. Backpressure: budget exhausted → no-op until the window refills (no unbounded queue).
+- `auto-import.3` `in-progress` — the sweep cron: per-mount, idempotent, **cursored** (resume across runs, reuse songtrivia's `runBudgetedBatchedJob` pattern) — picks unsynced sources + stale catalog rows within the rate budget, enqueues imports via workpool honoring each source's `ImportOptions`. Backpressure: budget exhausted → no-op until the window refills (no unbounded queue).
 - `auto-import.4` `planned` — separate budgets/priority for **new import vs refresh** (optional): new-source imports take priority over stale-row refreshes; oldest-first within each.
 - `auto-import.5` `planned` — **freshness / refresh config** (the "keep data up to date" policy): per-catalog (per-kind, optionally per-field) staleness window — `refresh: { artist: { staleAfter: "7d" }, track: { staleAfter: "30d" }, fields?: { popularity: { staleAfter: "1d" } }, rate?: {…} }` — drives the sync-status `synced → stale` transition; the sweep re-syncs past-window entities within a **refresh budget** distinct from the new-import budget (`auto-import.2`). Per-field windows honor live-vs-synced popularity (volatile fields refresh faster than static facts like genres/debut/ISRC).
 

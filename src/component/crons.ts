@@ -24,4 +24,8 @@ crons.interval("music:mark-stale-tracks", { hours: 24 }, api.sync.mutations.mark
   kind: "track",
 });
 
+// Auto-import sweep: pull due enabled sources. Opt-in — no-op without sources, so
+// a fresh mount never auto-hammers providers.
+crons.interval("music:auto-import", { hours: 1 }, api.sources.actions.runAutoImport, {});
+
 export default crons;

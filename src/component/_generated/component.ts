@@ -1275,6 +1275,15 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       >;
     };
     sources: {
+      actions: {
+        runAutoImport: FunctionReference<
+          "action",
+          "internal",
+          { limit?: number; now?: number },
+          { imported: number; skipped: number },
+          Name
+        >;
+      };
       mutations: {
         addSource: FunctionReference<
           "mutation",
@@ -1307,6 +1316,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "mutation",
           "internal",
           { enabled: boolean; sourceId: string },
+          null,
+          Name
+        >;
+        touchSource: FunctionReference<
+          "mutation",
+          "internal",
+          { now: number; sourceId: string },
           null,
           Name
         >;
