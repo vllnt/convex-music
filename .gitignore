@@ -41,3 +41,7 @@ skills/
 
 # Convex example generated (types only; JS stubs committed for tests)
 example/convex/_generated/ai/
+
+# Stray compiled example sources (the .ts are the truth; _generated/*.js stay)
+example/convex/*.js
+example/convex/*.js.map

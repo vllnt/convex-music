@@ -1,4 +1,33 @@
+import type { GenericId, Infer } from "convex/values";
+import type {
+  artistDoc,
+  playlistDoc,
+  trackDoc,
+} from "../component/validators.js";
 import type { EntityKind, Provider } from "../shared.js";
+
+/**
+ * Replace every branded component `Id<T>` with a plain `string`. Host-side, the
+ * component's row ids are opaque strings (the host doesn't own those tables), so
+ * the public catalog types carry `string` ids — matching how `components.music`
+ * exposes them.
+ */
+type StringifyIds<T> = T extends GenericId<string>
+  ? string
+  : T extends Array<infer U>
+    ? Array<StringifyIds<U>>
+    : T extends object
+      ? { [K in keyof T]: StringifyIds<T[K]> }
+      : T;
+
+/** A unified catalog artist (every provider's facts merged), as returned. */
+export type CatalogArtist = StringifyIds<Infer<typeof artistDoc>>;
+
+/** A unified catalog track (keyed by ISRC), as returned. */
+export type CatalogTrack = StringifyIds<Infer<typeof trackDoc>>;
+
+/** A playlist (source-provider identity + ordered membership), as returned. */
+export type CatalogPlaylist = StringifyIds<Infer<typeof playlistDoc>>;
 
 /** A credited artist reference inside a track/album value. */
 export interface ArtistRef {

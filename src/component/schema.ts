@@ -32,13 +32,15 @@ export default defineSchema({
     .index("by_name_key", ["nameKey"])
     .index("by_sync", ["syncStatus", "nextSyncAt"])
     .index("by_next_sync", ["nextSyncAt"])
-    .index("by_repair", ["repairStatus"]),
+    .index("by_repair", ["repairStatus"])
+    .searchIndex("search_name", { searchField: "name" }),
 
   tracks: defineTable(trackFields)
     .index("by_isrc", ["isrc"])
     .index("by_sync", ["syncStatus", "nextSyncAt"])
     .index("by_next_sync", ["nextSyncAt"])
-    .index("by_repair", ["repairStatus"]),
+    .index("by_repair", ["repairStatus"])
+    .searchIndex("search_title", { searchField: "title" }),
 
   playlists: defineTable(playlistFields)
     .index("by_provider", ["provider", "providerId"])

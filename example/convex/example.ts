@@ -3,10 +3,15 @@ import { components } from "./_generated/api.js";
 import { mutation, query } from "./_generated/server.js";
 import { Music } from "../../src/client/index.js";
 import {
+  artistDoc,
+  artistValue,
   cacheEntryDoc,
   cacheValue,
   entityKind,
+  playlistDoc,
   provider,
+  trackDoc,
+  trackValue,
 } from "../../src/component/validators.js";
 
 /**
@@ -57,4 +62,84 @@ export const stats = query({
   args: {},
   returns: v.object({ total: v.number() }),
   handler: (ctx) => music.stats(ctx),
+});
+
+export const upsertArtist = mutation({
+  args: { provider, externalId: v.string(), value: artistValue },
+  returns: v.string(),
+  handler: (ctx, args) => music.upsertArtist(ctx, args),
+});
+
+export const upsertTrack = mutation({
+  args: {
+    provider,
+    externalId: v.string(),
+    value: trackValue,
+    artistIds: v.optional(v.array(v.string())),
+  },
+  returns: v.string(),
+  handler: (ctx, args) => music.upsertTrack(ctx, args),
+});
+
+export const upsertPlaylist = mutation({
+  args: {
+    provider,
+    providerId: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    coverUrl: v.optional(v.string()),
+    url: v.optional(v.string()),
+    owner: v.optional(v.string()),
+    trackIds: v.array(v.string()),
+  },
+  returns: v.string(),
+  handler: (ctx, args) => music.upsertPlaylist(ctx, args),
+});
+
+export const getArtist = query({
+  args: { id: v.string() },
+  returns: v.union(v.null(), artistDoc),
+  handler: (ctx, args) => music.getArtist(ctx, args.id),
+});
+
+export const getTrack = query({
+  args: { id: v.string() },
+  returns: v.union(v.null(), trackDoc),
+  handler: (ctx, args) => music.getTrack(ctx, args.id),
+});
+
+export const getPlaylist = query({
+  args: { id: v.string() },
+  returns: v.union(v.null(), playlistDoc),
+  handler: (ctx, args) => music.getPlaylist(ctx, args.id),
+});
+
+export const getTrackByIsrc = query({
+  args: { isrc: v.string() },
+  returns: v.union(v.null(), trackDoc),
+  handler: (ctx, args) => music.getTrackByIsrc(ctx, args.isrc),
+});
+
+export const searchArtists = query({
+  args: { query: v.string(), limit: v.optional(v.number()) },
+  returns: v.array(artistDoc),
+  handler: (ctx, args) => music.searchArtists(ctx, args.query, args.limit),
+});
+
+export const searchTracks = query({
+  args: { query: v.string(), limit: v.optional(v.number()) },
+  returns: v.array(trackDoc),
+  handler: (ctx, args) => music.searchTracks(ctx, args.query, args.limit),
+});
+
+export const selectEligible = query({
+  args: {
+    kind: v.union(v.literal("artist"), v.literal("track")),
+    limit: v.number(),
+    excludeIds: v.optional(v.array(v.string())),
+    salt: v.optional(v.string()),
+    scanLimit: v.optional(v.number()),
+  },
+  returns: v.array(v.union(artistDoc, trackDoc)),
+  handler: (ctx, args) => music.selectEligible(ctx, args),
 });

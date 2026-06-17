@@ -3,7 +3,53 @@ import type {
   FunctionReference,
   FunctionReturnType,
 } from "convex/server";
-import type { CacheEntry, EntryKey, PutInput } from "./types.js";
+import type { Provider } from "../shared.js";
+import type {
+  CacheEntry,
+  CatalogArtist,
+  CatalogPlaylist,
+  CatalogTrack,
+  EntryKey,
+  NormalizedArtist,
+  NormalizedTrack,
+  PutInput,
+} from "./types.js";
+
+/** Arguments to upsert a provider's artist into the catalog. */
+export type UpsertArtistInput = {
+  provider: Provider;
+  externalId: string;
+  value: NormalizedArtist;
+};
+
+/** Arguments to upsert a provider's track (ISRC required) into the catalog. */
+export type UpsertTrackInput = {
+  provider: Provider;
+  externalId: string;
+  value: NormalizedTrack;
+  artistIds?: string[];
+};
+
+/** Arguments to upsert a playlist by source-provider identity. */
+export type UpsertPlaylistInput = {
+  provider: Provider;
+  providerId: string;
+  title: string;
+  description?: string;
+  coverUrl?: string;
+  url?: string;
+  owner?: string;
+  trackIds: string[];
+};
+
+/** Arguments to select eligible catalog rows for a daily picker. */
+export type SelectEligibleInput = {
+  kind: "artist" | "track";
+  limit: number;
+  excludeIds?: string[];
+  salt?: string;
+  scanLimit?: number;
+};
 
 /**
  * The component's function references, as exposed on the host via
@@ -34,6 +80,72 @@ export interface MusicComponent {
       Record<string, never>,
       { total: number }
     >;
+  };
+  catalog: {
+    mutations: {
+      upsertArtist: FunctionReference<
+        "mutation",
+        "internal",
+        UpsertArtistInput,
+        string
+      >;
+      upsertTrack: FunctionReference<
+        "mutation",
+        "internal",
+        UpsertTrackInput,
+        string
+      >;
+      upsertPlaylist: FunctionReference<
+        "mutation",
+        "internal",
+        UpsertPlaylistInput,
+        string
+      >;
+    };
+    queries: {
+      getArtist: FunctionReference<
+        "query",
+        "internal",
+        { id: string },
+        CatalogArtist | null
+      >;
+      getTrack: FunctionReference<
+        "query",
+        "internal",
+        { id: string },
+        CatalogTrack | null
+      >;
+      getPlaylist: FunctionReference<
+        "query",
+        "internal",
+        { id: string },
+        CatalogPlaylist | null
+      >;
+      getTrackByIsrc: FunctionReference<
+        "query",
+        "internal",
+        { isrc: string },
+        CatalogTrack | null
+      >;
+      searchArtists: FunctionReference<
+        "query",
+        "internal",
+        { query: string; limit?: number },
+        CatalogArtist[]
+      >;
+      searchTracks: FunctionReference<
+        "query",
+        "internal",
+        { query: string; limit?: number },
+        CatalogTrack[]
+      >;
+      selectEligible: FunctionReference<
+        "query",
+        "internal",
+        SelectEligibleInput,
+        Array<CatalogArtist | CatalogTrack>
+      >;
+    };
   };
 }
 
@@ -98,12 +210,88 @@ export class Music {
   stats(ctx: RunQueryCtx): Promise<{ total: number }> {
     return ctx.runQuery(this.component.queries.stats, {});
   }
+
+  /** Upsert a provider's artist into the catalog; returns the unified artist id. */
+  upsertArtist(ctx: RunMutationCtx, input: UpsertArtistInput): Promise<string> {
+    return ctx.runMutation(this.component.catalog.mutations.upsertArtist, input);
+  }
+
+  /** Upsert a provider's track (ISRC required); returns the unified track id. */
+  upsertTrack(ctx: RunMutationCtx, input: UpsertTrackInput): Promise<string> {
+    return ctx.runMutation(this.component.catalog.mutations.upsertTrack, input);
+  }
+
+  /** Upsert a playlist by source-provider identity; returns the playlist id. */
+  upsertPlaylist(
+    ctx: RunMutationCtx,
+    input: UpsertPlaylistInput,
+  ): Promise<string> {
+    return ctx.runMutation(
+      this.component.catalog.mutations.upsertPlaylist,
+      input,
+    );
+  }
+
+  /** Fetch one unified artist by id. */
+  getArtist(ctx: RunQueryCtx, id: string): Promise<CatalogArtist | null> {
+    return ctx.runQuery(this.component.catalog.queries.getArtist, { id });
+  }
+
+  /** Fetch one unified track by id. */
+  getTrack(ctx: RunQueryCtx, id: string): Promise<CatalogTrack | null> {
+    return ctx.runQuery(this.component.catalog.queries.getTrack, { id });
+  }
+
+  /** Fetch one playlist by id. */
+  getPlaylist(ctx: RunQueryCtx, id: string): Promise<CatalogPlaylist | null> {
+    return ctx.runQuery(this.component.catalog.queries.getPlaylist, { id });
+  }
+
+  /** Resolve a unified track by ISRC. */
+  getTrackByIsrc(ctx: RunQueryCtx, isrc: string): Promise<CatalogTrack | null> {
+    return ctx.runQuery(this.component.catalog.queries.getTrackByIsrc, { isrc });
+  }
+
+  /** Full-text search artists by name. */
+  searchArtists(
+    ctx: RunQueryCtx,
+    query: string,
+    limit?: number,
+  ): Promise<CatalogArtist[]> {
+    return ctx.runQuery(this.component.catalog.queries.searchArtists, {
+      query,
+      limit,
+    });
+  }
+
+  /** Full-text search tracks by title. */
+  searchTracks(
+    ctx: RunQueryCtx,
+    query: string,
+    limit?: number,
+  ): Promise<CatalogTrack[]> {
+    return ctx.runQuery(this.component.catalog.queries.searchTracks, {
+      query,
+      limit,
+    });
+  }
+
+  /** Select eligible catalog rows for a daily picker (stable rotation). */
+  selectEligible(
+    ctx: RunQueryCtx,
+    input: SelectEligibleInput,
+  ): Promise<Array<CatalogArtist | CatalogTrack>> {
+    return ctx.runQuery(this.component.catalog.queries.selectEligible, input);
+  }
 }
 
 export type {
   ArtistRef,
   CacheEntry,
   CacheValue,
+  CatalogArtist,
+  CatalogPlaylist,
+  CatalogTrack,
   EntryKey,
   NormalizedAlbum,
   NormalizedArtist,

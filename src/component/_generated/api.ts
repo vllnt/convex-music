@@ -8,6 +8,10 @@
  * @module
  */
 
+import type * as catalog_browse_order from "../catalog/browse_order.js";
+import type * as catalog_merge from "../catalog/merge.js";
+import type * as catalog_mutations from "../catalog/mutations.js";
+import type * as catalog_queries from "../catalog/queries.js";
 import type * as mutations from "../mutations.js";
 import type * as providers_apple_impl from "../providers/apple/impl.js";
 import type * as providers_apple_jwt from "../providers/apple/jwt.js";
@@ -31,6 +35,10 @@ import type {
 import { anyApi, componentsGeneric } from "convex/server";
 
 const fullApi: ApiFromModules<{
+  "catalog/browse_order": typeof catalog_browse_order;
+  "catalog/merge": typeof catalog_merge;
+  "catalog/mutations": typeof catalog_mutations;
+  "catalog/queries": typeof catalog_queries;
   mutations: typeof mutations;
   "providers/apple/impl": typeof providers_apple_impl;
   "providers/apple/jwt": typeof providers_apple_jwt;

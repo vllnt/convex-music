@@ -26,6 +26,10 @@ export default defineConfig({
         "src/component/providers/apple/mappers.ts",
         "src/component/providers/apple/impl.ts",
         "src/component/providers/registry.ts",
+        "src/component/catalog/browse_order.ts",
+        "src/component/catalog/merge.ts",
+        "src/component/catalog/mutations.ts",
+        "src/component/catalog/queries.ts",
       ],
       thresholds: {
         statements: 100,
