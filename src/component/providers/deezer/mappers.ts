@@ -43,6 +43,7 @@ export function mapDeezerTrack(raw: DeezerTrack): NormalizedTrack {
     previewUrl: raw.preview,
     coverUrl: raw.album?.cover_xl,
     url: raw.link,
+    albumId: raw.album === undefined ? undefined : String(raw.album.id),
   };
 }
 

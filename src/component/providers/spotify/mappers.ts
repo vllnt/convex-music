@@ -51,6 +51,7 @@ export function mapTrack(raw: SpotifyTrack): NormalizedTrack {
     previewUrl: raw.preview_url ?? undefined,
     coverUrl: firstImage(raw.album?.images),
     url: raw.external_urls?.spotify,
+    albumId: raw.album?.id,
   };
 }
 

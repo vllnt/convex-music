@@ -529,3 +529,54 @@ test("importAlbum on a provider without batch fetch drops ISRC-less tracks", asy
   const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
   expect(request.resultSummary).toContain("1 tracks");
 });
+
+test("importTrack withAlbum also imports the track's album", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([
+    TOKEN,
+    {
+      match: /\/v1\/tracks\/t1/,
+      body: {
+        id: "t1",
+        name: "One More Time",
+        external_ids: { isrc: "GBWAL0000001" },
+        artists: [{ id: "a1", name: "Daft Punk" }],
+        album: { id: "al1", name: "Discovery", images: [] },
+      },
+    },
+    {
+      match: /\/v1\/albums\/al1/,
+      body: { id: "al1", name: "Discovery", artists: [{ id: "a1", name: "Daft Punk" }], tracks: { items: [] } },
+    },
+  ]);
+  const result = await t.action(api.example.importTrack, {
+    provider: "spotify",
+    providerId: "t1",
+    withAlbum: true,
+  });
+  expect(result.status).toBe("completed");
+  const album = await t.query(api.example.getAlbumByProvider, {
+    provider: "spotify",
+    providerId: "al1",
+  });
+  expect(album.title).toBe("Discovery");
+});
+
+test("importTrack withAlbum is a no-op when the track has no album", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([
+    TOKEN,
+    {
+      match: /\/v1\/tracks\/t2/,
+      body: { id: "t2", name: "Standalone", external_ids: { isrc: "GBWAL0000002" }, artists: [] },
+    },
+  ]);
+  const result = await t.action(api.example.importTrack, {
+    provider: "spotify",
+    providerId: "t2",
+    withAlbum: true,
+  });
+  expect(result.status).toBe("completed");
+});

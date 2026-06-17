@@ -78,6 +78,7 @@ describe("mapTrack", () => {
       previewUrl: "https://preview/1",
       coverUrl: "https://cov/1",
       url: "https://open.spotify.com/track/t1",
+      albumId: "al1",
     });
   });
 

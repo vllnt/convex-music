@@ -196,6 +196,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               externalId: string;
               type: "track";
               value: {
+                albumId?: string;
                 artists: Array<{ externalId?: string; name: string }>;
                 coverUrl?: string;
                 durationMs?: number;
@@ -293,6 +294,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "wikidata"
               | "deezer";
             value: {
+              albumId?: string;
               artists: Array<{ externalId?: string; name: string }>;
               coverUrl?: string;
               durationMs?: number;
@@ -1047,6 +1049,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "wikidata"
               | "deezer";
             providerId: string;
+            withAlbum?: boolean;
           },
           {
             requestId: string;
@@ -1158,6 +1161,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "deezer";
             providerId: string;
             requestId: string;
+            withAlbum?: boolean;
           },
           {
             status:
@@ -1338,6 +1342,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           ttlMs?: number;
           value:
             | {
+                albumId?: string;
                 artists: Array<{ externalId?: string; name: string }>;
                 coverUrl?: string;
                 durationMs?: number;
@@ -1390,6 +1395,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           provider: "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
           value:
             | {
+                albumId?: string;
                 artists: Array<{ externalId?: string; name: string }>;
                 coverUrl?: string;
                 durationMs?: number;
@@ -1435,6 +1441,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           provider: "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
           value:
             | {
+                albumId?: string;
                 artists: Array<{ externalId?: string; name: string }>;
                 coverUrl?: string;
                 durationMs?: number;

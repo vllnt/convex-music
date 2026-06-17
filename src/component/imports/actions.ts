@@ -242,6 +242,7 @@ export const runTrackImport = action({
     requestId: v.id("importRequests"),
     provider,
     providerId: v.string(),
+    withAlbum: v.optional(v.boolean()),
   },
   returns: v.object({ status: importStatus }),
   handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
@@ -275,6 +276,13 @@ export const runTrackImport = action({
         value: result.value,
         artistIds,
       });
+      // Optionally pull the track's album too (its own nested import request).
+      if (args.withAlbum === true && result.value.albumId !== undefined) {
+        await ctx.runAction(api.imports.actions.importAlbum, {
+          provider: args.provider,
+          providerId: result.value.albumId,
+        });
+      }
       await ctx.runMutation(internal.imports.mutations.markCompleted, {
         requestId: args.requestId,
         resolvedTrackId: trackId,
@@ -300,6 +308,7 @@ export const importTrack = action({
   args: {
     provider,
     providerId: v.string(),
+    withAlbum: v.optional(v.boolean()),
     mode: v.optional(importMode),
     priority: v.optional(importPriority),
   },
@@ -324,6 +333,7 @@ export const importTrack = action({
       requestId,
       provider: args.provider,
       providerId: args.providerId,
+      withAlbum: args.withAlbum,
     });
     return { requestId, status: result.status };
   },

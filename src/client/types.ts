@@ -53,6 +53,8 @@ export interface NormalizedTrack {
   previewUrl?: string;
   coverUrl?: string;
   url?: string;
+  /** The track's album provider id, for `importTrack({ withAlbum })`. */
+  albumId?: string;
 }
 
 /** Normalized, provider-sourced artist facts (fields vary by provider). */

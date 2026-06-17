@@ -49,6 +49,8 @@ export type ImportArtistInput = {
 export type ImportTrackInput = {
   provider: Provider;
   providerId: string;
+  /** Also import the track's album (when the provider exposes an album id). */
+  withAlbum?: boolean;
   mode?: "import" | "refresh" | "reimport" | "repair";
   priority?: "high" | "normal" | "low";
 };

@@ -324,6 +324,7 @@ export const importTrack = action({
   args: {
     provider,
     providerId: v.string(),
+    withAlbum: v.optional(v.boolean()),
     mode: v.optional(importMode),
     priority: v.optional(importPriority),
   },

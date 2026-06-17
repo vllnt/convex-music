@@ -47,6 +47,7 @@ describe("deezer mappers", () => {
       previewUrl: "https://prev",
       coverUrl: "https://cov",
       url: "https://l",
+      albumId: "9",
     });
     expect(mapDeezerTrack({ id: 2, title: "Bare" })).toEqual({
       title: "Bare",

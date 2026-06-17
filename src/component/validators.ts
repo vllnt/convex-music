@@ -31,6 +31,8 @@ export const trackValue = v.object({
   previewUrl: v.optional(v.string()),
   coverUrl: v.optional(v.string()),
   url: v.optional(v.string()),
+  /** The track's album provider id, for `importTrack({ withAlbum })`. */
+  albumId: v.optional(v.string()),
 });
 
 /** Normalized, provider-sourced artist facts (fields vary by provider). */
