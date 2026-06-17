@@ -71,13 +71,17 @@ export const runRefresh = action({
   returns: v.object({ refreshed: v.number() }),
   handler: async (ctx, args): Promise<{ refreshed: number }> => {
     const limit = args.limit ?? 10;
-    if (args.kind === "artist") {
-      const stale = await ctx.runQuery(api.sync.queries.listStale, {
-        kind: "artist",
-        limit,
-      });
-      await Promise.all(
-        stale.flatMap((row) =>
+    const stale = await ctx.runQuery(api.sync.queries.listStale, {
+      kind: args.kind,
+      limit,
+    });
+    let refreshed = 0;
+    for (const row of stale) {
+      // Separate refresh budget (distinct from the new-source import budget).
+      const { ok } = await rateLimiter.limit(ctx, "refresh");
+      if (!ok) break;
+      if (args.kind === "artist") {
+        await Promise.all(
           row.providers.map((prov) =>
             ctx.runAction(api.imports.actions.importArtist, {
               provider: prov.provider,
@@ -86,26 +90,21 @@ export const runRefresh = action({
               mode: "refresh",
             }),
           ),
-        ),
-      );
-      return { refreshed: stale.length };
+        );
+      } else {
+        await Promise.all(
+          row.providers.map((prov) =>
+            ctx.runAction(api.imports.actions.importTrack, {
+              provider: prov.provider,
+              providerId: prov.providerId,
+              mode: "refresh",
+            }),
+          ),
+        );
+      }
+      refreshed += 1;
     }
-    const stale = await ctx.runQuery(api.sync.queries.listStale, {
-      kind: "track",
-      limit,
-    });
-    await Promise.all(
-      stale.flatMap((row) =>
-        row.providers.map((prov) =>
-          ctx.runAction(api.imports.actions.importTrack, {
-            provider: prov.provider,
-            providerId: prov.providerId,
-            mode: "refresh",
-          }),
-        ),
-      ),
-    );
-    return { refreshed: stale.length };
+    return { refreshed };
   },
 });
 
@@ -147,15 +146,18 @@ export const runAutoImport = action({
 });
 
 /**
- * Consume `count` tokens from the auto-import throughput budget — for host-side
- * pacing (reserve budget before a manual import burst). Returns whether the
- * budget allowed it.
+ * Consume `count` tokens from a named throughput budget (`autoImport` or
+ * `refresh`) — for host-side pacing (reserve budget before a manual burst).
+ * Returns whether the budget allowed it.
  */
-export const consumeImportBudget = action({
-  args: { count: v.number() },
+export const consumeBudget = action({
+  args: {
+    budget: v.union(v.literal("autoImport"), v.literal("refresh")),
+    count: v.number(),
+  },
   returns: v.boolean(),
   handler: async (ctx, args): Promise<boolean> => {
-    const { ok } = await rateLimiter.limit(ctx, "autoImport", {
+    const { ok } = await rateLimiter.limit(ctx, args.budget, {
       count: args.count,
     });
     return ok;

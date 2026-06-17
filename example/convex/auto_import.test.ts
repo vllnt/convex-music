@@ -167,10 +167,29 @@ test("runAutoImport stops when the throughput budget is exhausted", async () => 
     provider: "spotify",
   });
   // drain the token bucket (default capacity = 60/hour)
-  expect(await t.action(api.example.consumeImportBudget, { count: 60 })).toBe(true);
+  expect(
+    await t.action(api.example.consumeBudget, { budget: "autoImport", count: 60 }),
+  ).toBe(true);
   stubFetch([TOKEN, ARTIST("a1")]);
   // budget exhausted -> the due source is not imported
   expect((await t.action(api.example.runAutoImport, { now: 1000 })).imported).toBe(0);
+});
+
+test("runRefresh stops when the refresh budget is exhausted", async () => {
+  const t = setup();
+  await configure(t);
+  await t.mutation(api.example.upsertArtist, {
+    provider: "spotify",
+    externalId: "a1",
+    value: { name: "Daft Punk", genres: [] },
+  });
+  await t.mutation(api.example.markStale, { kind: "artist", now: FAR_FUTURE });
+  // drain the separate refresh budget
+  expect(
+    await t.action(api.example.consumeBudget, { budget: "refresh", count: 60 }),
+  ).toBe(true);
+  stubFetch([TOKEN, ARTIST("a1")]);
+  expect((await t.action(api.example.runRefresh, { kind: "artist" })).refreshed).toBe(0);
 });
 
 test("runRefresh re-syncs stale artists from their providers", async () => {

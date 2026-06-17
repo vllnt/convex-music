@@ -1309,10 +1309,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
     };
     sources: {
       actions: {
-        consumeImportBudget: FunctionReference<
+        consumeBudget: FunctionReference<
           "action",
           "internal",
-          { count: number },
+          { budget: "autoImport" | "refresh"; count: number },
           boolean,
           Name
         >;
