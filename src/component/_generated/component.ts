@@ -1283,6 +1283,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           { imported: number; skipped: number },
           Name
         >;
+        runRefresh: FunctionReference<
+          "action",
+          "internal",
+          { kind: "artist" | "track"; limit?: number },
+          { refreshed: number },
+          Name
+        >;
       };
       mutations: {
         addSource: FunctionReference<
@@ -1362,6 +1369,102 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "internal",
           { kind: "artist" | "track"; limit?: number; now?: number },
           number,
+          Name
+        >;
+      };
+      queries: {
+        listStale: FunctionReference<
+          "query",
+          "internal",
+          { kind: "artist" | "track"; limit?: number },
+          | Array<{
+              _creationTime: number;
+              _id: string;
+              country?: string;
+              debutYear?: number;
+              gender?: string;
+              genres: Array<string>;
+              imageUrl?: string;
+              lastRepairAt?: number;
+              lastSyncError?: string;
+              lastSyncedAt?: number;
+              members?: "solo" | "group";
+              name: string;
+              nameKey: string;
+              nextSyncAt?: number;
+              popularity?: number;
+              providers: Array<{
+                genres?: Array<string>;
+                imageUrl?: string;
+                popularity?: number;
+                provider:
+                  | "spotify"
+                  | "apple"
+                  | "musicbrainz"
+                  | "wikidata"
+                  | "deezer";
+                providerId: string;
+                url?: string;
+              }>;
+              repairAttempts?: number;
+              repairError?: string;
+              repairStartedAt?: number;
+              repairStatus?:
+                | "clean"
+                | "needs_repair"
+                | "repairing"
+                | "failed_repair";
+              syncRetryCount?: number;
+              syncStatus?:
+                | "pending"
+                | "running"
+                | "synced"
+                | "failed"
+                | "stale";
+              updatedAt: number;
+            }>
+          | Array<{
+              _creationTime: number;
+              _id: string;
+              artistIds: Array<string>;
+              durationMs?: number;
+              genres: Array<string>;
+              isrc: string;
+              lastRepairAt?: number;
+              lastSyncError?: string;
+              lastSyncedAt?: number;
+              nextSyncAt?: number;
+              popularity?: number;
+              providers: Array<{
+                coverUrl?: string;
+                previewUrl?: string;
+                provider:
+                  | "spotify"
+                  | "apple"
+                  | "musicbrainz"
+                  | "wikidata"
+                  | "deezer";
+                providerId: string;
+                url?: string;
+              }>;
+              repairAttempts?: number;
+              repairError?: string;
+              repairStartedAt?: number;
+              repairStatus?:
+                | "clean"
+                | "needs_repair"
+                | "repairing"
+                | "failed_repair";
+              syncRetryCount?: number;
+              syncStatus?:
+                | "pending"
+                | "running"
+                | "synced"
+                | "failed"
+                | "stale";
+              title: string;
+              updatedAt: number;
+            }>,
           Name
         >;
       };

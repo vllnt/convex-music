@@ -47,6 +47,58 @@ async function importSource(
 }
 
 /**
+ * Run the refresh sweep: re-import up to `limit` stale catalog rows of a kind
+ * from each provider already on their record (mode `refresh`), bringing them
+ * back to `synced`. The freshness mechanism `markStale` flips rows to `stale`;
+ * this re-syncs them. Opt-in by construction (no stale rows → no-op).
+ */
+export const runRefresh = action({
+  args: {
+    kind: v.union(v.literal("artist"), v.literal("track")),
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({ refreshed: v.number() }),
+  handler: async (ctx, args): Promise<{ refreshed: number }> => {
+    const limit = args.limit ?? 10;
+    if (args.kind === "artist") {
+      const stale = await ctx.runQuery(api.sync.queries.listStale, {
+        kind: "artist",
+        limit,
+      });
+      await Promise.all(
+        stale.flatMap((row) =>
+          row.providers.map((prov) =>
+            ctx.runAction(api.imports.actions.importArtist, {
+              provider: prov.provider,
+              targetMode: "providerId",
+              providerId: prov.providerId,
+              mode: "refresh",
+            }),
+          ),
+        ),
+      );
+      return { refreshed: stale.length };
+    }
+    const stale = await ctx.runQuery(api.sync.queries.listStale, {
+      kind: "track",
+      limit,
+    });
+    await Promise.all(
+      stale.flatMap((row) =>
+        row.providers.map((prov) =>
+          ctx.runAction(api.imports.actions.importTrack, {
+            provider: prov.provider,
+            providerId: prov.providerId,
+            mode: "refresh",
+          }),
+        ),
+      ),
+    );
+    return { refreshed: stale.length };
+  },
+});
+
+/**
  * Run the auto-import sweep: import up to `limit` due enabled sources, stamping
  * each. Sources with no provider are skipped. Returns `{ imported, skipped }`.
  */

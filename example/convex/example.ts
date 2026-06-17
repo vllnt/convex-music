@@ -353,6 +353,26 @@ export const runAutoImport = action({
     ctx.runAction(components.music.sources.actions.runAutoImport, args),
 });
 
+export const runRefresh = action({
+  args: {
+    kind: v.union(v.literal("artist"), v.literal("track")),
+    limit: v.optional(v.number()),
+  },
+  returns: v.object({ refreshed: v.number() }),
+  handler: (ctx, args) =>
+    ctx.runAction(components.music.sources.actions.runRefresh, args),
+});
+
+export const listStale = query({
+  args: {
+    kind: v.union(v.literal("artist"), v.literal("track")),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(componentDoc),
+  handler: (ctx, args) =>
+    ctx.runQuery(components.music.sync.queries.listStale, args),
+});
+
 /** Host setup: read deployment env vars and configure the component once. */
 export const configureFromEnv = action({
   args: {},

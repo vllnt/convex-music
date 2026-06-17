@@ -154,3 +154,39 @@ test("a source with no cadence is one-shot", async () => {
     (await t.action(api.example.runAutoImport, { now: 9_999_999 })).imported,
   ).toBe(0);
 });
+
+const FAR_FUTURE = Date.now() + 365 * 24 * 60 * 60 * 1000;
+
+test("runRefresh re-syncs stale artists from their providers", async () => {
+  const t = setup();
+  await configure(t);
+  await t.mutation(api.example.upsertArtist, {
+    provider: "spotify",
+    externalId: "a1",
+    value: { name: "Daft Punk", genres: [] },
+  });
+  await t.mutation(api.example.markStale, { kind: "artist", now: FAR_FUTURE });
+  stubFetch([TOKEN, ARTIST("a1")]);
+  expect((await t.action(api.example.runRefresh, { kind: "artist" })).refreshed).toBe(1);
+});
+
+test("runRefresh re-syncs stale tracks + no-ops when none are stale", async () => {
+  const t = setup();
+  await configure(t);
+  // nothing stale yet
+  expect((await t.action(api.example.runRefresh, { kind: "track" })).refreshed).toBe(0);
+  await t.mutation(api.example.upsertTrack, {
+    provider: "spotify",
+    externalId: "tr1",
+    value: { title: "X", artists: [], isrc: "GBTEST000099" },
+  });
+  await t.mutation(api.example.markStale, { kind: "track", now: FAR_FUTURE });
+  stubFetch([
+    TOKEN,
+    {
+      match: /\/v1\/tracks\/tr1/,
+      body: { id: "tr1", name: "X", artists: [], external_ids: { isrc: "GBTEST000099" } },
+    },
+  ]);
+  expect((await t.action(api.example.runRefresh, { kind: "track" })).refreshed).toBe(1);
+});

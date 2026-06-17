@@ -62,3 +62,21 @@ test("markStale handles the track kind", async () => {
     }),
   ).toBe(1);
 });
+
+test("listStale returns the rows markStale flagged (default limit)", async () => {
+  const t = setup();
+  await t.mutation(api.example.upsertArtist, {
+    provider: "spotify",
+    externalId: "a1",
+    value: { name: "Daft Punk", genres: [] },
+  });
+  // none stale yet
+  expect(await t.query(api.example.listStale, { kind: "artist" })).toHaveLength(0);
+  await t.mutation(api.example.markStale, {
+    kind: "artist",
+    now: Date.now() + YEAR_MS,
+  });
+  // no limit arg -> exercises the default-limit branch
+  const stale = await t.query(api.example.listStale, { kind: "artist" });
+  expect(stale).toHaveLength(1);
+});

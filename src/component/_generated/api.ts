@@ -50,6 +50,7 @@ import type * as sources_mutations from "../sources/mutations.js";
 import type * as sources_queries from "../sources/queries.js";
 import type * as sync_lifecycle from "../sync/lifecycle.js";
 import type * as sync_mutations from "../sync/mutations.js";
+import type * as sync_queries from "../sync/queries.js";
 import type * as validators from "../validators.js";
 
 import type {
@@ -102,6 +103,7 @@ const fullApi: ApiFromModules<{
   "sources/queries": typeof sources_queries;
   "sync/lifecycle": typeof sync_lifecycle;
   "sync/mutations": typeof sync_mutations;
+  "sync/queries": typeof sync_queries;
   validators: typeof validators;
 }> = anyApi as any;
 

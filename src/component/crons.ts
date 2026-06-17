@@ -28,4 +28,13 @@ crons.interval("music:mark-stale-tracks", { hours: 24 }, api.sync.mutations.mark
 // a fresh mount never auto-hammers providers.
 crons.interval("music:auto-import", { hours: 1 }, api.sources.actions.runAutoImport, {});
 
+// Refresh sweep: re-sync rows the mark-stale sweep flagged. Per-kind, opt-in
+// (no stale rows → no-op).
+crons.interval("music:refresh-artists", { hours: 6 }, api.sources.actions.runRefresh, {
+  kind: "artist",
+});
+crons.interval("music:refresh-tracks", { hours: 6 }, api.sources.actions.runRefresh, {
+  kind: "track",
+});
+
 export default crons;
