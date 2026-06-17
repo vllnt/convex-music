@@ -236,6 +236,19 @@ export const listImportRequests = query({
     ctx.runQuery(components.music.imports.queries.listRequests, args),
 });
 
+export const importArtist = action({
+  args: {
+    provider,
+    targetMode: v.union(v.literal("name"), v.literal("providerId")),
+    name: v.optional(v.string()),
+    providerId: v.optional(v.string()),
+    mode: v.optional(importMode),
+    priority: v.optional(importPriority),
+  },
+  returns: v.object({ requestId: v.string(), status: v.string() }),
+  handler: (ctx, args) => music.importArtist(ctx, args),
+});
+
 /** Host setup: read deployment env vars and configure the component once. */
 export const configureFromEnv = action({
   args: {},

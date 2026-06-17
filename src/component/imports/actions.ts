@@ -1,0 +1,133 @@
+/**
+ * Import entry points + traversal. An entry point creates a control-plane request
+ * (dedup-aware) then runs the traversal, which resolves the target (by provider
+ * id or by name-search), fetches it via the adapter, promotes it into the
+ * catalog, and drives the request through `running → completed | failed`. The
+ * traversal reuses the tested token + adapter + catalog-upsert layers.
+ */
+
+import { v } from "convex/values";
+import { api, internal } from "../_generated/api.js";
+import { action } from "../_generated/server.js";
+import { getProviderToken } from "../providers/actions.js";
+import { createProvider } from "../providers/registry.js";
+import {
+  importMode,
+  importPriority,
+  importStatus,
+  provider,
+} from "../validators.js";
+
+/** How an import artist is targeted. */
+const artistTargetMode = v.union(v.literal("name"), v.literal("providerId"));
+
+/**
+ * Run an artist import: resolve the artist's provider id (directly or via
+ * name-search), fetch + promote it into the catalog, and complete (or fail) the
+ * request. Returns the terminal status.
+ */
+export const runArtistImport = action({
+  args: {
+    requestId: v.id("importRequests"),
+    provider,
+    targetMode: artistTargetMode,
+    name: v.string(),
+    providerId: v.string(),
+  },
+  returns: v.object({ status: importStatus }),
+  handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
+    await ctx.runMutation(internal.imports.mutations.markClaimed, {
+      requestId: args.requestId,
+    });
+    await ctx.runMutation(internal.imports.mutations.markRunning, {
+      requestId: args.requestId,
+    });
+    try {
+      let externalId = args.providerId;
+      if (args.targetMode === "name") {
+        const hits = await ctx.runAction(api.actions.search, {
+          provider: args.provider,
+          query: args.name,
+          type: "artist",
+        });
+        const first = hits[0];
+        if (first === undefined) {
+          throw new Error(`no artist found for "${args.name}"`);
+        }
+        externalId = first.externalId;
+      }
+      if (externalId === "") {
+        throw new Error("import by providerId requires a providerId");
+      }
+      const token = await getProviderToken(ctx, args.provider);
+      const adapter = createProvider(args.provider, () =>
+        Promise.resolve(token),
+      );
+      const result = await adapter.getArtist(externalId);
+      const artistId = await ctx.runMutation(
+        api.catalog.mutations.upsertArtist,
+        {
+          provider: args.provider,
+          externalId: result.externalId,
+          value: result.value,
+        },
+      );
+      await ctx.runMutation(internal.imports.mutations.markCompleted, {
+        requestId: args.requestId,
+        resolvedArtistId: artistId,
+        resultSummary: `imported artist ${result.value.name}`,
+      });
+      return { status: "completed" };
+    } catch (err) {
+      await ctx.runMutation(internal.imports.mutations.markFailed, {
+        requestId: args.requestId,
+        status: "failed",
+        errorSummary: String(err),
+      });
+      return { status: "failed" };
+    }
+  },
+});
+
+/**
+ * Import an artist by name or provider id, promoting it into the catalog. Creates
+ * a dedup-aware control-plane request, runs the traversal, and returns the
+ * request id + terminal status.
+ */
+export const importArtist = action({
+  args: {
+    provider,
+    targetMode: artistTargetMode,
+    name: v.optional(v.string()),
+    providerId: v.optional(v.string()),
+    mode: v.optional(importMode),
+    priority: v.optional(importPriority),
+  },
+  returns: v.object({ requestId: v.string(), status: importStatus }),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ requestId: string; status: "completed" | "failed" }> => {
+    const { requestId } = await ctx.runMutation(
+      api.imports.mutations.createRequest,
+      {
+        entityType: "artist",
+        requestType: args.mode ?? "import",
+        targetMode: args.targetMode,
+        providerScope: args.provider,
+        provider: args.provider,
+        providerId: args.providerId,
+        name: args.name,
+        priority: args.priority,
+      },
+    );
+    const result = await ctx.runAction(api.imports.actions.runArtistImport, {
+      requestId,
+      provider: args.provider,
+      targetMode: args.targetMode,
+      name: args.name ?? "",
+      providerId: args.providerId ?? "",
+    });
+    return { requestId, status: result.status };
+  },
+});

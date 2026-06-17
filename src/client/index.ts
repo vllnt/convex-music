@@ -30,6 +30,19 @@ export type SearchInput = {
   type: "artist" | "track";
 };
 
+/** Arguments to import an artist into the catalog. */
+export type ImportArtistInput = {
+  provider: Provider;
+  targetMode: "name" | "providerId";
+  name?: string;
+  providerId?: string;
+  mode?: "import" | "refresh" | "reimport" | "repair";
+  priority?: "high" | "normal" | "low";
+};
+
+/** The outcome of an import: the request id + its terminal status. */
+export type ImportResult = { requestId: string; status: string };
+
 /** Arguments to upsert a provider's artist into the catalog. */
 export type UpsertArtistInput = {
   provider: Provider;
@@ -184,6 +197,16 @@ export interface MusicComponent {
         "internal",
         { provider: Provider; secrets: Record<string, string> },
         null
+      >;
+    };
+  };
+  imports: {
+    actions: {
+      importArtist: FunctionReference<
+        "action",
+        "internal",
+        ImportArtistInput,
+        ImportResult
       >;
     };
   };
@@ -366,6 +389,18 @@ export class Music {
       provider,
       secrets,
     });
+  }
+
+  /**
+   * Import an artist into the catalog (by name or provider id). Creates a
+   * dedup-aware control-plane request, runs the traversal, and returns the
+   * request id + terminal status.
+   */
+  importArtist(
+    ctx: RunActionCtx,
+    input: ImportArtistInput,
+  ): Promise<ImportResult> {
+    return ctx.runAction(this.component.imports.actions.importArtist, input);
   }
 }
 

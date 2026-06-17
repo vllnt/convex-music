@@ -38,6 +38,7 @@ export default defineConfig({
         "src/component/imports/dedupe.ts",
         "src/component/imports/mutations.ts",
         "src/component/imports/queries.ts",
+        "src/component/imports/actions.ts",
       ],
       thresholds: {
         statements: 100,

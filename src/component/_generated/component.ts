@@ -731,6 +731,66 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       };
     };
     imports: {
+      actions: {
+        importArtist: FunctionReference<
+          "action",
+          "internal",
+          {
+            mode?: "import" | "refresh" | "reimport" | "repair";
+            name?: string;
+            priority?: "high" | "normal" | "low";
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId?: string;
+            targetMode: "name" | "providerId";
+          },
+          {
+            requestId: string;
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+          },
+          Name
+        >;
+        runArtistImport: FunctionReference<
+          "action",
+          "internal",
+          {
+            name: string;
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+            requestId: string;
+            targetMode: "name" | "providerId";
+          },
+          {
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+          },
+          Name
+        >;
+      };
       mutations: {
         createRequest: FunctionReference<
           "mutation",

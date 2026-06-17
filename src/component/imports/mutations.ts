@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel.js";
-import { type MutationCtx, mutation } from "../_generated/server.js";
+import {
+  type MutationCtx,
+  internalMutation,
+  mutation,
+} from "../_generated/server.js";
 import {
   importEntityType,
   importMode,
@@ -82,5 +86,85 @@ export const createRequest = mutation({
       updatedAt: now,
     });
     return { requestId, deduped: false };
+  },
+});
+
+/*
+ * Lifecycle transitions. The traversal orchestrates them in a linear, valid
+ * order (`queued → claimed → running → completed|failed`), so they patch by id
+ * without re-loading. The state-machine guard (`assertTransition`) is the
+ * authority on legality and is unit-tested in `state.ts`.
+ */
+
+/** queued → claimed. */
+export const markClaimed = internalMutation({
+  args: { requestId: v.id("importRequests") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.requestId, {
+      status: "claimed",
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+/** claimed → running. */
+export const markRunning = internalMutation({
+  args: { requestId: v.id("importRequests") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    await ctx.db.patch(args.requestId, {
+      status: "running",
+      startedAt: now,
+      updatedAt: now,
+    });
+    return null;
+  },
+});
+
+/** running → completed, recording what was resolved. */
+export const markCompleted = internalMutation({
+  args: {
+    requestId: v.id("importRequests"),
+    resolvedArtistId: v.optional(v.id("artists")),
+    resolvedTrackId: v.optional(v.id("tracks")),
+    resolvedPlaylistId: v.optional(v.id("playlists")),
+    resultSummary: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    await ctx.db.patch(args.requestId, {
+      status: "completed",
+      finishedAt: now,
+      updatedAt: now,
+      resolvedArtistId: args.resolvedArtistId,
+      resolvedTrackId: args.resolvedTrackId,
+      resolvedPlaylistId: args.resolvedPlaylistId,
+      resultSummary: args.resultSummary,
+    });
+    return null;
+  },
+});
+
+/** running → failed | stale, recording the error. */
+export const markFailed = internalMutation({
+  args: {
+    requestId: v.id("importRequests"),
+    status: v.union(v.literal("failed"), v.literal("stale")),
+    errorSummary: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    await ctx.db.patch(args.requestId, {
+      status: args.status,
+      finishedAt: now,
+      updatedAt: now,
+      errorSummary: args.errorSummary,
+    });
+    return null;
   },
 });

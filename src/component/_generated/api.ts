@@ -15,6 +15,7 @@ import type * as catalog_mutations from "../catalog/mutations.js";
 import type * as catalog_queries from "../catalog/queries.js";
 import type * as config_mutations from "../config/mutations.js";
 import type * as config_queries from "../config/queries.js";
+import type * as imports_actions from "../imports/actions.js";
 import type * as imports_dedupe from "../imports/dedupe.js";
 import type * as imports_mutations from "../imports/mutations.js";
 import type * as imports_queries from "../imports/queries.js";
@@ -50,6 +51,7 @@ const fullApi: ApiFromModules<{
   "catalog/queries": typeof catalog_queries;
   "config/mutations": typeof config_mutations;
   "config/queries": typeof config_queries;
+  "imports/actions": typeof imports_actions;
   "imports/dedupe": typeof imports_dedupe;
   "imports/mutations": typeof imports_mutations;
   "imports/queries": typeof imports_queries;
