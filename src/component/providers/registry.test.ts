@@ -20,15 +20,19 @@ describe("provider registry", () => {
     expect(createProvider("musicbrainz", getToken).id).toBe("musicbrainz");
   });
 
+  it("builds the Deezer adapter (no-auth)", () => {
+    expect(createProvider("deezer", getToken).id).toBe("deezer");
+  });
+
   it("throws for an unregistered provider", () => {
-    expect(() => createProvider("deezer", getToken)).toThrow(
-      'No adapter registered for provider "deezer"',
+    expect(() => createProvider("wikidata", getToken)).toThrow(
+      'No adapter registered for provider "wikidata"',
     );
   });
 
   it("reports registration status", () => {
     expect(isProviderRegistered("spotify")).toBe(true);
-    expect(isProviderRegistered("deezer")).toBe(false);
+    expect(isProviderRegistered("wikidata")).toBe(false);
   });
 
   it("lists registered providers in declaration order", () => {
@@ -36,6 +40,7 @@ describe("provider registry", () => {
       "spotify",
       "apple",
       "musicbrainz",
+      "deezer",
     ]);
   });
 });

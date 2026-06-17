@@ -9,6 +9,7 @@
 import { PROVIDER, type Provider } from "../../shared.js";
 import type { FetchDeps } from "./fetch.js";
 import { AppleProvider } from "./apple/impl.js";
+import { DeezerProvider } from "./deezer/impl.js";
 import { MusicBrainzProvider } from "./musicbrainz/impl.js";
 import { SpotifyProvider } from "./spotify/impl.js";
 import type { MusicProvider } from "./types.js";
@@ -23,8 +24,9 @@ export type ProviderFactory = (
 const REGISTRY: Partial<Record<Provider, ProviderFactory>> = {
   spotify: (getToken, deps) => new SpotifyProvider(getToken, undefined, deps),
   apple: (getToken, deps) => new AppleProvider(getToken, undefined, deps),
-  // No-auth: ignores the token, carries a User-Agent instead.
+  // No-auth: ignore the token (User-Agent / public REST).
   musicbrainz: (_getToken, deps) => new MusicBrainzProvider(undefined, deps),
+  deezer: (_getToken, deps) => new DeezerProvider(undefined, deps),
 };
 
 /** Whether an adapter is registered for a provider. */

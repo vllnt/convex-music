@@ -27,6 +27,8 @@ export default defineConfig({
         "src/component/providers/apple/impl.ts",
         "src/component/providers/musicbrainz/mappers.ts",
         "src/component/providers/musicbrainz/impl.ts",
+        "src/component/providers/deezer/mappers.ts",
+        "src/component/providers/deezer/impl.ts",
         "src/component/providers/registry.ts",
         "src/component/catalog/browse_order.ts",
         "src/component/catalog/merge.ts",

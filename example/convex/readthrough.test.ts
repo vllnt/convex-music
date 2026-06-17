@@ -326,7 +326,7 @@ test("a provider with no registered adapter rejects", async () => {
   await configureCreds(t);
   stubFetch([SPOTIFY_TOKEN]);
   await expect(
-    t.action(api.example.fetchArtist, { provider: "deezer", externalId: "x" }),
+    t.action(api.example.fetchArtist, { provider: "wikidata", externalId: "x" }),
   ).rejects.toThrow(/No adapter registered/);
 });
 

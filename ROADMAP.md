@@ -201,7 +201,7 @@ One normalize adapter per provider, behind a single interface. No host coupling.
 - `provider-adapters.3` `done` — Apple Music adapter, **full V8 re-architecture**: ES256 developer-token signer on Web Crypto `subtle.sign` (ECDSA P-256, PKCS8 import + JWS assembly + base64url, zero-dep — `apple/jwt.ts`), replacing songtrivia's `jsonwebtoken`. All 9 methods; Apple inlines album/playlist tracks via `include=tracks`. 100% covered with a real local sign+verify round-trip.
 - `provider-adapters.4` `done` — MusicBrainz adapter (nationality/country, gender, `members` solo/group, debut/begin-date).
 - `provider-adapters.5` `planned` — Wikidata adapter (overlap + gap-fill for artist facts).
-- `provider-adapters.6` `planned` — Deezer adapter.
+- `provider-adapters.6` `done` — Deezer adapter.
 - `provider-adapters.7` `in-progress` — **extension point**: a `registry` mapping provider id → adapter factory (`src/component/providers/registry.ts`); adding a provider = its folder + one registry entry, no core changes (open/closed). Provider ids are an open union. Remaining: document the "add a provider" steps in `docs/API.md`.
 
 ## read-through-fetch — `in-progress`
