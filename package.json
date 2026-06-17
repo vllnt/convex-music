@@ -50,7 +50,9 @@
     "release": "npm version patch && npm publish && git push --follow-tags"
   },
   "dependencies": {
-    "@convex-dev/action-cache": "^0.3.0"
+    "@convex-dev/action-cache": "^0.3.0",
+    "@convex-dev/workflow": "0.4.4",
+    "@convex-dev/workpool": "0.4.7"
   },
   "peerDependencies": {
     "convex": "^1.36.1"

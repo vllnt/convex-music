@@ -6,6 +6,11 @@ import {
   artistValue,
   cacheValue,
   entityKind,
+  importEntityType,
+  importMode,
+  importPriority,
+  importStatus,
+  importTargetMode,
   provider,
   providerSecrets,
   trackValue,
@@ -191,6 +196,44 @@ export const configure = mutation({
   args: { provider, secrets: providerSecrets },
   returns: v.null(),
   handler: (ctx, args) => music.configure(ctx, args.provider, args.secrets),
+});
+
+const importRequestArgs = {
+  entityType: importEntityType,
+  requestType: importMode,
+  targetMode: importTargetMode,
+  providerScope: v.string(),
+  provider: v.optional(provider),
+  providerId: v.optional(v.string()),
+  entityId: v.optional(v.string()),
+  name: v.optional(v.string()),
+  isrc: v.optional(v.string()),
+  url: v.optional(v.string()),
+  withTracks: v.optional(v.boolean()),
+  priority: v.optional(importPriority),
+};
+
+export const createImportRequest = mutation({
+  args: importRequestArgs,
+  returns: v.object({ requestId: v.string(), deduped: v.boolean() }),
+  handler: (ctx, args) =>
+    ctx.runMutation(components.music.imports.mutations.createRequest, args),
+});
+
+export const getImportRequest = query({
+  args: { requestId: v.string() },
+  returns: componentDoc,
+  handler: (ctx, args) =>
+    ctx.runQuery(components.music.imports.queries.getRequest, {
+      requestId: args.requestId,
+    }),
+});
+
+export const listImportRequests = query({
+  args: { status: importStatus, limit: v.optional(v.number()) },
+  returns: v.array(componentDoc),
+  handler: (ctx, args) =>
+    ctx.runQuery(components.music.imports.queries.listRequests, args),
 });
 
 /** Host setup: read deployment env vars and configure the component once. */

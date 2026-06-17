@@ -3,6 +3,7 @@ import {
   artistFields,
   artistProviderLinkFields,
   cacheEntryFields,
+  importRequestFields,
   playlistFields,
   providerConfigFields,
   trackClaimFields,
@@ -62,4 +63,9 @@ export default defineSchema({
   providerConfig: defineTable(providerConfigFields).index("by_provider", [
     "provider",
   ]),
+
+  importRequests: defineTable(importRequestFields)
+    .index("by_status", ["status", "requestedAt"])
+    .index("by_dedupe_status", ["dedupeKey", "status"])
+    .index("by_workflow", ["workflowId"]),
 });

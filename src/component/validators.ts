@@ -246,3 +246,98 @@ export const providerConfigFields = {
   provider,
   secrets: providerSecrets,
 };
+
+/*
+ * ── Import control plane ────────────────────────────────────────────────────
+ * The component-owned 8-state import-request machine (songtrivia's
+ * `music_imports`, generalized), layered over `@convex-dev/workflow` for the
+ * actual traversal steps.
+ */
+
+/** What an import targets. */
+export const importEntityType = v.union(
+  v.literal("artist"),
+  v.literal("track"),
+  v.literal("playlist"),
+);
+
+/** The kind of import work. */
+export const importMode = v.union(
+  v.literal("import"),
+  v.literal("refresh"),
+  v.literal("reimport"),
+  v.literal("repair"),
+);
+
+/** Queue ordering hint. */
+export const importPriority = v.union(
+  v.literal("high"),
+  v.literal("normal"),
+  v.literal("low"),
+);
+
+/** How the target is identified. */
+export const importTargetMode = v.union(
+  v.literal("name"),
+  v.literal("url"),
+  v.literal("isrc"),
+  v.literal("providerId"),
+  v.literal("entityId"),
+);
+
+/** The 8 lifecycle states of an import request. */
+export const importStatus = v.union(
+  v.literal("queued"),
+  v.literal("claimed"),
+  v.literal("running"),
+  v.literal("retry_waiting"),
+  v.literal("completed"),
+  v.literal("failed"),
+  v.literal("canceled"),
+  v.literal("stale"),
+);
+
+/** Per-call import options (provider select + traversal depth + mode). */
+export const importOptions = v.object({
+  providers: v.optional(v.array(provider)),
+  withTracks: v.optional(v.boolean()),
+  mode: v.optional(importMode),
+  priority: v.optional(importPriority),
+});
+
+/** Columns of an import-request row. */
+export const importRequestFields = {
+  entityType: importEntityType,
+  requestType: importMode,
+  targetMode: importTargetMode,
+  providerScope: v.string(),
+  provider: v.optional(provider),
+  providerId: v.optional(v.string()),
+  entityId: v.optional(v.string()),
+  name: v.optional(v.string()),
+  isrc: v.optional(v.string()),
+  url: v.optional(v.string()),
+  withTracks: v.optional(v.boolean()),
+  priority: importPriority,
+  status: importStatus,
+  dedupeKey: v.string(),
+  workflowId: v.optional(v.string()),
+  retryCount: v.number(),
+  nextAttemptAt: v.optional(v.number()),
+  resolvedArtistId: v.optional(v.id("artists")),
+  resolvedTrackId: v.optional(v.id("tracks")),
+  resolvedPlaylistId: v.optional(v.id("playlists")),
+  errorSummary: v.optional(v.string()),
+  resultSummary: v.optional(v.string()),
+  requestedAt: v.number(),
+  startedAt: v.optional(v.number()),
+  finishedAt: v.optional(v.number()),
+  updatedAt: v.number(),
+};
+
+/** Public shape of an import request returned by queries. */
+export const importRequestDoc = v.object({
+  _id: v.id("importRequests"),
+  _creationTime: v.number(),
+  ...importRequestFields,
+});

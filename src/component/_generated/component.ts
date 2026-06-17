@@ -730,6 +730,146 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         >;
       };
     };
+    imports: {
+      mutations: {
+        createRequest: FunctionReference<
+          "mutation",
+          "internal",
+          {
+            entityId?: string;
+            entityType: "artist" | "track" | "playlist";
+            isrc?: string;
+            name?: string;
+            priority?: "high" | "normal" | "low";
+            provider?:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId?: string;
+            providerScope: string;
+            requestType: "import" | "refresh" | "reimport" | "repair";
+            targetMode: "name" | "url" | "isrc" | "providerId" | "entityId";
+            url?: string;
+            withTracks?: boolean;
+          },
+          { deduped: boolean; requestId: string },
+          Name
+        >;
+      };
+      queries: {
+        getRequest: FunctionReference<
+          "query",
+          "internal",
+          { requestId: string },
+          null | {
+            _creationTime: number;
+            _id: string;
+            dedupeKey: string;
+            entityId?: string;
+            entityType: "artist" | "track" | "playlist";
+            errorSummary?: string;
+            finishedAt?: number;
+            isrc?: string;
+            name?: string;
+            nextAttemptAt?: number;
+            priority: "high" | "normal" | "low";
+            provider?:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId?: string;
+            providerScope: string;
+            requestType: "import" | "refresh" | "reimport" | "repair";
+            requestedAt: number;
+            resolvedArtistId?: string;
+            resolvedPlaylistId?: string;
+            resolvedTrackId?: string;
+            resultSummary?: string;
+            retryCount: number;
+            startedAt?: number;
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+            targetMode: "name" | "url" | "isrc" | "providerId" | "entityId";
+            updatedAt: number;
+            url?: string;
+            withTracks?: boolean;
+            workflowId?: string;
+          },
+          Name
+        >;
+        listRequests: FunctionReference<
+          "query",
+          "internal",
+          {
+            limit?: number;
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+          },
+          Array<{
+            _creationTime: number;
+            _id: string;
+            dedupeKey: string;
+            entityId?: string;
+            entityType: "artist" | "track" | "playlist";
+            errorSummary?: string;
+            finishedAt?: number;
+            isrc?: string;
+            name?: string;
+            nextAttemptAt?: number;
+            priority: "high" | "normal" | "low";
+            provider?:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId?: string;
+            providerScope: string;
+            requestType: "import" | "refresh" | "reimport" | "repair";
+            requestedAt: number;
+            resolvedArtistId?: string;
+            resolvedPlaylistId?: string;
+            resolvedTrackId?: string;
+            resultSummary?: string;
+            retryCount: number;
+            startedAt?: number;
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+            targetMode: "name" | "url" | "isrc" | "providerId" | "entityId";
+            updatedAt: number;
+            url?: string;
+            withTracks?: boolean;
+            workflowId?: string;
+          }>,
+          Name
+        >;
+      };
+    };
     mutations: {
       invalidate: FunctionReference<
         "mutation",
