@@ -146,6 +146,22 @@ export const getTrackByIsrc = query({
   handler: (ctx, args) => music.getTrackByIsrc(ctx, args.isrc),
 });
 
+export const getArtistImage = query({
+  args: {
+    provider,
+    providerId: v.string(),
+    policy: v.optional(
+      v.union(
+        v.object({ from: provider }),
+        v.object({ prefer: v.array(provider) }),
+      ),
+    ),
+  },
+  returns: v.union(v.null(), v.string()),
+  handler: (ctx, args) =>
+    ctx.runQuery(components.music.catalog.queries.getArtistImage, args),
+});
+
 export const searchArtists = query({
   args: { query: v.string(), limit: v.optional(v.number()) },
   returns: v.array(componentDoc),

@@ -3,6 +3,13 @@ import type { Doc } from "../_generated/dataModel.js";
 import { query } from "../_generated/server.js";
 import { artistDoc, playlistDoc, provider, trackDoc } from "../validators.js";
 import { orderByDailyRotation, utcDateBucket } from "./browse_order.js";
+import { projectField } from "./field_source_policy.js";
+
+/** Per-field image source policy (artist-image policy = field-source on `image`). */
+const imagePolicy = v.union(
+  v.object({ from: provider }),
+  v.object({ prefer: v.array(provider) }),
+);
 
 /** Default rows scanned by `selectEligible` before ordering. */
 const DEFAULT_SCAN_LIMIT = 1000;
@@ -68,6 +75,34 @@ export const getTrackByProvider = query({
       )
       .first();
     return link === null ? null : await ctx.db.get(link.trackId);
+  },
+});
+
+/**
+ * Resolve an artist's profile image per a source policy (artist-image-auto-sync):
+ * the field-source policy applied to `imageUrl`, picking from the artist's
+ * per-provider provenance, falling back to the canonical image. Resolved via the
+ * provider reverse index; `null` if the provider id is unknown.
+ */
+export const getArtistImage = query({
+  args: { provider, providerId: v.string(), policy: v.optional(imagePolicy) },
+  returns: v.union(v.null(), v.string()),
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("artistProviders")
+      .withIndex("by_provider_id", (q) =>
+        q.eq("provider", args.provider).eq("providerId", args.providerId),
+      )
+      .first();
+    const artist = link === null ? null : await ctx.db.get(link.artistId);
+    return artist === null
+      ? null
+      : (projectField(
+          artist.providers,
+          args.policy,
+          (entry) => entry.imageUrl,
+          artist.imageUrl,
+        ) ?? null);
   },
 });
 

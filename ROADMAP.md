@@ -270,13 +270,13 @@ drives it.
 - `auto-import.4` `planned` — separate budgets/priority for **new import vs refresh** (optional): new-source imports take priority over stale-row refreshes; oldest-first within each.
 - `auto-import.5` `planned` — **freshness / refresh config** (the "keep data up to date" policy): per-catalog (per-kind, optionally per-field) staleness window — `refresh: { artist: { staleAfter: "7d" }, track: { staleAfter: "30d" }, fields?: { popularity: { staleAfter: "1d" } }, rate?: {…} }` — drives the sync-status `synced → stale` transition; the sweep re-syncs past-window entities within a **refresh budget** distinct from the new-import budget (`auto-import.2`). Per-field windows honor live-vs-synced popularity (volatile fields refresh faster than static facts like genres/debut/ISRC).
 
-## artist-image-auto-sync — `planned`
+## artist-image-auto-sync — `in-progress`
 
 Configurable artist profile-image resolution across providers + scheduled refresh. (Owner request.)
 
-- `artist-image-auto-sync.1` `planned` — store per-provider artist image URLs alongside the artist row.
-- `artist-image-auto-sync.2` `planned` — **image provider-selection** = the `field-source-policy` applied to the `image` field: ordered preference (e.g. `["spotify","apple","wikidata"]`) + `strategy` (`first-available` | `highest-resolution`) + optional `fallback`, resolving a single `profileImageUrl`. Reuses the general resolver, not a separate mechanism.
-- `artist-image-auto-sync.3` `planned` — `getArtistImage(key, { policyOverride? })` returns the policy-resolved URL.
+- `artist-image-auto-sync.1` `done` — store per-provider artist image URLs alongside the artist row.
+- `artist-image-auto-sync.2` `done` — **image provider-selection** = the `field-source-policy` applied to the `image` field: ordered preference (e.g. `["spotify","apple","wikidata"]`) + `strategy` (`first-available` | `highest-resolution`) + optional `fallback`, resolving a single `profileImageUrl`. Reuses the general resolver, not a separate mechanism.
+- `artist-image-auto-sync.3` `done` — `getArtistImage(key, { policyOverride? })` returns the policy-resolved URL.
 - `artist-image-auto-sync.4` `planned` — auto-sync cron: idempotent, per-mount, re-fetches images on a configurable cadence and re-applies the policy (URLs only; binary storage stays host-side).
 - `artist-image-auto-sync.5` `planned` — front-tooling analysis: a reactive `useArtistImage` hook only if a consumer renders catalog images.
 
