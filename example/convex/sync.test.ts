@@ -80,3 +80,35 @@ test("listStale returns the rows markStale flagged (default limit)", async () =>
   const stale = await t.query(api.example.listStale, { kind: "artist" });
   expect(stale).toHaveLength(1);
 });
+
+test("recoverStuckSyncs salvages rows left running by a crashed re-sync", async () => {
+  const t = setup();
+  await t.mutation(api.example.upsertArtist, {
+    provider: "spotify",
+    externalId: "a1",
+    value: { name: "X", genres: [] },
+  });
+  await t.mutation(api.example.markStale, { kind: "artist", now: Date.now() + YEAR_MS });
+  // runRefresh leases the row `running`, then the re-import fails (no creds
+  // configured) -> the row is left stuck in `running`.
+  await t.action(api.example.runRefresh, { kind: "artist" });
+  // within the lease -> not recovered
+  expect(
+    await t.mutation(api.example.recoverStuckSyncs, { kind: "artist", now: Date.now() }),
+  ).toBe(0);
+  // past the lease -> salvaged back to stale
+  expect(
+    await t.mutation(api.example.recoverStuckSyncs, {
+      kind: "artist",
+      now: Date.now() + 3_600_000,
+    }),
+  ).toBe(1);
+  // track branch + explicit leaseMs/limit + default now (nothing running)
+  expect(
+    await t.mutation(api.example.recoverStuckSyncs, {
+      kind: "track",
+      leaseMs: 1000,
+      limit: 10,
+    }),
+  ).toBe(0);
+});

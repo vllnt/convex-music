@@ -37,4 +37,13 @@ crons.interval("music:refresh-tracks", { hours: 6 }, api.sources.actions.runRefr
   kind: "track",
 });
 
+// Recovery watchdog: salvage rows stuck `running` past the lease (a crashed
+// re-sync) back to `stale` for re-pickup. Per-kind, idempotent.
+crons.interval("music:recover-artists", { hours: 1 }, api.sync.mutations.recoverStuckSyncs, {
+  kind: "artist",
+});
+crons.interval("music:recover-tracks", { hours: 1 }, api.sync.mutations.recoverStuckSyncs, {
+  kind: "track",
+});
+
 export default crons;

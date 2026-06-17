@@ -425,6 +425,18 @@ export const runRefresh = action({
     ctx.runAction(components.music.sources.actions.runRefresh, args),
 });
 
+export const recoverStuckSyncs = mutation({
+  args: {
+    kind: v.union(v.literal("artist"), v.literal("track")),
+    leaseMs: v.optional(v.number()),
+    now: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  returns: v.number(),
+  handler: (ctx, args) =>
+    ctx.runMutation(components.music.sync.mutations.recoverStuckSyncs, args),
+});
+
 export const consumeBudget = action({
   args: {
     budget: v.union(v.literal("autoImport"), v.literal("refresh")),

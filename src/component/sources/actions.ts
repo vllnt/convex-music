@@ -80,6 +80,9 @@ export const runRefresh = action({
       // Separate refresh budget (distinct from the new-source import budget).
       const { ok } = await rateLimiter.limit(ctx, "refresh");
       if (!ok) break;
+      // Lease the row as `running` so a crashed re-sync is recoverable; the
+      // re-import's upsert returns it to `synced`.
+      await ctx.runMutation(api.sync.mutations.markSyncRunning, { id: row._id });
       if (args.kind === "artist") {
         await Promise.all(
           row.providers.map((prov) =>

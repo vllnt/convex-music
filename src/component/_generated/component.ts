@@ -1584,6 +1584,25 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           number,
           Name
         >;
+        markSyncRunning: FunctionReference<
+          "mutation",
+          "internal",
+          { id: string | string },
+          null,
+          Name
+        >;
+        recoverStuckSyncs: FunctionReference<
+          "mutation",
+          "internal",
+          {
+            kind: "artist" | "track";
+            leaseMs?: number;
+            limit?: number;
+            now?: number;
+          },
+          number,
+          Name
+        >;
       };
       queries: {
         listStale: FunctionReference<
