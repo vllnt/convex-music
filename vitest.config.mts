@@ -28,6 +28,7 @@ export default defineConfig({
         "src/component/providers/registry.ts",
         "src/component/catalog/browse_order.ts",
         "src/component/catalog/merge.ts",
+        "src/component/catalog/field_source_policy.ts",
         "src/component/catalog/mutations.ts",
         "src/component/catalog/queries.ts",
         "src/component/providers/actions.ts",
