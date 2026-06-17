@@ -5,8 +5,10 @@ import { artistDoc, playlistDoc, provider, trackDoc } from "../validators.js";
 import { orderByDailyRotation, utcDateBucket } from "./browse_order.js";
 import { projectField } from "./field_source_policy.js";
 
-/** Per-field image source policy (artist-image policy = field-source on `image`). */
-const imagePolicy = v.union(
+/** Single-source field policy: pick one provider's value (`from`) or the first
+ * available in preference order (`prefer`). Applies to any per-provider field
+ * (artist image, track preview). */
+const fieldSourcePolicy = v.union(
   v.object({ from: provider }),
   v.object({ prefer: v.array(provider) }),
 );
@@ -85,7 +87,7 @@ export const getTrackByProvider = query({
  * provider reverse index; `null` if the provider id is unknown.
  */
 export const getArtistImage = query({
-  args: { provider, providerId: v.string(), policy: v.optional(imagePolicy) },
+  args: { provider, providerId: v.string(), policy: v.optional(fieldSourcePolicy) },
   returns: v.union(v.null(), v.string()),
   handler: async (ctx, args) => {
     const link = await ctx.db
@@ -102,6 +104,34 @@ export const getArtistImage = query({
           args.policy,
           (entry) => entry.imageUrl,
           artist.imageUrl,
+        ) ?? null);
+  },
+});
+
+/**
+ * Project a track's preview URL per a field-source policy, resolved by a
+ * provider id (via the reverse index). The track-preview analog of
+ * `getArtistImage` — heardzic/bandzic pick their preferred provider's clip.
+ * `null` when the provider id is unknown or no chosen provider has a preview.
+ */
+export const getTrackPreview = query({
+  args: { provider, providerId: v.string(), policy: v.optional(fieldSourcePolicy) },
+  returns: v.union(v.null(), v.string()),
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("trackProviders")
+      .withIndex("by_provider_id", (q) =>
+        q.eq("provider", args.provider).eq("providerId", args.providerId),
+      )
+      .first();
+    const track = link === null ? null : await ctx.db.get(link.trackId);
+    return track === null
+      ? null
+      : (projectField(
+          track.providers,
+          args.policy,
+          (entry) => entry.previewUrl,
+          undefined,
         ) ?? null);
   },
 });

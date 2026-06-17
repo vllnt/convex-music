@@ -592,6 +592,35 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           },
           Name
         >;
+        getTrackPreview: FunctionReference<
+          "query",
+          "internal",
+          {
+            policy?:
+              | {
+                  from:
+                    | "spotify"
+                    | "apple"
+                    | "musicbrainz"
+                    | "wikidata"
+                    | "deezer";
+                }
+              | {
+                  prefer: Array<
+                    "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer"
+                  >;
+                };
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+          },
+          null | string,
+          Name
+        >;
         searchArtists: FunctionReference<
           "query",
           "internal",
