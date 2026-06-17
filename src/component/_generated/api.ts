@@ -10,6 +10,7 @@
 
 import type * as actions from "../actions.js";
 import type * as catalog_browse_order from "../catalog/browse_order.js";
+import type * as catalog_field_source_policy from "../catalog/field_source_policy.js";
 import type * as catalog_merge from "../catalog/merge.js";
 import type * as catalog_mutations from "../catalog/mutations.js";
 import type * as catalog_queries from "../catalog/queries.js";
@@ -35,6 +36,9 @@ import type * as providers_spotify_mappers from "../providers/spotify/mappers.js
 import type * as providers_spotify_types from "../providers/spotify/types.js";
 import type * as providers_types from "../providers/types.js";
 import type * as queries from "../queries.js";
+import type * as sources_mutations from "../sources/mutations.js";
+import type * as sources_queries from "../sources/queries.js";
+import type * as sync_lifecycle from "../sync/lifecycle.js";
 import type * as validators from "../validators.js";
 
 import type {
@@ -47,6 +51,7 @@ import { anyApi, componentsGeneric } from "convex/server";
 const fullApi: ApiFromModules<{
   actions: typeof actions;
   "catalog/browse_order": typeof catalog_browse_order;
+  "catalog/field_source_policy": typeof catalog_field_source_policy;
   "catalog/merge": typeof catalog_merge;
   "catalog/mutations": typeof catalog_mutations;
   "catalog/queries": typeof catalog_queries;
@@ -72,6 +77,9 @@ const fullApi: ApiFromModules<{
   "providers/spotify/types": typeof providers_spotify_types;
   "providers/types": typeof providers_types;
   queries: typeof queries;
+  "sources/mutations": typeof sources_mutations;
+  "sources/queries": typeof sources_queries;
+  "sync/lifecycle": typeof sync_lifecycle;
   validators: typeof validators;
 }> = anyApi as any;
 

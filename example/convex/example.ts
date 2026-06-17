@@ -272,6 +272,47 @@ export const importPlaylist = action({
   handler: (ctx, args) => music.importPlaylist(ctx, args),
 });
 
+export const addSource = mutation({
+  args: {
+    kind: importEntityType,
+    by: importTargetMode,
+    value: v.string(),
+    provider: v.optional(provider),
+    withTracks: v.optional(v.boolean()),
+    cadenceMs: v.optional(v.number()),
+    enabled: v.optional(v.boolean()),
+  },
+  returns: v.string(),
+  handler: (ctx, args) =>
+    ctx.runMutation(components.music.sources.mutations.addSource, args),
+});
+
+export const removeSource = mutation({
+  args: { sourceId: v.string() },
+  returns: v.null(),
+  handler: (ctx, args) =>
+    ctx.runMutation(components.music.sources.mutations.removeSource, {
+      sourceId: args.sourceId,
+    }),
+});
+
+export const setSourceEnabled = mutation({
+  args: { sourceId: v.string(), enabled: v.boolean() },
+  returns: v.null(),
+  handler: (ctx, args) =>
+    ctx.runMutation(components.music.sources.mutations.setSourceEnabled, {
+      sourceId: args.sourceId,
+      enabled: args.enabled,
+    }),
+});
+
+export const listSources = query({
+  args: { enabledOnly: v.optional(v.boolean()), limit: v.optional(v.number()) },
+  returns: v.array(componentDoc),
+  handler: (ctx, args) =>
+    ctx.runQuery(components.music.sources.queries.listSources, args),
+});
+
 /** Host setup: read deployment env vars and configure the component once. */
 export const configureFromEnv = action({
   args: {},

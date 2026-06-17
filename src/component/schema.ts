@@ -6,6 +6,7 @@ import {
   importRequestFields,
   playlistFields,
   providerConfigFields,
+  sourceFields,
   trackClaimFields,
   trackFields,
   trackProviderLinkFields,
@@ -68,4 +69,8 @@ export default defineSchema({
     .index("by_status", ["status", "requestedAt"])
     .index("by_dedupe_status", ["dedupeKey", "status"])
     .index("by_workflow", ["workflowId"]),
+
+  sources: defineTable(sourceFields)
+    .index("by_enabled", ["enabled", "lastImportedAt"])
+    .index("by_kind", ["kind"]),
 });

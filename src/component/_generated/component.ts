@@ -1199,4 +1199,69 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         Name
       >;
     };
+    sources: {
+      mutations: {
+        addSource: FunctionReference<
+          "mutation",
+          "internal",
+          {
+            by: "name" | "url" | "isrc" | "providerId" | "entityId";
+            cadenceMs?: number;
+            enabled?: boolean;
+            kind: "artist" | "track" | "playlist";
+            provider?:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            value: string;
+            withTracks?: boolean;
+          },
+          string,
+          Name
+        >;
+        removeSource: FunctionReference<
+          "mutation",
+          "internal",
+          { sourceId: string },
+          null,
+          Name
+        >;
+        setSourceEnabled: FunctionReference<
+          "mutation",
+          "internal",
+          { enabled: boolean; sourceId: string },
+          null,
+          Name
+        >;
+      };
+      queries: {
+        listSources: FunctionReference<
+          "query",
+          "internal",
+          { enabledOnly?: boolean; limit?: number },
+          Array<{
+            _creationTime: number;
+            _id: string;
+            by: "name" | "url" | "isrc" | "providerId" | "entityId";
+            cadenceMs?: number;
+            createdAt: number;
+            enabled: boolean;
+            kind: "artist" | "track" | "playlist";
+            lastImportedAt?: number;
+            provider?:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            updatedAt: number;
+            value: string;
+            withTracks?: boolean;
+          }>,
+          Name
+        >;
+      };
+    };
   };

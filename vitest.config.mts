@@ -40,6 +40,8 @@ export default defineConfig({
         "src/component/imports/mutations.ts",
         "src/component/imports/queries.ts",
         "src/component/imports/actions.ts",
+        "src/component/sources/mutations.ts",
+        "src/component/sources/queries.ts",
         "src/component/sync/lifecycle.ts",
         "src/component/crons.ts",
       ],

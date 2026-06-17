@@ -341,3 +341,29 @@ export const importRequestDoc = v.object({
   _creationTime: v.number(),
   ...importRequestFields,
 });
+
+/**
+ * A registered import source — the generic, host-managed "keep this synced"
+ * input (artist by name, playlist by url/id, track by ISRC, …). The host's
+ * curated/categorized definitions stay host-side and reconcile INTO this
+ * registry; the auto-import sweep imports enabled sources.
+ */
+export const sourceFields = {
+  kind: importEntityType,
+  by: importTargetMode,
+  value: v.string(),
+  provider: v.optional(provider),
+  withTracks: v.optional(v.boolean()),
+  cadenceMs: v.optional(v.number()),
+  enabled: v.boolean(),
+  lastImportedAt: v.optional(v.number()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+};
+
+/** Public shape of a registered source returned by queries. */
+export const sourceDoc = v.object({
+  _id: v.id("sources"),
+  _creationTime: v.number(),
+  ...sourceFields,
+});
