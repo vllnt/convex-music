@@ -208,6 +208,62 @@ test("importTrack promotes the track + its credited artists (with + without id)"
   expect(track.artistIds).toHaveLength(1);
 });
 
+test("importPlaylist promotes ISRC tracks + stores membership", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([
+    TOKEN,
+    {
+      match: /\/v1\/playlists\/p1/,
+      body: {
+        id: "p1",
+        name: "Top Hits",
+        owner: { display_name: "Spotify" },
+        tracks: {
+          items: [
+            {
+              track: {
+                id: "t1",
+                name: "Genesis",
+                artists: [{ id: "a1", name: "Justice" }],
+                external_ids: { isrc: "FR1234567890" },
+              },
+            },
+            // ISRC-less track is skipped from membership
+            { track: { id: "t2", name: "NoIsrc", artists: [{ id: "a1", name: "X" }] } },
+            { track: null },
+          ],
+        },
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importPlaylist, {
+    provider: "spotify",
+    providerId: "p1",
+  });
+  expect(result.status).toBe("completed");
+  const request = await t.query(api.example.getImportRequest, {
+    requestId: result.requestId,
+  });
+  expect(request.resultSummary).toContain("1 tracks");
+  const playlist = await t.query(api.example.getPlaylist, {
+    id: request.resolvedPlaylistId,
+  });
+  expect(playlist.title).toBe("Top Hits");
+  expect(playlist.trackIds).toHaveLength(1);
+});
+
+test("importPlaylist with no providerId fails", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([TOKEN]);
+  const result = await t.action(api.example.importPlaylist, {
+    provider: "spotify",
+    providerId: "",
+  });
+  expect(result.status).toBe("failed");
+});
+
 test("importTrack with no providerId fails", async () => {
   const t = setup();
   await configure(t);

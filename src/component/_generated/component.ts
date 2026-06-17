@@ -763,6 +763,34 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           },
           Name
         >;
+        importPlaylist: FunctionReference<
+          "action",
+          "internal",
+          {
+            mode?: "import" | "refresh" | "reimport" | "repair";
+            priority?: "high" | "normal" | "low";
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+          },
+          {
+            requestId: string;
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+          },
+          Name
+        >;
         importTrack: FunctionReference<
           "action",
           "internal",
@@ -806,6 +834,32 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             requestId: string;
             targetMode: "name" | "providerId";
             withTracks?: boolean;
+          },
+          {
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+          },
+          Name
+        >;
+        runPlaylistImport: FunctionReference<
+          "action",
+          "internal",
+          {
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+            requestId: string;
           },
           {
             status:

@@ -49,6 +49,9 @@ export type ImportTrackInput = {
   priority?: "high" | "normal" | "low";
 };
 
+/** Arguments to import a playlist (+ its tracks) into the catalog. */
+export type ImportPlaylistInput = ImportTrackInput;
+
 /** The outcome of an import: the request id + its terminal status. */
 export type ImportResult = { requestId: string; status: string };
 
@@ -221,6 +224,12 @@ export interface MusicComponent {
         "action",
         "internal",
         ImportTrackInput,
+        ImportResult
+      >;
+      importPlaylist: FunctionReference<
+        "action",
+        "internal",
+        ImportPlaylistInput,
         ImportResult
       >;
     };
@@ -421,6 +430,14 @@ export class Music {
   /** Import a track by provider id into the catalog (+ its credited artists). */
   importTrack(ctx: RunActionCtx, input: ImportTrackInput): Promise<ImportResult> {
     return ctx.runAction(this.component.imports.actions.importTrack, input);
+  }
+
+  /** Import a playlist by provider id (+ its tracks) into the catalog. */
+  importPlaylist(
+    ctx: RunActionCtx,
+    input: ImportPlaylistInput,
+  ): Promise<ImportResult> {
+    return ctx.runAction(this.component.imports.actions.importPlaylist, input);
   }
 }
 

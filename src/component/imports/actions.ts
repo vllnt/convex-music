@@ -268,3 +268,121 @@ export const importTrack = action({
     return { requestId, status: result.status };
   },
 });
+
+/**
+ * Run a playlist import: fetch the playlist, promote its ISRC-bearing tracks (+
+ * their credited artists) into the catalog, store the playlist with its resolved
+ * membership, and complete (or fail) the request. ISRC-less tracks are skipped
+ * (they can't be unified).
+ */
+export const runPlaylistImport = action({
+  args: {
+    requestId: v.id("importRequests"),
+    provider,
+    providerId: v.string(),
+  },
+  returns: v.object({ status: importStatus }),
+  handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
+    await ctx.runMutation(internal.imports.mutations.markClaimed, {
+      requestId: args.requestId,
+    });
+    await ctx.runMutation(internal.imports.mutations.markRunning, {
+      requestId: args.requestId,
+    });
+    try {
+      if (args.providerId === "") {
+        throw new Error("playlist import requires a providerId");
+      }
+      const token = await getProviderToken(ctx, args.provider);
+      const adapter = createProvider(args.provider, () =>
+        Promise.resolve(token),
+      );
+      const playlist = await adapter.getPlaylist(args.providerId);
+      const promotable = playlist.tracks.filter(
+        (track) => track.value.isrc !== undefined,
+      );
+      const trackIds = await Promise.all(
+        promotable.map(async (track) => {
+          const artistIds = await Promise.all(
+            track.value.artists.filter(hasExternalId).map((ref) =>
+              ctx.runMutation(api.catalog.mutations.upsertArtist, {
+                provider: args.provider,
+                externalId: ref.externalId,
+                value: { name: ref.name, genres: [] },
+              }),
+            ),
+          );
+          return await ctx.runMutation(api.catalog.mutations.upsertTrack, {
+            provider: args.provider,
+            externalId: track.externalId,
+            value: track.value,
+            artistIds,
+          });
+        }),
+      );
+      const playlistId = await ctx.runMutation(
+        api.catalog.mutations.upsertPlaylist,
+        {
+          provider: args.provider,
+          providerId: playlist.externalId,
+          title: playlist.value.title,
+          description: playlist.value.description,
+          coverUrl: playlist.value.coverUrl,
+          url: playlist.value.url,
+          owner: playlist.value.owner,
+          trackIds,
+        },
+      );
+      await ctx.runMutation(internal.imports.mutations.markCompleted, {
+        requestId: args.requestId,
+        resolvedPlaylistId: playlistId,
+        resultSummary: `imported playlist ${playlist.value.title} (${trackIds.length} tracks)`,
+      });
+      return { status: "completed" };
+    } catch (err) {
+      await ctx.runMutation(internal.imports.mutations.markFailed, {
+        requestId: args.requestId,
+        status: "failed",
+        errorSummary: String(err),
+      });
+      return { status: "failed" };
+    }
+  },
+});
+
+/**
+ * Import a playlist by provider id, promoting its tracks + storing membership.
+ * Returns the request id + terminal status.
+ */
+export const importPlaylist = action({
+  args: {
+    provider,
+    providerId: v.string(),
+    mode: v.optional(importMode),
+    priority: v.optional(importPriority),
+  },
+  returns: v.object({ requestId: v.string(), status: importStatus }),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ requestId: string; status: "completed" | "failed" }> => {
+    const { requestId } = await ctx.runMutation(
+      api.imports.mutations.createRequest,
+      {
+        entityType: "playlist",
+        requestType: args.mode ?? "import",
+        targetMode: "providerId",
+        providerScope: args.provider,
+        provider: args.provider,
+        providerId: args.providerId,
+        priority: args.priority,
+      },
+    );
+    const result = await ctx.runAction(api.imports.actions.runPlaylistImport, {
+      requestId,
+      provider: args.provider,
+      providerId: args.providerId,
+    });
+    return { requestId, status: result.status };
+  },
+});
