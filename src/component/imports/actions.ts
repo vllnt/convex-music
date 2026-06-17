@@ -74,27 +74,37 @@ export const runArtistImport = action({
         },
       );
       let trackCount = 0;
+      let tracksPartial = false;
       if (args.withTracks === true) {
-        const topTracks = await adapter.getArtistTopTracks(externalId);
-        const promotable = topTracks.filter(
-          (track) => track.value.isrc !== undefined,
-        );
-        await Promise.all(
-          promotable.map((track) =>
-            ctx.runMutation(api.catalog.mutations.upsertTrack, {
-              provider: args.provider,
-              externalId: track.externalId,
-              value: track.value,
-              artistIds: [artistId],
-            }),
-          ),
-        );
-        trackCount = promotable.length;
+        // Partial-failure tolerance: a failed tracks sub-step (e.g. a provider
+        // 403 on top-tracks) must NOT fail the whole artist import — the artist
+        // is already promoted; record the tracks as partial and complete.
+        try {
+          const topTracks = await adapter.getArtistTopTracks(externalId);
+          const promotable = topTracks.filter(
+            (track) => track.value.isrc !== undefined,
+          );
+          await Promise.all(
+            promotable.map((track) =>
+              ctx.runMutation(api.catalog.mutations.upsertTrack, {
+                provider: args.provider,
+                externalId: track.externalId,
+                value: track.value,
+                artistIds: [artistId],
+              }),
+            ),
+          );
+          trackCount = promotable.length;
+        } catch {
+          tracksPartial = true;
+        }
       }
       await ctx.runMutation(internal.imports.mutations.markCompleted, {
         requestId: args.requestId,
         resolvedArtistId: artistId,
-        resultSummary: `imported artist ${result.value.name} (+${trackCount} tracks)`,
+        resultSummary: `imported artist ${result.value.name} (+${trackCount} tracks${
+          tracksPartial ? ", tracks partial" : ""
+        })`,
       });
       return { status: "completed" };
     } catch (err) {

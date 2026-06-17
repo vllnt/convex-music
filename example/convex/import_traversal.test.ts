@@ -160,6 +160,24 @@ test("importArtist withTracks promotes the artist's ISRC-bearing top tracks", as
   expect(track.title).toBe("Genesis");
 });
 
+test("withTracks tolerates a tracks-step failure: artist completes, tracks partial", async () => {
+  const t = setup();
+  await configure(t);
+  // no top-tracks route -> the sub-step 404s, but the artist still imports
+  stubFetch([TOKEN, ARTIST]);
+  const result = await t.action(api.example.importArtist, {
+    provider: "spotify",
+    targetMode: "providerId",
+    providerId: "a1",
+    withTracks: true,
+  });
+  expect(result.status).toBe("completed");
+  const request = await t.query(api.example.getImportRequest, {
+    requestId: result.requestId,
+  });
+  expect(request.resultSummary).toContain("tracks partial");
+});
+
 test("re-importing the same artist keeps a single catalog row", async () => {
   const t = setup();
   await configure(t);
