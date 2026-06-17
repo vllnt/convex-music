@@ -278,7 +278,7 @@ Configurable artist profile-image resolution across providers + scheduled refres
 - `artist-image-auto-sync.2` `done` — **image provider-selection** = the `field-source-policy` applied to the `image` field: ordered preference (e.g. `["spotify","apple","wikidata"]`) + `strategy` (`first-available` | `highest-resolution`) + optional `fallback`, resolving a single `profileImageUrl`. Reuses the general resolver, not a separate mechanism.
 - `artist-image-auto-sync.3` `done` — `getArtistImage(key, { policyOverride? })` returns the policy-resolved URL.
 - `artist-image-auto-sync.4` `planned` — auto-sync cron: idempotent, per-mount, re-fetches images on a configurable cadence and re-applies the policy (URLs only; binary storage stays host-side).
-- `artist-image-auto-sync.5` `planned` — front-tooling analysis: a reactive `useArtistImage` hook only if a consumer renders catalog images.
+- `artist-image-auto-sync.5` `done` — front-tooling analysis: a reactive `useArtistImage` hook only if a consumer renders catalog images.
 
 ## prune-cron — `done`
 
