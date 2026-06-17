@@ -12,12 +12,15 @@ const component = defineComponent("music");
  *   over it in the component's own tables. Workflow bundles its own `workpool`
  *   for step execution, so no separate workpool mount is needed for import.
  *
- * Deferred (version/compat): a directly-mounted `@convex-dev/workpool` for the
- * auto-import batch sweep (0.4.7's `ComponentDefinition` skews against convex
- * 1.36.1) and `@convex-dev/rate-limiter` land with `auto-import`.
- * `@vllnt/convex-idempotency` (import-request dedup) is deferred too: its canary
- * peers `convex@^1.41`, conflicting with `action-cache`'s 1.36.1 ctx — dedup is
- * the component-owned active-request control-plane check until that aligns.
+ * Deferred: a directly-mounted `@convex-dev/workpool` + `@convex-dev/rate-limiter`
+ * for the auto-import sweep — the per-run count limit suffices today; the
+ * rate-limiter throughput budget is a later refinement. `@vllnt/convex-idempotency`
+ * (import-request dedup) is also deferred — dedup is the component-owned
+ * active-request control-plane check.
+ *
+ * On `convex@^1.41`, `action-cache` 0.3.0's `fetch` ctx type lags the widened
+ * query-context `runQuery` (a cosmetic seam); bridged at the call site — see
+ * `providers/actions.ts`.
  */
 component.use(actionCache);
 component.use(workflow);

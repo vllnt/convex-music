@@ -2,7 +2,7 @@
 
 > Provider-neutral, cached music catalog as a Convex component — Spotify, Apple Music, and more behind one API.
 
-`@vllnt/convex-music` is a publishable Convex component targeting `convex@^1.36.1`. It caches
+`@vllnt/convex-music` is a publishable Convex component targeting `convex@^1.41.0`. It caches
 normalized music facts — tracks, artists, and albums — in its own sandboxed tables, keyed by an
 opaque provider id and cross-referenced by ISRC, each entry with an optional TTL. One typed API
 spans every provider (Spotify and Apple Music today; Deezer, MusicBrainz, and Wikidata as adapters).

@@ -60,7 +60,7 @@ const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalI
 npm install @vllnt/convex-music
 ```
 
-Requires `convex@^1.36.1` as a peer dependency.
+Requires `convex@^1.41.0` as a peer dependency.
 
 ### Environment variables `[planned]`
 
@@ -193,7 +193,7 @@ _Nothing yet._
 
 # API Reference — @vllnt/convex-music
 
-**Compatibility:** `convex@^1.36.1`
+**Compatibility:** `convex@^1.41.0`
 
 The `Music` client wraps the mounted component (`components.music`). Construct it once, then call
 from your host queries, mutations, and actions.
@@ -353,7 +353,41 @@ export const NEVER_EXPIRES = Number.MAX_SAFE_INTEGER;
 ## src/client/types.ts
 
 ```ts
+import type { GenericId, Infer } from "convex/values";
+import type {
+  artistDoc,
+  playlistDoc,
+  trackDoc,
+} from "../component/validators.js";
 import type { EntityKind, Provider } from "../shared.js";
+
+/**
+ * Replace every branded component `Id<T>` with a plain `string`. Host-side, the
+ * component's row ids are opaque strings (the host doesn't own those tables), so
+ * the public catalog types carry `string` ids — matching how `components.music`
+ * exposes them.
+ */
+type StringifyIds<T> = T extends GenericId<string>
+  ? string
+  : T extends Array<infer U>
+    ? Array<StringifyIds<U>>
+    : T extends object
+      ? { [K in keyof T]: StringifyIds<T[K]> }
+      : T;
+
+/** A unified catalog artist (every provider's facts merged), as returned. */
+export type CatalogArtist = StringifyIds<Infer<typeof artistDoc>>;
+
+/** A unified catalog track (keyed by ISRC), as returned. */
+export type CatalogTrack = StringifyIds<Infer<typeof trackDoc>>;
+
+/** A playlist (source-provider identity + ordered membership), as returned. */
+export type CatalogPlaylist = StringifyIds<Infer<typeof playlistDoc>>;
+
+/** A normalized search hit (provider id + value), discriminated by kind. */
+export type SearchHit =
+  | { type: "artist"; externalId: string; value: NormalizedArtist }
+  | { type: "track"; externalId: string; value: NormalizedTrack };
 
 /** A credited artist reference inside a track/album value. */
 export interface ArtistRef {
@@ -439,7 +473,99 @@ import type {
   FunctionReference,
   FunctionReturnType,
 } from "convex/server";
-import type { CacheEntry, EntryKey, PutInput } from "./types.js";
+import type { Provider } from "../shared.js";
+import type {
+  CacheEntry,
+  CatalogArtist,
+  CatalogPlaylist,
+  CatalogTrack,
+  EntryKey,
+  NormalizedArtist,
+  NormalizedTrack,
+  PutInput,
+  SearchHit,
+} from "./types.js";
+
+/** Arguments to fetch a provider entity into the catalog (read-through). */
+export type FetchInput = {
+  provider: Provider;
+  externalId: string;
+  force?: boolean;
+};
+
+/** Arguments to search a provider for artists or tracks. */
+export type SearchInput = {
+  provider: Provider;
+  query: string;
+  type: "artist" | "track";
+};
+
+/** Arguments to import an artist into the catalog. */
+export type ImportArtistInput = {
+  provider: Provider;
+  targetMode: "name" | "providerId";
+  name?: string;
+  providerId?: string;
+  /** Back-compat alias for `tracks: "top"`. */
+  withTracks?: boolean;
+  /** Track traversal depth: artist only / top tracks / every album track. */
+  tracks?: "none" | "top" | "all";
+  mode?: "import" | "refresh" | "reimport" | "repair";
+  priority?: "high" | "normal" | "low";
+};
+
+/** Arguments to import a track into the catalog. */
+export type ImportTrackInput = {
+  provider: Provider;
+  providerId: string;
+  mode?: "import" | "refresh" | "reimport" | "repair";
+  priority?: "high" | "normal" | "low";
+};
+
+/** Arguments to import a playlist (+ its tracks) into the catalog. */
+export type ImportPlaylistInput = ImportTrackInput & {
+  /** Cap how many of the playlist's tracks to import. */
+  limit?: number;
+};
+
+/** The outcome of an import: the request id + its terminal status. */
+export type ImportResult = { requestId: string; status: string };
+
+/** Arguments to upsert a provider's artist into the catalog. */
+export type UpsertArtistInput = {
+  provider: Provider;
+  externalId: string;
+  value: NormalizedArtist;
+};
+
+/** Arguments to upsert a provider's track (ISRC required) into the catalog. */
+export type UpsertTrackInput = {
+  provider: Provider;
+  externalId: string;
+  value: NormalizedTrack;
+  artistIds?: string[];
+};
+
+/** Arguments to upsert a playlist by source-provider identity. */
+export type UpsertPlaylistInput = {
+  provider: Provider;
+  providerId: string;
+  title: string;
+  description?: string;
+  coverUrl?: string;
+  url?: string;
+  owner?: string;
+  trackIds: string[];
+};
+
+/** Arguments to select eligible catalog rows for a daily picker. */
+export type SelectEligibleInput = {
+  kind: "artist" | "track";
+  limit: number;
+  excludeIds?: string[];
+  salt?: string;
+  scanLimit?: number;
+};
 
 /**
  * The component's function references, as exposed on the host via
@@ -471,6 +597,125 @@ export interface MusicComponent {
       { total: number }
     >;
   };
+  catalog: {
+    mutations: {
+      upsertArtist: FunctionReference<
+        "mutation",
+        "internal",
+        UpsertArtistInput,
+        string
+      >;
+      upsertTrack: FunctionReference<
+        "mutation",
+        "internal",
+        UpsertTrackInput,
+        string
+      >;
+      upsertPlaylist: FunctionReference<
+        "mutation",
+        "internal",
+        UpsertPlaylistInput,
+        string
+      >;
+    };
+    queries: {
+      getArtist: FunctionReference<
+        "query",
+        "internal",
+        { id: string },
+        CatalogArtist | null
+      >;
+      getTrack: FunctionReference<
+        "query",
+        "internal",
+        { id: string },
+        CatalogTrack | null
+      >;
+      getPlaylist: FunctionReference<
+        "query",
+        "internal",
+        { id: string },
+        CatalogPlaylist | null
+      >;
+      getTrackByIsrc: FunctionReference<
+        "query",
+        "internal",
+        { isrc: string },
+        CatalogTrack | null
+      >;
+      searchArtists: FunctionReference<
+        "query",
+        "internal",
+        { query: string; limit?: number },
+        CatalogArtist[]
+      >;
+      searchTracks: FunctionReference<
+        "query",
+        "internal",
+        { query: string; limit?: number },
+        CatalogTrack[]
+      >;
+      selectEligible: FunctionReference<
+        "query",
+        "internal",
+        SelectEligibleInput,
+        Array<CatalogArtist | CatalogTrack>
+      >;
+    };
+  };
+  actions: {
+    fetchArtist: FunctionReference<
+      "action",
+      "internal",
+      FetchInput,
+      CatalogArtist | null
+    >;
+    fetchTrack: FunctionReference<
+      "action",
+      "internal",
+      FetchInput,
+      CatalogTrack | null
+    >;
+    search: FunctionReference<"action", "internal", SearchInput, SearchHit[]>;
+    resolveByIsrc: FunctionReference<
+      "action",
+      "internal",
+      { isrc: string; provider: Provider },
+      CatalogTrack | null
+    >;
+  };
+  config: {
+    mutations: {
+      configure: FunctionReference<
+        "mutation",
+        "internal",
+        { provider: Provider; secrets: Record<string, string> },
+        null
+      >;
+    };
+  };
+  imports: {
+    actions: {
+      importArtist: FunctionReference<
+        "action",
+        "internal",
+        ImportArtistInput,
+        ImportResult
+      >;
+      importTrack: FunctionReference<
+        "action",
+        "internal",
+        ImportTrackInput,
+        ImportResult
+      >;
+      importPlaylist: FunctionReference<
+        "action",
+        "internal",
+        ImportPlaylistInput,
+        ImportResult
+      >;
+    };
+  };
 }
 
 interface RunQueryCtx {
@@ -485,6 +730,13 @@ interface RunMutationCtx {
     reference: M,
     args: FunctionArgs<M>,
   ): Promise<FunctionReturnType<M>>;
+}
+
+interface RunActionCtx {
+  runAction<A extends FunctionReference<"action", "internal">>(
+    reference: A,
+    args: FunctionArgs<A>,
+  ): Promise<FunctionReturnType<A>>;
 }
 
 /**
@@ -534,17 +786,171 @@ export class Music {
   stats(ctx: RunQueryCtx): Promise<{ total: number }> {
     return ctx.runQuery(this.component.queries.stats, {});
   }
+
+  /** Upsert a provider's artist into the catalog; returns the unified artist id. */
+  upsertArtist(ctx: RunMutationCtx, input: UpsertArtistInput): Promise<string> {
+    return ctx.runMutation(this.component.catalog.mutations.upsertArtist, input);
+  }
+
+  /** Upsert a provider's track (ISRC required); returns the unified track id. */
+  upsertTrack(ctx: RunMutationCtx, input: UpsertTrackInput): Promise<string> {
+    return ctx.runMutation(this.component.catalog.mutations.upsertTrack, input);
+  }
+
+  /** Upsert a playlist by source-provider identity; returns the playlist id. */
+  upsertPlaylist(
+    ctx: RunMutationCtx,
+    input: UpsertPlaylistInput,
+  ): Promise<string> {
+    return ctx.runMutation(
+      this.component.catalog.mutations.upsertPlaylist,
+      input,
+    );
+  }
+
+  /** Fetch one unified artist by id. */
+  getArtist(ctx: RunQueryCtx, id: string): Promise<CatalogArtist | null> {
+    return ctx.runQuery(this.component.catalog.queries.getArtist, { id });
+  }
+
+  /** Fetch one unified track by id. */
+  getTrack(ctx: RunQueryCtx, id: string): Promise<CatalogTrack | null> {
+    return ctx.runQuery(this.component.catalog.queries.getTrack, { id });
+  }
+
+  /** Fetch one playlist by id. */
+  getPlaylist(ctx: RunQueryCtx, id: string): Promise<CatalogPlaylist | null> {
+    return ctx.runQuery(this.component.catalog.queries.getPlaylist, { id });
+  }
+
+  /** Resolve a unified track by ISRC. */
+  getTrackByIsrc(ctx: RunQueryCtx, isrc: string): Promise<CatalogTrack | null> {
+    return ctx.runQuery(this.component.catalog.queries.getTrackByIsrc, { isrc });
+  }
+
+  /** Full-text search artists by name. */
+  searchArtists(
+    ctx: RunQueryCtx,
+    query: string,
+    limit?: number,
+  ): Promise<CatalogArtist[]> {
+    return ctx.runQuery(this.component.catalog.queries.searchArtists, {
+      query,
+      limit,
+    });
+  }
+
+  /** Full-text search tracks by title. */
+  searchTracks(
+    ctx: RunQueryCtx,
+    query: string,
+    limit?: number,
+  ): Promise<CatalogTrack[]> {
+    return ctx.runQuery(this.component.catalog.queries.searchTracks, {
+      query,
+      limit,
+    });
+  }
+
+  /** Select eligible catalog rows for a daily picker (stable rotation). */
+  selectEligible(
+    ctx: RunQueryCtx,
+    input: SelectEligibleInput,
+  ): Promise<Array<CatalogArtist | CatalogTrack>> {
+    return ctx.runQuery(this.component.catalog.queries.selectEligible, input);
+  }
+
+  /**
+   * Read-through fetch an artist by provider id, promoting it into the catalog.
+   * Cache-through unless `force`. Returns the unified artist row.
+   */
+  fetchArtist(ctx: RunActionCtx, input: FetchInput): Promise<CatalogArtist | null> {
+    return ctx.runAction(this.component.actions.fetchArtist, input);
+  }
+
+  /**
+   * Read-through fetch a track by provider id, promoting it + its artists.
+   * Cache-through unless `force`. Returns the unified track row.
+   */
+  fetchTrack(ctx: RunActionCtx, input: FetchInput): Promise<CatalogTrack | null> {
+    return ctx.runAction(this.component.actions.fetchTrack, input);
+  }
+
+  /** Search a provider for artists or tracks (discovery; no promotion). */
+  search(ctx: RunActionCtx, input: SearchInput): Promise<SearchHit[]> {
+    return ctx.runAction(this.component.actions.search, input);
+  }
+
+  /**
+   * Resolve a track by ISRC cross-provider (catalog hit, else search the provider
+   * by ISRC and promote). `null` if no provider has it.
+   */
+  resolveByIsrc(
+    ctx: RunActionCtx,
+    isrc: string,
+    provider: Provider,
+  ): Promise<CatalogTrack | null> {
+    return ctx.runAction(this.component.actions.resolveByIsrc, {
+      isrc,
+      provider,
+    });
+  }
+
+  /**
+   * Store a provider's credentials (the host reads its own deployment env vars
+   * and passes them in — a component is sandboxed from the deployment's env).
+   * Spotify: `{ clientId, clientSecret }`; Apple: `{ issuer, keyId, privateKeyPem }`.
+   */
+  configure(
+    ctx: RunMutationCtx,
+    provider: Provider,
+    secrets: Record<string, string>,
+  ): Promise<null> {
+    return ctx.runMutation(this.component.config.mutations.configure, {
+      provider,
+      secrets,
+    });
+  }
+
+  /**
+   * Import an artist into the catalog (by name or provider id). Creates a
+   * dedup-aware control-plane request, runs the traversal, and returns the
+   * request id + terminal status.
+   */
+  importArtist(
+    ctx: RunActionCtx,
+    input: ImportArtistInput,
+  ): Promise<ImportResult> {
+    return ctx.runAction(this.component.imports.actions.importArtist, input);
+  }
+
+  /** Import a track by provider id into the catalog (+ its credited artists). */
+  importTrack(ctx: RunActionCtx, input: ImportTrackInput): Promise<ImportResult> {
+    return ctx.runAction(this.component.imports.actions.importTrack, input);
+  }
+
+  /** Import a playlist by provider id (+ its tracks) into the catalog. */
+  importPlaylist(
+    ctx: RunActionCtx,
+    input: ImportPlaylistInput,
+  ): Promise<ImportResult> {
+    return ctx.runAction(this.component.imports.actions.importPlaylist, input);
+  }
 }
 
 export type {
   ArtistRef,
   CacheEntry,
   CacheValue,
+  CatalogArtist,
+  CatalogPlaylist,
+  CatalogTrack,
   EntryKey,
   NormalizedAlbum,
   NormalizedArtist,
   NormalizedTrack,
   PutInput,
+  SearchHit,
 } from "./types.js";
 
 ```
@@ -555,21 +961,80 @@ export type {
 
 ```ts
 import { defineSchema, defineTable } from "convex/server";
-import { cacheEntryFields } from "./validators.js";
+import {
+  artistFields,
+  artistProviderLinkFields,
+  cacheEntryFields,
+  importRequestFields,
+  playlistFields,
+  providerConfigFields,
+  sourceFields,
+  trackClaimFields,
+  trackFields,
+  trackProviderLinkFields,
+} from "./validators.js";
 
 /**
- * Sandboxed tables — the component's own concern only. `0.1.0` ships the raw
- * provider-fetch cache (`cacheEntries`); the durable catalog tables
- * (artists/tracks/playlists) the component will own are planned (see ROADMAP).
- * Each cache row is one provider's normalized facts for one entity, keyed by an
- * opaque provider id (and ISRC for tracks). The component never reaches the
- * host's tables; the host keeps gameplay + editorial, referencing catalog rows.
+ * Sandboxed tables — the component's own concern only. Two layers:
+ * - `cacheEntries`: the raw provider-fetch cache (one provider's normalized facts
+ *   per entity, TTL'd, keyed by provider id + ISRC for tracks).
+ * - `artists` / `tracks` / `playlists`: the durable catalog — one unified
+ *   canonical entity per identity (track by ISRC, artist by name) with per-provider
+ *   `providers[]` provenance, sync + repair lifecycle columns. `*Providers` are
+ *   reverse indexes (`(provider, providerId)` → row) since Convex can't index
+ *   inside arrays. `trackClaims` guards concurrent track syncs.
+ *
+ * The component never reaches the host's tables; the host keeps gameplay +
+ * editorial, referencing catalog rows by id / ISRC.
  */
 export default defineSchema({
   cacheEntries: defineTable(cacheEntryFields)
     .index("by_lookup", ["kind", "provider", "externalId"])
     .index("by_isrc", ["kind", "isrc"])
     .index("by_expiry", ["expiresAt"]),
+
+  artists: defineTable(artistFields)
+    .index("by_name_key", ["nameKey"])
+    .index("by_sync", ["syncStatus", "nextSyncAt"])
+    .index("by_next_sync", ["nextSyncAt"])
+    .index("by_repair", ["repairStatus"])
+    .searchIndex("search_name", { searchField: "name" }),
+
+  tracks: defineTable(trackFields)
+    .index("by_isrc", ["isrc"])
+    .index("by_sync", ["syncStatus", "nextSyncAt"])
+    .index("by_next_sync", ["nextSyncAt"])
+    .index("by_repair", ["repairStatus"])
+    .searchIndex("search_title", { searchField: "title" }),
+
+  playlists: defineTable(playlistFields)
+    .index("by_provider", ["provider", "providerId"])
+    .index("by_sync", ["syncStatus", "nextSyncAt"]),
+
+  artistProviders: defineTable(artistProviderLinkFields)
+    .index("by_provider_id", ["provider", "providerId"])
+    .index("by_artist", ["artistId"]),
+
+  trackProviders: defineTable(trackProviderLinkFields)
+    .index("by_provider_id", ["provider", "providerId"])
+    .index("by_track", ["trackId"]),
+
+  trackClaims: defineTable(trackClaimFields)
+    .index("by_isrc", ["isrc"])
+    .index("by_lease", ["leaseUntil"]),
+
+  providerConfig: defineTable(providerConfigFields).index("by_provider", [
+    "provider",
+  ]),
+
+  importRequests: defineTable(importRequestFields)
+    .index("by_status", ["status", "requestedAt"])
+    .index("by_dedupe_status", ["dedupeKey", "status"])
+    .index("by_workflow", ["workflowId"]),
+
+  sources: defineTable(sourceFields)
+    .index("by_enabled", ["enabled", "lastImportedAt"])
+    .index("by_kind", ["kind"]),
 });
 
 ```
@@ -659,6 +1124,304 @@ export const cacheEntryDoc = v.object({
   _id: v.id("cacheEntries"),
   _creationTime: v.number(),
   ...cacheEntryFields,
+});
+
+/*
+ * ── Durable catalog ─────────────────────────────────────────────────────────
+ * The unified music database: one canonical entity per real-world identity
+ * (track by ISRC, artist by resolved name), each carrying per-provider
+ * `providers[]` provenance the field-source policy projects across. Generalized
+ * from songtrivia's `music_*` tables; no game taxonomy.
+ */
+
+/** Lifecycle of a catalog row's freshness sync. */
+export const syncStatus = v.union(
+  v.literal("pending"),
+  v.literal("running"),
+  v.literal("synced"),
+  v.literal("failed"),
+  v.literal("stale"),
+);
+
+/** Lifecycle of a catalog row's data-quality repair. */
+export const repairStatus = v.union(
+  v.literal("clean"),
+  v.literal("needs_repair"),
+  v.literal("repairing"),
+  v.literal("failed_repair"),
+);
+
+/** Sync-status columns shared by every catalog entity. */
+const syncFields = {
+  syncStatus: v.optional(syncStatus),
+  syncRetryCount: v.optional(v.number()),
+  lastSyncError: v.optional(v.string()),
+  nextSyncAt: v.optional(v.number()),
+  lastSyncedAt: v.optional(v.number()),
+};
+
+/** Repair-status columns shared by every catalog entity. */
+const repairFields = {
+  repairStatus: v.optional(repairStatus),
+  repairAttempts: v.optional(v.number()),
+  repairError: v.optional(v.string()),
+  lastRepairAt: v.optional(v.number()),
+  repairStartedAt: v.optional(v.number()),
+};
+
+/** One provider's contribution to a unified artist (provenance). */
+export const artistProviderEntry = v.object({
+  provider,
+  providerId: v.string(),
+  imageUrl: v.optional(v.string()),
+  url: v.optional(v.string()),
+  popularity: v.optional(v.number()),
+  genres: v.optional(v.array(v.string())),
+});
+
+/** One provider's contribution to a unified track (provenance). */
+export const trackProviderEntry = v.object({
+  provider,
+  providerId: v.string(),
+  previewUrl: v.optional(v.string()),
+  coverUrl: v.optional(v.string()),
+  url: v.optional(v.string()),
+});
+
+/** Columns of a unified artist row. */
+export const artistFields = {
+  name: v.string(),
+  nameKey: v.string(),
+  genres: v.array(v.string()),
+  popularity: v.optional(v.number()),
+  imageUrl: v.optional(v.string()),
+  country: v.optional(v.string()),
+  gender: v.optional(v.string()),
+  debutYear: v.optional(v.number()),
+  members: v.optional(v.union(v.literal("solo"), v.literal("group"))),
+  providers: v.array(artistProviderEntry),
+  updatedAt: v.number(),
+  ...syncFields,
+  ...repairFields,
+};
+
+/** Columns of a unified track row. */
+export const trackFields = {
+  isrc: v.string(),
+  title: v.string(),
+  artistIds: v.array(v.id("artists")),
+  genres: v.array(v.string()),
+  popularity: v.optional(v.number()),
+  durationMs: v.optional(v.number()),
+  providers: v.array(trackProviderEntry),
+  updatedAt: v.number(),
+  ...syncFields,
+  ...repairFields,
+};
+
+/** Columns of a playlist row (source-provider identity + ordered membership). */
+export const playlistFields = {
+  title: v.string(),
+  provider,
+  providerId: v.string(),
+  description: v.optional(v.string()),
+  coverUrl: v.optional(v.string()),
+  url: v.optional(v.string()),
+  owner: v.optional(v.string()),
+  trackIds: v.array(v.id("tracks")),
+  snapshotVersion: v.optional(v.string()),
+  updatedAt: v.number(),
+  ...syncFields,
+  ...repairFields,
+};
+
+/** Reverse index: `(provider, providerId)` → artist (arrays aren't indexable). */
+export const artistProviderLinkFields = {
+  artistId: v.id("artists"),
+  provider,
+  providerId: v.string(),
+};
+
+/** Reverse index: `(provider, providerId)` → track. */
+export const trackProviderLinkFields = {
+  trackId: v.id("tracks"),
+  provider,
+  providerId: v.string(),
+};
+
+/** A concurrency claim on a track sync (token + lease). */
+export const trackClaimFields = {
+  isrc: v.string(),
+  claimToken: v.string(),
+  acquiredAt: v.number(),
+  leaseUntil: v.number(),
+};
+
+/** Public shape of a unified artist returned by queries. */
+export const artistDoc = v.object({
+  _id: v.id("artists"),
+  _creationTime: v.number(),
+  ...artistFields,
+});
+
+/** Public shape of a unified track returned by queries. */
+export const trackDoc = v.object({
+  _id: v.id("tracks"),
+  _creationTime: v.number(),
+  ...trackFields,
+});
+
+/** Public shape of a playlist returned by queries. */
+export const playlistDoc = v.object({
+  _id: v.id("playlists"),
+  _creationTime: v.number(),
+  ...playlistFields,
+});
+
+/**
+ * Provider credentials, as a string map (`clientId`/`clientSecret` for Spotify;
+ * `issuer`/`keyId`/`privateKeyPem` for Apple). A Convex component is sandboxed
+ * from the host deployment's env vars, so the host reads its own env and passes
+ * credentials in via `configure`; the component stores them in its own
+ * sandboxed table (never readable by the host or sibling components).
+ */
+export const providerSecrets = v.record(v.string(), v.string());
+
+/** Columns of a stored provider-credentials row. */
+export const providerConfigFields = {
+  provider,
+  secrets: providerSecrets,
+};
+
+/*
+ * ── Import control plane ────────────────────────────────────────────────────
+ * The component-owned 8-state import-request machine (songtrivia's
+ * `music_imports`, generalized), layered over `@convex-dev/workflow` for the
+ * actual traversal steps.
+ */
+
+/** What an import targets. */
+export const importEntityType = v.union(
+  v.literal("artist"),
+  v.literal("track"),
+  v.literal("playlist"),
+);
+
+/** The kind of import work. */
+export const importMode = v.union(
+  v.literal("import"),
+  v.literal("refresh"),
+  v.literal("reimport"),
+  v.literal("repair"),
+);
+
+/**
+ * Artist-import track traversal depth: `none` (artist only), `top` (the
+ * provider's top tracks), or `all` (every track across the artist's albums).
+ */
+export const artistTracksMode = v.union(
+  v.literal("none"),
+  v.literal("top"),
+  v.literal("all"),
+);
+
+/** Queue ordering hint. */
+export const importPriority = v.union(
+  v.literal("high"),
+  v.literal("normal"),
+  v.literal("low"),
+);
+
+/** How the target is identified. */
+export const importTargetMode = v.union(
+  v.literal("name"),
+  v.literal("url"),
+  v.literal("isrc"),
+  v.literal("providerId"),
+  v.literal("entityId"),
+);
+
+/** The 8 lifecycle states of an import request. */
+export const importStatus = v.union(
+  v.literal("queued"),
+  v.literal("claimed"),
+  v.literal("running"),
+  v.literal("retry_waiting"),
+  v.literal("completed"),
+  v.literal("failed"),
+  v.literal("canceled"),
+  v.literal("stale"),
+);
+
+/** Per-call import options (provider select + traversal depth + mode). */
+export const importOptions = v.object({
+  providers: v.optional(v.array(provider)),
+  withTracks: v.optional(v.boolean()),
+  mode: v.optional(importMode),
+  priority: v.optional(importPriority),
+});
+
+/** Columns of an import-request row. */
+export const importRequestFields = {
+  entityType: importEntityType,
+  requestType: importMode,
+  targetMode: importTargetMode,
+  providerScope: v.string(),
+  provider: v.optional(provider),
+  providerId: v.optional(v.string()),
+  entityId: v.optional(v.string()),
+  name: v.optional(v.string()),
+  isrc: v.optional(v.string()),
+  url: v.optional(v.string()),
+  withTracks: v.optional(v.boolean()),
+  priority: importPriority,
+  status: importStatus,
+  dedupeKey: v.string(),
+  workflowId: v.optional(v.string()),
+  retryCount: v.number(),
+  nextAttemptAt: v.optional(v.number()),
+  resolvedArtistId: v.optional(v.id("artists")),
+  resolvedTrackId: v.optional(v.id("tracks")),
+  resolvedPlaylistId: v.optional(v.id("playlists")),
+  errorSummary: v.optional(v.string()),
+  resultSummary: v.optional(v.string()),
+  requestedAt: v.number(),
+  startedAt: v.optional(v.number()),
+  finishedAt: v.optional(v.number()),
+  updatedAt: v.number(),
+};
+
+/** Public shape of an import request returned by queries. */
+export const importRequestDoc = v.object({
+  _id: v.id("importRequests"),
+  _creationTime: v.number(),
+  ...importRequestFields,
+});
+
+/**
+ * A registered import source — the generic, host-managed "keep this synced"
+ * input (artist by name, playlist by url/id, track by ISRC, …). The host's
+ * curated/categorized definitions stay host-side and reconcile INTO this
+ * registry; the auto-import sweep imports enabled sources.
+ */
+export const sourceFields = {
+  kind: importEntityType,
+  by: importTargetMode,
+  value: v.string(),
+  provider: v.optional(provider),
+  withTracks: v.optional(v.boolean()),
+  cadenceMs: v.optional(v.number()),
+  enabled: v.boolean(),
+  lastImportedAt: v.optional(v.number()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+};
+
+/** Public shape of a registered source returned by queries. */
+export const sourceDoc = v.object({
+  _id: v.id("sources"),
+  _creationTime: v.number(),
+  ...sourceFields,
 });
 
 ```
@@ -832,6 +1595,7 @@ export const stats = query({
 
 ```ts
 /// <reference types="vite/client" />
+import { register as registerActionCache } from "@convex-dev/action-cache/test";
 import type { TestConvex } from "convex-test";
 import type { GenericSchema, SchemaDefinition } from "convex/server";
 import schema from "./component/schema.js";
@@ -839,14 +1603,136 @@ import schema from "./component/schema.js";
 const modules = import.meta.glob("./component/**/*.ts");
 
 /**
- * Register this component with a `convex-test` instance so consuming apps can
- * test integration: `import { register } from "@vllnt/convex-music/test"`.
+ * Register this component (and its child `action-cache` component) with a
+ * `convex-test` instance so consuming apps can test integration:
+ * `import { register } from "@vllnt/convex-music/test"`.
  */
 export function register(
   t: TestConvex<SchemaDefinition<GenericSchema, boolean>>,
   name: string = "music",
 ): void {
   t.registerComponent(name, schema, modules);
+  registerActionCache(t, `${name}/actionCache`);
 }
+
+```
+
+---
+
+## src/react/index.ts
+
+```ts
+/**
+ * Optional React layer for `@vllnt/convex-music`.
+ *
+ * Thin, tree-shakeable hooks over `convex/react`'s `useQuery`. Each wraps the
+ * host's own re-exported query ref — the component never owns the host's `api`.
+ * `react` and `convex/react` are optional peer deps: a backend-only consumer
+ * never imports this entry and pulls in zero React.
+ *
+ * No-leak: only safe surfaces are exposed — catalog rows (factual, public) and
+ * the field-source-projected image/preview URLs. No secrets cross the client.
+ *
+ * @example
+ * ```tsx
+ * // convex/music.ts (host) re-exports the query refs from its wrappers, then:
+ * const image = useArtistImage(api.music.getArtistImage, "spotify", "a1", { prefer: ["apple", "spotify"] });
+ * ```
+ */
+import { useQuery } from "convex/react";
+import type { FunctionReference } from "convex/server";
+import type { CatalogArtist, CatalogTrack } from "../client/types.js";
+import type { Provider } from "../shared.js";
+
+/** Single-source field policy: one provider, or the first available in order. */
+export type FieldSourcePolicy = { from: Provider } | { prefer: Provider[] };
+
+/** The host's re-exported `getArtist` query ref. */
+export type ArtistRef = FunctionReference<
+  "query",
+  "public",
+  { id: string },
+  CatalogArtist | null
+>;
+
+/** The host's re-exported `getTrack` query ref. */
+export type TrackRef = FunctionReference<
+  "query",
+  "public",
+  { id: string },
+  CatalogTrack | null
+>;
+
+/** The host's re-exported projection query ref (artist image / track preview). */
+export type ProjectionRef = FunctionReference<
+  "query",
+  "public",
+  { provider: Provider; providerId: string; policy?: FieldSourcePolicy },
+  string | null
+>;
+
+/** The host's re-exported search query ref for a kind. */
+export type SearchRef<T> = FunctionReference<
+  "query",
+  "public",
+  { query: string; limit?: number },
+  T[]
+>;
+
+/** Reactively read one unified artist by id (`undefined` while loading). */
+export function useArtist(
+  query: ArtistRef,
+  id: string,
+): CatalogArtist | null | undefined {
+  return useQuery(query, { id });
+}
+
+/** Reactively read one unified track by id (`undefined` while loading). */
+export function useTrack(
+  query: TrackRef,
+  id: string,
+): CatalogTrack | null | undefined {
+  return useQuery(query, { id });
+}
+
+/** Reactively project an artist's image per a field-source policy. */
+export function useArtistImage(
+  query: ProjectionRef,
+  provider: Provider,
+  providerId: string,
+  policy?: FieldSourcePolicy,
+): string | null | undefined {
+  return useQuery(query, { provider, providerId, policy });
+}
+
+/** Reactively project a track's preview URL per a field-source policy. */
+export function useTrackPreview(
+  query: ProjectionRef,
+  provider: Provider,
+  providerId: string,
+  policy?: FieldSourcePolicy,
+): string | null | undefined {
+  return useQuery(query, { provider, providerId, policy });
+}
+
+/** Reactively search artists by name. */
+export function useSearchArtists(
+  query: SearchRef<CatalogArtist>,
+  search: string,
+  limit?: number,
+): CatalogArtist[] | undefined {
+  return useQuery(query, { query: search, limit });
+}
+
+/** Reactively search tracks by title. */
+export function useSearchTracks(
+  query: SearchRef<CatalogTrack>,
+  search: string,
+  limit?: number,
+): CatalogTrack[] | undefined {
+  return useQuery(query, { query: search, limit });
+}
+
+export type { CatalogArtist, CatalogTrack, Provider };
 
 ```

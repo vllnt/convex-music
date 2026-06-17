@@ -16,9 +16,9 @@ const files = [
   "src/test.ts",
 ];
 
-// Include react layer only when shipped
-const reactEntry = "src/react/index.tsx";
-if (existsSync(reactEntry)) {
+// Include react layer only when shipped (hooks-only -> .ts; .tsx if it renders)
+const reactEntry = ["src/react/index.ts", "src/react/index.tsx"].find(existsSync);
+if (reactEntry !== undefined) {
   files.push(reactEntry);
 }
 

@@ -86,15 +86,25 @@ const appleTokenCache = new ActionCache(components.actionCache, {
 });
 
 /**
+ * The ctx `ActionCache.fetch` expects. action-cache 0.3.0 types it with a
+ * query-context `runQuery`, which convex >=1.41 widened with a
+ * `transactionLimits` option that an action-context `runQuery` does not carry —
+ * a cosmetic 3rd-party type seam. The cache only runs its own internal action,
+ * so the action ctx is correct at runtime; we bridge the type at the boundary.
+ */
+type TokenCacheCtx = Parameters<typeof spotifyTokenCache.fetch>[0];
+
+/**
  * Resolve a cached bearer token for a provider, for use as an adapter's
- * `getToken`. Throws for a provider without a token resolver.
+ * `getToken`. No-auth providers return an empty token.
  */
 export async function getProviderToken(
   ctx: ActionCtx,
   prov: Provider,
 ): Promise<string> {
-  if (prov === "spotify") return await spotifyTokenCache.fetch(ctx, {});
-  if (prov === "apple") return await appleTokenCache.fetch(ctx, {});
+  const cacheCtx = ctx as unknown as TokenCacheCtx;
+  if (prov === "spotify") return await spotifyTokenCache.fetch(cacheCtx, {});
+  if (prov === "apple") return await appleTokenCache.fetch(cacheCtx, {});
   // No-auth providers (MusicBrainz / Wikidata / Deezer) carry their own headers
   // (e.g. User-Agent) instead of a bearer token.
   return "";

@@ -50,7 +50,7 @@ const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalI
 npm install @vllnt/convex-music
 ```
 
-Requires `convex@^1.36.1` as a peer dependency.
+Requires `convex@^1.41.0` as a peer dependency.
 
 ### Environment variables `[planned]`
 

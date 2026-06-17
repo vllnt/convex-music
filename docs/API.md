@@ -1,6 +1,6 @@
 # API Reference — @vllnt/convex-music
 
-**Compatibility:** `convex@^1.36.1`
+**Compatibility:** `convex@^1.41.0`
 
 The `Music` client wraps the mounted component (`components.music`). Construct it once, then call
 from your host queries, mutations, and actions.
