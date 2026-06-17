@@ -4,6 +4,7 @@ import {
   artistProviderLinkFields,
   cacheEntryFields,
   playlistFields,
+  providerConfigFields,
   trackClaimFields,
   trackFields,
   trackProviderLinkFields,
@@ -57,4 +58,8 @@ export default defineSchema({
   trackClaims: defineTable(trackClaimFields)
     .index("by_isrc", ["isrc"])
     .index("by_lease", ["leaseUntil"]),
+
+  providerConfig: defineTable(providerConfigFields).index("by_provider", [
+    "provider",
+  ]),
 });

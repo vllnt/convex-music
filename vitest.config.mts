@@ -32,6 +32,8 @@ export default defineConfig({
         "src/component/catalog/queries.ts",
         "src/component/providers/actions.ts",
         "src/component/actions.ts",
+        "src/component/config/mutations.ts",
+        "src/component/config/queries.ts",
       ],
       thresholds: {
         statements: 100,

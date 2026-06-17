@@ -42,7 +42,7 @@ src/
 | Music catalog — `artists` / `tracks` / `playlists` (the music database) + raw `cacheEntries` | **Component** — sandboxed; the factual record, read by hosts via API |
 | Import / sync / repair + sync-status lifecycle (over the catalog) | **Component** — writes its own catalog tables; composes `@convex-dev/workflow`/`workpool` |
 | Provider ids / ISRC (opaque refs) | **Host** — supplies them; the component stores and indexes as-is |
-| Provider credentials (Spotify/Apple keys, tokens) | **Host** — env vars in the host deployment; never persisted by the component |
+| Provider credentials (Spotify/Apple keys, tokens) | **Host reads** its deployment env vars + calls `configure()`; the **component stores** them in its own sandboxed `providerConfig` table (a component is isolated from the deployment's env vars). Tokens are cached via `@convex-dev/action-cache`. Never readable by the host or sibling components. |
 | Editorial overrides + `sourceRefs` + frozen gameplay snapshot | **Host** — its own domain tables, referencing catalog rows by id / ISRC |
 | Gameplay + game categories / attribution / genre→category taxonomy | **Host** — game domain; never baked into the component |
 | Auth / access control | **Host** — gates the component's write methods behind its own mutations |
@@ -158,11 +158,18 @@ src/
   the per-HTTP-request resilient fetch (429/Retry-After/backoff, `providers/fetch.ts`) is inline, not
   `@convex-dev/action-retrier` (that retries whole actions — a different layer). A component runs in
   V8: Apple's ES256 JWT uses Web Crypto, not `jsonwebtoken`.
-- Provider env vars (Convex environment variables, set on the host deployment): Spotify
+- Credential seam (BLOCKING — a component is sandboxed from the deployment's env vars, so it CANNOT
+  read `process.env`; verified live). The **host** reads its own deployment env vars — Spotify
   `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`; Apple `APPLE_MUSIC_ISSUER` / `APPLE_MUSIC_KID` /
-  `APPLE_MUSIC_PRIVATE_KEY` (sourced from songtrivia's backend). Enabled-providers + preference is
+  `APPLE_MUSIC_PRIVATE_KEY` (sourced from songtrivia's backend) — and calls
+  `music.configure(ctx, provider, secrets)` once at setup. The component stores them in its sandboxed
+  `providerConfig` table (`secrets` is a `Record<string,string>`: `clientId`/`clientSecret` for
+  Spotify; `issuer`/`keyId`/`privateKeyPem` for Apple) and reads them only inside its own token
+  actions; the token/JWT is cached via `@convex-dev/action-cache`. Enabled-providers + preference is
   mount policy (per-catalog `providers` + the per-import provider select); there is no env-based
-  provider gating.
+  provider gating. **Host wrappers returning component docs use a loose return validator** — a host
+  cannot re-validate component row ids (`v.id("artists")`), so the typed shape comes from the `Music`
+  client return types, not a host-side `returns`.
 - Resilience: retry `429` **and** overload `5xx` (incl. `529` / `503`) — honor `Retry-After`, capped
   backoff + jitter, per-request timeout, bounded concurrency. songtrivia retries only `429`; the
   component must also survive provider overload (`529`) so an import never hard-fails on it.

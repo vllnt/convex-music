@@ -711,6 +711,25 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         >;
       };
     };
+    config: {
+      mutations: {
+        configure: FunctionReference<
+          "mutation",
+          "internal",
+          {
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            secrets: Record<string, string>;
+          },
+          null,
+          Name
+        >;
+      };
+    };
     mutations: {
       invalidate: FunctionReference<
         "mutation",

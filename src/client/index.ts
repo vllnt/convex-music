@@ -177,6 +177,16 @@ export interface MusicComponent {
     >;
     search: FunctionReference<"action", "internal", SearchInput, SearchHit[]>;
   };
+  config: {
+    mutations: {
+      configure: FunctionReference<
+        "mutation",
+        "internal",
+        { provider: Provider; secrets: Record<string, string> },
+        null
+      >;
+    };
+  };
 }
 
 interface RunQueryCtx {
@@ -340,6 +350,22 @@ export class Music {
   /** Search a provider for artists or tracks (discovery; no promotion). */
   search(ctx: RunActionCtx, input: SearchInput): Promise<SearchHit[]> {
     return ctx.runAction(this.component.actions.search, input);
+  }
+
+  /**
+   * Store a provider's credentials (the host reads its own deployment env vars
+   * and passes them in — a component is sandboxed from the deployment's env).
+   * Spotify: `{ clientId, clientSecret }`; Apple: `{ issuer, keyId, privateKeyPem }`.
+   */
+  configure(
+    ctx: RunMutationCtx,
+    provider: Provider,
+    secrets: Record<string, string>,
+  ): Promise<null> {
+    return ctx.runMutation(this.component.config.mutations.configure, {
+      provider,
+      secrets,
+    });
   }
 }
 

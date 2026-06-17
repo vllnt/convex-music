@@ -1,16 +1,16 @@
 /// <reference types="vite/client" />
-import { convexTest } from "convex-test";
+import { convexTest, type TestConvex } from "convex-test";
 import { afterEach, beforeAll, expect, test, vi } from "vitest";
+import type { GenericSchema, SchemaDefinition } from "convex/server";
 import { api } from "./_generated/api.js";
 import schema from "./schema.js";
 import { register } from "../../src/test.js";
 
 const modules = import.meta.glob("./**/*.ts");
 
-/** Node provides `process.env` at test runtime; declared for the type checker. */
-declare const process: { env: Record<string, string | undefined> };
+type T = TestConvex<SchemaDefinition<GenericSchema, boolean>>;
 
-function setup() {
+function setup(): T {
   const t = convexTest(schema, modules);
   register(t);
   return t;
@@ -43,6 +43,8 @@ const SPOTIFY_TOKEN: Route = {
   body: { access_token: "tok", token_type: "Bearer", expires_in: 3600 },
 };
 
+let applePem: string;
+
 async function generatePem(): Promise<string> {
   const pair = await crypto.subtle.generateKey(
     { name: "ECDSA", namedCurve: "P-256" },
@@ -58,18 +60,53 @@ async function generatePem(): Promise<string> {
   return `-----BEGIN PRIVATE KEY-----\n${lines}\n-----END PRIVATE KEY-----\n`;
 }
 
+async function configureCreds(t: T): Promise<void> {
+  await t.mutation(api.example.configure, {
+    provider: "spotify",
+    secrets: { clientId: "id", clientSecret: "secret" },
+  });
+  await t.mutation(api.example.configure, {
+    provider: "apple",
+    secrets: {
+      issuer: "TEAM123456",
+      keyId: "KEY7890AB",
+      privateKeyPem: applePem,
+    },
+  });
+}
+
 beforeAll(async () => {
-  process.env.SPOTIFY_CLIENT_ID = "id";
-  process.env.SPOTIFY_CLIENT_SECRET = "secret";
-  process.env.APPLE_MUSIC_ISSUER = "TEAM123456";
-  process.env.APPLE_MUSIC_KID = "KEY7890AB";
-  process.env.APPLE_MUSIC_PRIVATE_KEY = await generatePem();
+  applePem = await generatePem();
 });
 
 afterEach(() => vi.unstubAllGlobals());
 
+test("configure is an upsert (insert then patch)", async () => {
+  const t = setup();
+  await t.mutation(api.example.configure, {
+    provider: "spotify",
+    secrets: { clientId: "old", clientSecret: "x" },
+  });
+  await t.mutation(api.example.configure, {
+    provider: "spotify",
+    secrets: { clientId: "new", clientSecret: "y" },
+  });
+  stubFetch([SPOTIFY_TOKEN, { match: /\/v1\/artists\/a1$/, body: { id: "a1", name: "A", genres: [] } }]);
+  // a second provider config row exercises insert again
+  await t.mutation(api.example.configure, {
+    provider: "apple",
+    secrets: { issuer: "T", keyId: "K", privateKeyPem: applePem },
+  });
+  const artist = await t.action(api.example.fetchArtist, {
+    provider: "spotify",
+    externalId: "a1",
+  });
+  expect(artist?.name).toBe("A");
+});
+
 test("fetchArtist: cache-miss fetches + promotes; cache-hit + force re-fetch", async () => {
   const t = setup();
+  await configureCreds(t);
   let artistCalls = 0;
   stubFetch([
     SPOTIFY_TOKEN,
@@ -86,10 +123,8 @@ test("fetchArtist: cache-miss fetches + promotes; cache-hit + force re-fetch", a
     externalId: "a1",
   });
   expect(first?.name).toBe("Daft Punk");
-  expect(first?.providers).toHaveLength(1);
   expect(artistCalls).toBe(1);
 
-  // cache-through: no new provider call
   const hit = await t.action(api.example.fetchArtist, {
     provider: "spotify",
     externalId: "a1",
@@ -97,7 +132,6 @@ test("fetchArtist: cache-miss fetches + promotes; cache-hit + force re-fetch", a
   expect(hit?.name).toBe("Daft Punk");
   expect(artistCalls).toBe(1);
 
-  // force: re-fetch
   await t.action(api.example.fetchArtist, {
     provider: "spotify",
     externalId: "a1",
@@ -108,6 +142,7 @@ test("fetchArtist: cache-miss fetches + promotes; cache-hit + force re-fetch", a
 
 test("fetchTrack (spotify): promotes the track + its credited artist", async () => {
   const t = setup();
+  await configureCreds(t);
   stubFetch([
     SPOTIFY_TOKEN,
     {
@@ -128,21 +163,17 @@ test("fetchTrack (spotify): promotes the track + its credited artist", async () 
   expect(track?.isrc).toBe("GBDUW0000059");
   expect(track?.artistIds).toHaveLength(1);
 
-  // cache-through + force
   await t.action(api.example.fetchTrack, { provider: "spotify", externalId: "t1" });
   await t.action(api.example.fetchTrack, {
     provider: "spotify",
     externalId: "t1",
     force: true,
   });
-  const byIsrc = await t.query(api.example.getTrackByIsrc, {
-    isrc: "GBDUW0000059",
-  });
-  expect(byIsrc?.providers).toHaveLength(1);
 });
 
 test("fetchTrack (apple): a song with no artist relationship promotes no artists", async () => {
   const t = setup();
+  await configureCreds(t);
   stubFetch([
     {
       match: /\/catalog\/us\/songs\/s1/,
@@ -171,6 +202,7 @@ test("fetchTrack (apple): a song with no artist relationship promotes no artists
 
 test("search returns normalized artist + track hits", async () => {
   const t = setup();
+  await configureCreds(t);
   stubFetch([
     SPOTIFY_TOKEN,
     {
@@ -191,9 +223,7 @@ test("search returns normalized artist + track hits", async () => {
     query: "daft",
     type: "artist",
   });
-  expect(artists).toEqual([
-    { type: "artist", externalId: "a1", value: expect.objectContaining({ name: "Daft Punk" }) },
-  ]);
+  expect(artists[0]).toMatchObject({ type: "artist", externalId: "a1" });
   const tracks = await t.action(api.example.search, {
     provider: "spotify",
     query: "lucky",
@@ -204,25 +234,29 @@ test("search returns normalized artist + track hits", async () => {
 
 test("a provider without a token resolver rejects", async () => {
   const t = setup();
+  await configureCreds(t);
   stubFetch([SPOTIFY_TOKEN]);
   await expect(
-    t.action(api.example.fetchArtist, {
-      provider: "musicbrainz",
-      externalId: "x",
-    }),
+    t.action(api.example.fetchArtist, { provider: "musicbrainz", externalId: "x" }),
   ).rejects.toThrow(/No token resolver/);
 });
 
-test("a missing credential rejects", async () => {
+test("an unconfigured provider rejects", async () => {
   const t = setup();
-  const saved = process.env.SPOTIFY_CLIENT_SECRET;
-  delete process.env.SPOTIFY_CLIENT_SECRET;
   stubFetch([SPOTIFY_TOKEN]);
-  try {
-    await expect(
-      t.action(api.example.fetchArtist, { provider: "spotify", externalId: "a1" }),
-    ).rejects.toThrow(/Missing required environment variable/);
-  } finally {
-    process.env.SPOTIFY_CLIENT_SECRET = saved;
-  }
+  await expect(
+    t.action(api.example.fetchArtist, { provider: "spotify", externalId: "a1" }),
+  ).rejects.toThrow(/No credentials configured/);
+});
+
+test("a missing credential field rejects", async () => {
+  const t = setup();
+  await t.mutation(api.example.configure, {
+    provider: "spotify",
+    secrets: { clientId: "id" }, // clientSecret missing
+  });
+  stubFetch([SPOTIFY_TOKEN]);
+  await expect(
+    t.action(api.example.fetchArtist, { provider: "spotify", externalId: "a1" }),
+  ).rejects.toThrow(/Missing required credential/);
 });

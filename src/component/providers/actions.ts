@@ -13,19 +13,33 @@ import type { Provider } from "../../shared.js";
 import { signAppleDeveloperToken } from "./apple/jwt.js";
 import { fetchSpotifyToken } from "./spotify/client.js";
 
-/** Convex exposes deployment env vars on `process.env` in the V8 runtime. */
-declare const process: { env: Record<string, string | undefined> };
-
 /** Spotify token TTL — Spotify tokens last ~1h; cache 55m. */
 const SPOTIFY_TOKEN_TTL_MS = 55 * 60 * 1000;
 /** Apple developer-token cache TTL — well under the 6-month JWT `exp`. */
 const APPLE_TOKEN_TTL_MS = 150 * 24 * 60 * 60 * 1000;
 
-/** Read a required Convex env var; throws if unset or empty. */
-function requireEnv(name: string): string {
-  const value = process.env[name];
+/** Load a provider's configured credentials, or throw if unconfigured. */
+async function loadSecrets(
+  ctx: ActionCtx,
+  prov: Provider,
+): Promise<Record<string, string>> {
+  const secrets = await ctx.runQuery(
+    internal.config.queries.getProviderSecrets,
+    { provider: prov },
+  );
+  if (secrets === null) {
+    throw new Error(
+      `No credentials configured for provider "${prov}". Call configure() first.`,
+    );
+  }
+  return secrets;
+}
+
+/** Read a required credential from a secrets map; throws if unset or empty. */
+function requireSecret(secrets: Record<string, string>, key: string): string {
+  const value = secrets[key];
   if (value === undefined || value === "") {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw new Error(`Missing required credential: ${key}`);
   }
   return value;
 }
@@ -34,10 +48,12 @@ function requireEnv(name: string): string {
 export const spotifyTokenFetch = internalAction({
   args: {},
   returns: v.string(),
-  handler: async (): Promise<string> => {
-    const clientId = requireEnv("SPOTIFY_CLIENT_ID");
-    const clientSecret = requireEnv("SPOTIFY_CLIENT_SECRET");
-    const { accessToken } = await fetchSpotifyToken(clientId, clientSecret);
+  handler: async (ctx): Promise<string> => {
+    const secrets = await loadSecrets(ctx, "spotify");
+    const { accessToken } = await fetchSpotifyToken(
+      requireSecret(secrets, "clientId"),
+      requireSecret(secrets, "clientSecret"),
+    );
     return accessToken;
   },
 });
@@ -46,13 +62,15 @@ export const spotifyTokenFetch = internalAction({
 export const appleTokenSign = internalAction({
   args: {},
   returns: v.string(),
-  handler: async (): Promise<string> =>
-    signAppleDeveloperToken({
-      issuer: requireEnv("APPLE_MUSIC_ISSUER"),
-      keyId: requireEnv("APPLE_MUSIC_KID"),
-      privateKeyPem: requireEnv("APPLE_MUSIC_PRIVATE_KEY"),
+  handler: async (ctx): Promise<string> => {
+    const secrets = await loadSecrets(ctx, "apple");
+    return signAppleDeveloperToken({
+      issuer: requireSecret(secrets, "issuer"),
+      keyId: requireSecret(secrets, "keyId"),
+      privateKeyPem: requireSecret(secrets, "privateKeyPem"),
       nowSec: Math.floor(Date.now() / 1000),
-    }),
+    });
+  },
 });
 
 const spotifyTokenCache = new ActionCache(components.actionCache, {

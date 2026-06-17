@@ -1,18 +1,26 @@
 import { v } from "convex/values";
-import { components } from "./_generated/api.js";
+import { api, components } from "./_generated/api.js";
 import { action, mutation, query } from "./_generated/server.js";
 import { Music } from "../../src/client/index.js";
 import {
-  artistDoc,
   artistValue,
-  cacheEntryDoc,
   cacheValue,
   entityKind,
-  playlistDoc,
   provider,
-  trackDoc,
+  providerSecrets,
   trackValue,
 } from "../../src/component/validators.js";
+
+/** Convex exposes the host deployment's env vars on `process.env`. */
+declare const process: { env: Record<string, string | undefined> };
+
+/**
+ * A host cannot re-validate component row ids (`v.id("artists")`) — those tables
+ * live in the component, not the host — so host wrappers returning component docs
+ * declare a loose return validator. The typed shape is preserved by the `Music`
+ * client method return types; consumers read the typed value, not this validator.
+ */
+const componentDoc = v.any();
 
 const searchResult = v.union(
   v.object({
@@ -49,13 +57,13 @@ export const put = mutation({
 
 export const get = query({
   args: { kind: entityKind, provider, externalId: v.string() },
-  returns: v.union(v.null(), cacheEntryDoc),
+  returns: componentDoc,
   handler: (ctx, args) => music.get(ctx, args),
 });
 
 export const getByIsrc = query({
   args: { isrc: v.string() },
-  returns: v.array(cacheEntryDoc),
+  returns: v.array(componentDoc),
   handler: (ctx, args) => music.getByIsrc(ctx, args.isrc),
 });
 
@@ -111,37 +119,37 @@ export const upsertPlaylist = mutation({
 
 export const getArtist = query({
   args: { id: v.string() },
-  returns: v.union(v.null(), artistDoc),
+  returns: componentDoc,
   handler: (ctx, args) => music.getArtist(ctx, args.id),
 });
 
 export const getTrack = query({
   args: { id: v.string() },
-  returns: v.union(v.null(), trackDoc),
+  returns: componentDoc,
   handler: (ctx, args) => music.getTrack(ctx, args.id),
 });
 
 export const getPlaylist = query({
   args: { id: v.string() },
-  returns: v.union(v.null(), playlistDoc),
+  returns: componentDoc,
   handler: (ctx, args) => music.getPlaylist(ctx, args.id),
 });
 
 export const getTrackByIsrc = query({
   args: { isrc: v.string() },
-  returns: v.union(v.null(), trackDoc),
+  returns: componentDoc,
   handler: (ctx, args) => music.getTrackByIsrc(ctx, args.isrc),
 });
 
 export const searchArtists = query({
   args: { query: v.string(), limit: v.optional(v.number()) },
-  returns: v.array(artistDoc),
+  returns: v.array(componentDoc),
   handler: (ctx, args) => music.searchArtists(ctx, args.query, args.limit),
 });
 
 export const searchTracks = query({
   args: { query: v.string(), limit: v.optional(v.number()) },
-  returns: v.array(trackDoc),
+  returns: v.array(componentDoc),
   handler: (ctx, args) => music.searchTracks(ctx, args.query, args.limit),
 });
 
@@ -153,19 +161,19 @@ export const selectEligible = query({
     salt: v.optional(v.string()),
     scanLimit: v.optional(v.number()),
   },
-  returns: v.array(v.union(artistDoc, trackDoc)),
+  returns: v.array(componentDoc),
   handler: (ctx, args) => music.selectEligible(ctx, args),
 });
 
 export const fetchArtist = action({
   args: { provider, externalId: v.string(), force: v.optional(v.boolean()) },
-  returns: v.union(v.null(), artistDoc),
+  returns: componentDoc,
   handler: (ctx, args) => music.fetchArtist(ctx, args),
 });
 
 export const fetchTrack = action({
   args: { provider, externalId: v.string(), force: v.optional(v.boolean()) },
-  returns: v.union(v.null(), trackDoc),
+  returns: componentDoc,
   handler: (ctx, args) => music.fetchTrack(ctx, args),
 });
 
@@ -177,4 +185,35 @@ export const search = action({
   },
   returns: v.array(searchResult),
   handler: (ctx, args) => music.search(ctx, args),
+});
+
+export const configure = mutation({
+  args: { provider, secrets: providerSecrets },
+  returns: v.null(),
+  handler: (ctx, args) => music.configure(ctx, args.provider, args.secrets),
+});
+
+/** Host setup: read deployment env vars and configure the component once. */
+export const configureFromEnv = action({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const env = process.env;
+    await ctx.runMutation(api.example.configure, {
+      provider: "spotify",
+      secrets: {
+        clientId: env.SPOTIFY_CLIENT_ID ?? "",
+        clientSecret: env.SPOTIFY_CLIENT_SECRET ?? "",
+      },
+    });
+    await ctx.runMutation(api.example.configure, {
+      provider: "apple",
+      secrets: {
+        issuer: env.APPLE_MUSIC_ISSUER ?? "",
+        keyId: env.APPLE_MUSIC_KID ?? "",
+        privateKeyPem: env.APPLE_MUSIC_PRIVATE_KEY ?? "",
+      },
+    });
+    return null;
+  },
 });

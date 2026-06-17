@@ -231,3 +231,18 @@ export const playlistDoc = v.object({
   _creationTime: v.number(),
   ...playlistFields,
 });
+
+/**
+ * Provider credentials, as a string map (`clientId`/`clientSecret` for Spotify;
+ * `issuer`/`keyId`/`privateKeyPem` for Apple). A Convex component is sandboxed
+ * from the host deployment's env vars, so the host reads its own env and passes
+ * credentials in via `configure`; the component stores them in its own
+ * sandboxed table (never readable by the host or sibling components).
+ */
+export const providerSecrets = v.record(v.string(), v.string());
+
+/** Columns of a stored provider-credentials row. */
+export const providerConfigFields = {
+  provider,
+  secrets: providerSecrets,
+};

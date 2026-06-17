@@ -13,6 +13,8 @@ import type * as catalog_browse_order from "../catalog/browse_order.js";
 import type * as catalog_merge from "../catalog/merge.js";
 import type * as catalog_mutations from "../catalog/mutations.js";
 import type * as catalog_queries from "../catalog/queries.js";
+import type * as config_mutations from "../config/mutations.js";
+import type * as config_queries from "../config/queries.js";
 import type * as mutations from "../mutations.js";
 import type * as providers_actions from "../providers/actions.js";
 import type * as providers_apple_impl from "../providers/apple/impl.js";
@@ -42,6 +44,8 @@ const fullApi: ApiFromModules<{
   "catalog/merge": typeof catalog_merge;
   "catalog/mutations": typeof catalog_mutations;
   "catalog/queries": typeof catalog_queries;
+  "config/mutations": typeof config_mutations;
+  "config/queries": typeof config_queries;
   mutations: typeof mutations;
   "providers/actions": typeof providers_actions;
   "providers/apple/impl": typeof providers_apple_impl;
