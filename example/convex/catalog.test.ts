@@ -193,6 +193,35 @@ test("upsertPlaylist inserts + updates by source-provider identity", async () =>
   expect(got2.trackIds).toEqual([]);
 });
 
+test("upsertPlaylist membership is a replace — removals + reorders, not a union", async () => {
+  const t = setup();
+  const ids = await Promise.all(
+    ["t1", "t2", "t3"].map((externalId, i) =>
+      t.mutation(api.example.upsertTrack, {
+        provider: "spotify",
+        externalId,
+        value: track({ isrc: `GBTEST000000${i}`, title: externalId }),
+      }),
+    ),
+  );
+  const [a, b, c] = ids;
+  await t.mutation(api.example.upsertPlaylist, {
+    provider: "spotify",
+    providerId: "pl2",
+    title: "PL",
+    trackIds: [a, b, c],
+  });
+  // re-import drops b and reorders the rest (union-only would keep all 3)
+  const id = await t.mutation(api.example.upsertPlaylist, {
+    provider: "spotify",
+    providerId: "pl2",
+    title: "PL",
+    trackIds: [c, a],
+  });
+  const got = await t.query(api.example.getPlaylist, { id });
+  expect(got.trackIds).toEqual([c, a]);
+});
+
 test("searchArtists + searchTracks find by name/title", async () => {
   const t = setup();
   await t.mutation(api.example.upsertArtist, {
