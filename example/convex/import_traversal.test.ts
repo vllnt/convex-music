@@ -208,7 +208,7 @@ test("importTrack promotes the track + its credited artists (with + without id)"
   expect(track.artistIds).toHaveLength(1);
 });
 
-test("importPlaylist promotes ISRC tracks + stores membership", async () => {
+test("importPlaylist promotes ISRC tracks + ENRICHES the ISRC-less ones", async () => {
   const t = setup();
   await configure(t);
   stubFetch([
@@ -229,11 +229,22 @@ test("importPlaylist promotes ISRC tracks + stores membership", async () => {
                 external_ids: { isrc: "FR1234567890" },
               },
             },
-            // ISRC-less track is skipped from membership
+            // ISRC-less tracks trigger enrichment via GET /tracks
             { track: { id: "t2", name: "NoIsrc", artists: [{ id: "a1", name: "X" }] } },
+            { track: { id: "t3", name: "StillNoIsrc", artists: [{ id: "a1", name: "X" }] } },
             { track: null },
           ],
         },
+      },
+    },
+    {
+      // enrichment: t2 recovers an ISRC, t3 still lacks one (dropped)
+      match: /\/v1\/tracks\?.*ids=t2/,
+      body: {
+        tracks: [
+          { id: "t2", name: "NoIsrc", artists: [{ id: "a1", name: "X" }], external_ids: { isrc: "ENRICHED0001" } },
+          { id: "t3", name: "StillNoIsrc", artists: [{ id: "a1", name: "X" }] },
+        ],
       },
     },
   ]);
@@ -245,12 +256,75 @@ test("importPlaylist promotes ISRC tracks + stores membership", async () => {
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
-  expect(request.resultSummary).toContain("1 tracks");
+  // t1 (had ISRC) + t2 (enriched) = 2; t3 stays ISRC-less and is dropped
+  expect(request.resultSummary).toContain("2 tracks");
   const playlist = await t.query(api.example.getPlaylist, {
     id: request.resolvedPlaylistId,
   });
   expect(playlist.title).toBe("Top Hits");
-  expect(playlist.trackIds).toHaveLength(1);
+  expect(playlist.trackIds).toHaveLength(2);
+});
+
+test("importPlaylist skips enrichment when every track already has an ISRC", async () => {
+  const t = setup();
+  await configure(t);
+  // no /v1/tracks route: a needless enrichment call would 404 + fail the import
+  stubFetch([
+    TOKEN,
+    {
+      match: /\/v1\/playlists\/p2/,
+      body: {
+        id: "p2",
+        name: "AllISRC",
+        tracks: {
+          items: [
+            {
+              track: {
+                id: "t1",
+                name: "Genesis",
+                artists: [{ id: "a1", name: "Justice" }],
+                external_ids: { isrc: "FR1234567890" },
+              },
+            },
+          ],
+        },
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importPlaylist, {
+    provider: "spotify",
+    providerId: "p2",
+  });
+  expect(result.status).toBe("completed");
+});
+
+test("importPlaylist on a provider without batch fetch drops ISRC-less tracks", async () => {
+  const t = setup();
+  // Deezer is no-auth + has no getSeveralTracks; an ISRC-less track is dropped
+  stubFetch([
+    {
+      match: /api\.deezer\.com\/playlist\/5/,
+      body: {
+        id: 5,
+        title: "Deezer PL",
+        tracks: {
+          data: [
+            { id: 1, title: "Has ISRC", isrc: "DE0000000001", artist: { id: 9, name: "X" } },
+            { id: 2, title: "No ISRC", artist: { id: 9, name: "X" } },
+          ],
+        },
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importPlaylist, {
+    provider: "deezer",
+    providerId: "5",
+  });
+  expect(result.status).toBe("completed");
+  const request = await t.query(api.example.getImportRequest, {
+    requestId: result.requestId,
+  });
+  expect(request.resultSummary).toContain("1 tracks");
 });
 
 test("importPlaylist with no providerId fails", async () => {

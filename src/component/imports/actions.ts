@@ -301,8 +301,23 @@ export const runPlaylistImport = action({
       const promotable = playlist.tracks.filter(
         (track) => track.value.isrc !== undefined,
       );
+      // ISRC enrichment: some providers (Spotify) return playlist tracks without
+      // an ISRC. Batch-refetch those full tracks (when the adapter supports it)
+      // to recover the ISRC so they unify, instead of dropping them.
+      const needsEnrich = playlist.tracks.filter(
+        (track) => track.value.isrc === undefined,
+      );
+      const enriched =
+        needsEnrich.length > 0 && adapter.getSeveralTracks !== undefined
+          ? (
+              await adapter.getSeveralTracks(
+                needsEnrich.map((track) => track.externalId),
+              )
+            ).filter((track) => track.value.isrc !== undefined)
+          : [];
+      const toPromote = [...promotable, ...enriched];
       const trackIds = await Promise.all(
-        promotable.map(async (track) => {
+        toPromote.map(async (track) => {
           const artistIds = await Promise.all(
             track.value.artists.filter(hasExternalId).map((ref) =>
               ctx.runMutation(api.catalog.mutations.upsertArtist, {
