@@ -201,6 +201,12 @@ export interface MusicComponent {
       CatalogTrack | null
     >;
     search: FunctionReference<"action", "internal", SearchInput, SearchHit[]>;
+    resolveByIsrc: FunctionReference<
+      "action",
+      "internal",
+      { isrc: string; provider: Provider },
+      CatalogTrack | null
+    >;
   };
   config: {
     mutations: {
@@ -397,6 +403,21 @@ export class Music {
   /** Search a provider for artists or tracks (discovery; no promotion). */
   search(ctx: RunActionCtx, input: SearchInput): Promise<SearchHit[]> {
     return ctx.runAction(this.component.actions.search, input);
+  }
+
+  /**
+   * Resolve a track by ISRC cross-provider (catalog hit, else search the provider
+   * by ISRC and promote). `null` if no provider has it.
+   */
+  resolveByIsrc(
+    ctx: RunActionCtx,
+    isrc: string,
+    provider: Provider,
+  ): Promise<CatalogTrack | null> {
+    return ctx.runAction(this.component.actions.resolveByIsrc, {
+      isrc,
+      provider,
+    });
   }
 
   /**

@@ -232,6 +232,70 @@ test("search returns normalized artist + track hits", async () => {
   expect(tracks[0]?.type).toBe("track");
 });
 
+test("resolveByIsrc: catalog hit returns without searching", async () => {
+  const t = setup();
+  await configureCreds(t);
+  await t.mutation(api.example.upsertTrack, {
+    provider: "spotify",
+    externalId: "t1",
+    value: {
+      title: "Cached",
+      artists: [{ name: "X" }],
+      isrc: "GBDUW0000059",
+    },
+  });
+  // no fetch stub: a catalog hit must not hit the network
+  vi.stubGlobal("fetch", () => Promise.reject(new Error("should not fetch")));
+  const track = await t.action(api.example.resolveByIsrc, {
+    isrc: "GBDUW0000059",
+    provider: "spotify",
+  });
+  expect(track.title).toBe("Cached");
+});
+
+test("resolveByIsrc: cross-provider miss searches + promotes", async () => {
+  const t = setup();
+  await configureCreds(t);
+  stubFetch([
+    SPOTIFY_TOKEN,
+    {
+      match: /\/v1\/search\?.*q=isrc/,
+      body: {
+        tracks: {
+          items: [
+            {
+              id: "t9",
+              name: "Resolved",
+              artists: [{ id: "a1", name: "X" }],
+              external_ids: { isrc: "USNEW0000001" },
+            },
+          ],
+        },
+      },
+    },
+  ]);
+  const track = await t.action(api.example.resolveByIsrc, {
+    isrc: "USNEW0000001",
+    provider: "spotify",
+  });
+  expect(track.title).toBe("Resolved");
+});
+
+test("resolveByIsrc: no provider has it -> null", async () => {
+  const t = setup();
+  await configureCreds(t);
+  stubFetch([
+    SPOTIFY_TOKEN,
+    { match: /\/v1\/search\?.*q=isrc/, body: { tracks: { items: [] } } },
+  ]);
+  expect(
+    await t.action(api.example.resolveByIsrc, {
+      isrc: "USNONE0000001",
+      provider: "spotify",
+    }),
+  ).toBeNull();
+});
+
 test("a provider without a token resolver rejects", async () => {
   const t = setup();
   await configureCreds(t);

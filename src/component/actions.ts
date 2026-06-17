@@ -136,3 +136,44 @@ export const search = action({
     );
   },
 });
+
+/**
+ * Resolve a track by ISRC, cross-provider: return the unified catalog track if
+ * present, else search the given provider by ISRC and promote the first hit.
+ * Powers "playlist from provider A, track data from provider B" — the host
+ * imports a playlist's membership, then resolves each ISRC against its preferred
+ * provider. `null` if no provider has the ISRC.
+ */
+export const resolveByIsrc = action({
+  args: { isrc: v.string(), provider },
+  returns: v.union(v.null(), trackDoc),
+  handler: async (ctx, args): Promise<Doc<"tracks"> | null> => {
+    const existing = await ctx.runQuery(api.catalog.queries.getTrackByIsrc, {
+      isrc: args.isrc,
+    });
+    if (existing !== null) return existing;
+    const token = await getProviderToken(ctx, args.provider);
+    const adapter = createProvider(args.provider, () => Promise.resolve(token));
+    const hits = await adapter.searchByIsrc(args.isrc);
+    const first = hits[0];
+    if (first === undefined) return null;
+    const artistIds = await Promise.all(
+      first.value.artists.filter(hasExternalId).map((ref) =>
+        ctx.runMutation(api.catalog.mutations.upsertArtist, {
+          provider: args.provider,
+          externalId: ref.externalId,
+          value: { name: ref.name, genres: [] },
+        }),
+      ),
+    );
+    await ctx.runMutation(api.catalog.mutations.upsertTrack, {
+      provider: args.provider,
+      externalId: first.externalId,
+      value: first.value,
+      artistIds,
+    });
+    return await ctx.runQuery(api.catalog.queries.getTrackByIsrc, {
+      isrc: args.isrc,
+    });
+  },
+});

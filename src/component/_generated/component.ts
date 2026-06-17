@@ -122,6 +122,52 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         },
         Name
       >;
+      resolveByIsrc: FunctionReference<
+        "action",
+        "internal",
+        {
+          isrc: string;
+          provider: "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
+        },
+        null | {
+          _creationTime: number;
+          _id: string;
+          artistIds: Array<string>;
+          durationMs?: number;
+          genres: Array<string>;
+          isrc: string;
+          lastRepairAt?: number;
+          lastSyncError?: string;
+          lastSyncedAt?: number;
+          nextSyncAt?: number;
+          popularity?: number;
+          providers: Array<{
+            coverUrl?: string;
+            previewUrl?: string;
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+            url?: string;
+          }>;
+          repairAttempts?: number;
+          repairError?: string;
+          repairStartedAt?: number;
+          repairStatus?:
+            | "clean"
+            | "needs_repair"
+            | "repairing"
+            | "failed_repair";
+          syncRetryCount?: number;
+          syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
+          title: string;
+          updatedAt: number;
+        },
+        Name
+      >;
       search: FunctionReference<
         "action",
         "internal",

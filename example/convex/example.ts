@@ -208,6 +208,12 @@ export const search = action({
   handler: (ctx, args) => music.search(ctx, args),
 });
 
+export const resolveByIsrc = action({
+  args: { isrc: v.string(), provider },
+  returns: componentDoc,
+  handler: (ctx, args) => music.resolveByIsrc(ctx, args.isrc, args.provider),
+});
+
 export const configure = mutation({
   args: { provider, secrets: providerSecrets },
   returns: v.null(),
