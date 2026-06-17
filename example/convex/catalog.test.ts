@@ -222,6 +222,54 @@ test("upsertPlaylist membership is a replace — removals + reorders, not a unio
   expect(got.trackIds).toEqual([c, a]);
 });
 
+test("upsertAlbum inserts + updates by source-provider identity", async () => {
+  const t = setup();
+  const artistId = await t.mutation(api.example.upsertArtist, {
+    provider: "spotify",
+    externalId: "a1",
+    value: artist(),
+  });
+  const trackId = await t.mutation(api.example.upsertTrack, {
+    provider: "spotify",
+    externalId: "t1",
+    value: track(),
+  });
+  const id = await t.mutation(api.example.upsertAlbum, {
+    provider: "spotify",
+    providerId: "al1",
+    title: "Discovery",
+    artistIds: [artistId],
+    releaseDate: "2001",
+    trackCount: 14,
+    trackIds: [trackId],
+  });
+  expect((await t.query(api.example.getAlbum, { id })).trackIds).toEqual([trackId]);
+
+  // re-link by provider identity (patch, not a new row)
+  const id2 = await t.mutation(api.example.upsertAlbum, {
+    provider: "spotify",
+    providerId: "al1",
+    title: "Discovery (Remastered)",
+    artistIds: [artistId],
+    trackIds: [],
+  });
+  expect(id2).toBe(id);
+
+  const byProv = await t.query(api.example.getAlbumByProvider, {
+    provider: "spotify",
+    providerId: "al1",
+  });
+  expect(byProv.title).toBe("Discovery (Remastered)");
+  expect(byProv.trackIds).toEqual([]);
+
+  expect(
+    await t.query(api.example.getAlbumByProvider, {
+      provider: "deezer",
+      providerId: "nope",
+    }),
+  ).toBeNull();
+});
+
 test("searchArtists + searchTracks find by name/title", async () => {
   const t = setup();
   await t.mutation(api.example.upsertArtist, {

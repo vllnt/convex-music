@@ -1,5 +1,6 @@
 import type { GenericId, Infer } from "convex/values";
 import type {
+  albumDoc,
   artistDoc,
   playlistDoc,
   trackDoc,
@@ -28,6 +29,9 @@ export type CatalogTrack = StringifyIds<Infer<typeof trackDoc>>;
 
 /** A playlist (source-provider identity + ordered membership), as returned. */
 export type CatalogPlaylist = StringifyIds<Infer<typeof playlistDoc>>;
+
+/** An album (source-provider identity + track membership), as returned. */
+export type CatalogAlbum = StringifyIds<Infer<typeof albumDoc>>;
 
 /** A normalized search hit (provider id + value), discriminated by kind. */
 export type SearchHit =

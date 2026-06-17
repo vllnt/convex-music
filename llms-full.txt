@@ -355,6 +355,7 @@ export const NEVER_EXPIRES = Number.MAX_SAFE_INTEGER;
 ```ts
 import type { GenericId, Infer } from "convex/values";
 import type {
+  albumDoc,
   artistDoc,
   playlistDoc,
   trackDoc,
@@ -383,6 +384,9 @@ export type CatalogTrack = StringifyIds<Infer<typeof trackDoc>>;
 
 /** A playlist (source-provider identity + ordered membership), as returned. */
 export type CatalogPlaylist = StringifyIds<Infer<typeof playlistDoc>>;
+
+/** An album (source-provider identity + track membership), as returned. */
+export type CatalogAlbum = StringifyIds<Infer<typeof albumDoc>>;
 
 /** A normalized search hit (provider id + value), discriminated by kind. */
 export type SearchHit =
@@ -476,6 +480,7 @@ import type {
 import type { Provider } from "../shared.js";
 import type {
   CacheEntry,
+  CatalogAlbum,
   CatalogArtist,
   CatalogPlaylist,
   CatalogTrack,
@@ -558,6 +563,19 @@ export type UpsertPlaylistInput = {
   trackIds: string[];
 };
 
+/** Arguments to upsert an album by source-provider identity. */
+export type UpsertAlbumInput = {
+  provider: Provider;
+  providerId: string;
+  title: string;
+  artistIds: string[];
+  releaseDate?: string;
+  coverUrl?: string;
+  url?: string;
+  trackCount?: number;
+  trackIds: string[];
+};
+
 /** Arguments to select eligible catalog rows for a daily picker. */
 export type SelectEligibleInput = {
   kind: "artist" | "track";
@@ -617,6 +635,12 @@ export interface MusicComponent {
         UpsertPlaylistInput,
         string
       >;
+      upsertAlbum: FunctionReference<
+        "mutation",
+        "internal",
+        UpsertAlbumInput,
+        string
+      >;
     };
     queries: {
       getArtist: FunctionReference<
@@ -636,6 +660,18 @@ export interface MusicComponent {
         "internal",
         { id: string },
         CatalogPlaylist | null
+      >;
+      getAlbum: FunctionReference<
+        "query",
+        "internal",
+        { id: string },
+        CatalogAlbum | null
+      >;
+      getAlbumByProvider: FunctionReference<
+        "query",
+        "internal",
+        { provider: Provider; providerId: string },
+        CatalogAlbum | null
       >;
       getTrackByIsrc: FunctionReference<
         "query",
@@ -808,6 +844,28 @@ export class Music {
     );
   }
 
+  /** Upsert an album by source-provider identity; returns the album id. */
+  upsertAlbum(ctx: RunMutationCtx, input: UpsertAlbumInput): Promise<string> {
+    return ctx.runMutation(this.component.catalog.mutations.upsertAlbum, input);
+  }
+
+  /** Fetch one album by id. */
+  getAlbum(ctx: RunQueryCtx, id: string): Promise<CatalogAlbum | null> {
+    return ctx.runQuery(this.component.catalog.queries.getAlbum, { id });
+  }
+
+  /** Resolve an album by its source-provider identity. */
+  getAlbumByProvider(
+    ctx: RunQueryCtx,
+    provider: Provider,
+    providerId: string,
+  ): Promise<CatalogAlbum | null> {
+    return ctx.runQuery(this.component.catalog.queries.getAlbumByProvider, {
+      provider,
+      providerId,
+    });
+  }
+
   /** Fetch one unified artist by id. */
   getArtist(ctx: RunQueryCtx, id: string): Promise<CatalogArtist | null> {
     return ctx.runQuery(this.component.catalog.queries.getArtist, { id });
@@ -942,6 +1000,7 @@ export type {
   ArtistRef,
   CacheEntry,
   CacheValue,
+  CatalogAlbum,
   CatalogArtist,
   CatalogPlaylist,
   CatalogTrack,
@@ -962,6 +1021,7 @@ export type {
 ```ts
 import { defineSchema, defineTable } from "convex/server";
 import {
+  albumFields,
   artistFields,
   artistProviderLinkFields,
   cacheEntryFields,
@@ -978,9 +1038,10 @@ import {
  * Sandboxed tables — the component's own concern only. Two layers:
  * - `cacheEntries`: the raw provider-fetch cache (one provider's normalized facts
  *   per entity, TTL'd, keyed by provider id + ISRC for tracks).
- * - `artists` / `tracks` / `playlists`: the durable catalog — one unified
- *   canonical entity per identity (track by ISRC, artist by name) with per-provider
- *   `providers[]` provenance, sync + repair lifecycle columns. `*Providers` are
+ * - `artists` / `tracks` / `playlists` / `albums`: the durable catalog — one
+ *   unified canonical entity per identity (track by ISRC, artist by name,
+ *   playlist + album by source-provider id) with per-provider `providers[]`
+ *   provenance (artists/tracks) + sync/repair lifecycle columns. `*Providers` are
  *   reverse indexes (`(provider, providerId)` → row) since Convex can't index
  *   inside arrays. `trackClaims` guards concurrent track syncs.
  *
@@ -1008,6 +1069,10 @@ export default defineSchema({
     .searchIndex("search_title", { searchField: "title" }),
 
   playlists: defineTable(playlistFields)
+    .index("by_provider", ["provider", "providerId"])
+    .index("by_sync", ["syncStatus", "nextSyncAt"]),
+
+  albums: defineTable(albumFields)
     .index("by_provider", ["provider", "providerId"])
     .index("by_sync", ["syncStatus", "nextSyncAt"]),
 
@@ -1235,6 +1300,26 @@ export const playlistFields = {
   ...repairFields,
 };
 
+/**
+ * Columns of an album row. Provider-keyed like a playlist (cross-provider
+ * unification by (artist+title+year) is a later identity step); carries the
+ * album-specific facts + its track membership.
+ */
+export const albumFields = {
+  title: v.string(),
+  provider,
+  providerId: v.string(),
+  artistIds: v.array(v.id("artists")),
+  releaseDate: v.optional(v.string()),
+  coverUrl: v.optional(v.string()),
+  url: v.optional(v.string()),
+  trackCount: v.optional(v.number()),
+  trackIds: v.array(v.id("tracks")),
+  updatedAt: v.number(),
+  ...syncFields,
+  ...repairFields,
+};
+
 /** Reverse index: `(provider, providerId)` → artist (arrays aren't indexable). */
 export const artistProviderLinkFields = {
   artistId: v.id("artists"),
@@ -1276,6 +1361,13 @@ export const playlistDoc = v.object({
   _id: v.id("playlists"),
   _creationTime: v.number(),
   ...playlistFields,
+});
+
+/** Public shape of an album returned by queries. */
+export const albumDoc = v.object({
+  _id: v.id("albums"),
+  _creationTime: v.number(),
+  ...albumFields,
 });
 
 /**
@@ -1596,6 +1688,7 @@ export const stats = query({
 ```ts
 /// <reference types="vite/client" />
 import { register as registerActionCache } from "@convex-dev/action-cache/test";
+import { register as registerRateLimiter } from "@convex-dev/rate-limiter/test";
 import type { TestConvex } from "convex-test";
 import type { GenericSchema, SchemaDefinition } from "convex/server";
 import schema from "./component/schema.js";
@@ -1603,9 +1696,9 @@ import schema from "./component/schema.js";
 const modules = import.meta.glob("./component/**/*.ts");
 
 /**
- * Register this component (and its child `action-cache` component) with a
- * `convex-test` instance so consuming apps can test integration:
- * `import { register } from "@vllnt/convex-music/test"`.
+ * Register this component (and its child `action-cache` + `rate-limiter`
+ * components) with a `convex-test` instance so consuming apps can test
+ * integration: `import { register } from "@vllnt/convex-music/test"`.
  */
 export function register(
   t: TestConvex<SchemaDefinition<GenericSchema, boolean>>,
@@ -1613,6 +1706,7 @@ export function register(
 ): void {
   t.registerComponent(name, schema, modules);
   registerActionCache(t, `${name}/actionCache`);
+  registerRateLimiter(t, `${name}/rateLimiter`);
 }
 
 ```

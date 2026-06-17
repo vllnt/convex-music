@@ -246,3 +246,47 @@ export const upsertPlaylist = mutation({
     return await ctx.db.insert("playlists", fields);
   },
 });
+
+/** Upsert an album by source-provider identity (provider + providerId). */
+export const upsertAlbum = mutation({
+  args: {
+    provider,
+    providerId: v.string(),
+    title: v.string(),
+    artistIds: v.array(v.id("artists")),
+    releaseDate: v.optional(v.string()),
+    coverUrl: v.optional(v.string()),
+    url: v.optional(v.string()),
+    trackCount: v.optional(v.number()),
+    trackIds: v.array(v.id("tracks")),
+  },
+  returns: v.id("albums"),
+  handler: async (ctx, args): Promise<Id<"albums">> => {
+    const now = Date.now();
+    const existing = await ctx.db
+      .query("albums")
+      .withIndex("by_provider", (q) =>
+        q.eq("provider", args.provider).eq("providerId", args.providerId),
+      )
+      .unique();
+    const fields = {
+      title: args.title,
+      provider: args.provider,
+      providerId: args.providerId,
+      artistIds: args.artistIds,
+      releaseDate: args.releaseDate,
+      coverUrl: args.coverUrl,
+      url: args.url,
+      trackCount: args.trackCount,
+      trackIds: args.trackIds,
+      updatedAt: now,
+      syncStatus: "synced" as const,
+      lastSyncedAt: now,
+    };
+    if (existing) {
+      await ctx.db.patch(existing._id, fields);
+      return existing._id;
+    }
+    return await ctx.db.insert("albums", fields);
+  },
+});

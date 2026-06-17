@@ -1,7 +1,13 @@
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel.js";
 import { query } from "../_generated/server.js";
-import { artistDoc, playlistDoc, provider, trackDoc } from "../validators.js";
+import {
+  albumDoc,
+  artistDoc,
+  playlistDoc,
+  provider,
+  trackDoc,
+} from "../validators.js";
 import { orderByDailyRotation, utcDateBucket } from "./browse_order.js";
 import { projectField } from "./field_source_policy.js";
 
@@ -37,6 +43,26 @@ export const getPlaylist = query({
   args: { id: v.id("playlists") },
   returns: v.union(v.null(), playlistDoc),
   handler: async (ctx, args) => await ctx.db.get(args.id),
+});
+
+/** Fetch one album by id. */
+export const getAlbum = query({
+  args: { id: v.id("albums") },
+  returns: v.union(v.null(), albumDoc),
+  handler: async (ctx, args) => await ctx.db.get(args.id),
+});
+
+/** Resolve an album by its source-provider identity. */
+export const getAlbumByProvider = query({
+  args: { provider, providerId: v.string() },
+  returns: v.union(v.null(), albumDoc),
+  handler: async (ctx, args) =>
+    await ctx.db
+      .query("albums")
+      .withIndex("by_provider", (q) =>
+        q.eq("provider", args.provider).eq("providerId", args.providerId),
+      )
+      .unique(),
 });
 
 /** Resolve a track by ISRC (the canonical track identity). */

@@ -6,6 +6,7 @@ import type {
 import type { Provider } from "../shared.js";
 import type {
   CacheEntry,
+  CatalogAlbum,
   CatalogArtist,
   CatalogPlaylist,
   CatalogTrack,
@@ -88,6 +89,19 @@ export type UpsertPlaylistInput = {
   trackIds: string[];
 };
 
+/** Arguments to upsert an album by source-provider identity. */
+export type UpsertAlbumInput = {
+  provider: Provider;
+  providerId: string;
+  title: string;
+  artistIds: string[];
+  releaseDate?: string;
+  coverUrl?: string;
+  url?: string;
+  trackCount?: number;
+  trackIds: string[];
+};
+
 /** Arguments to select eligible catalog rows for a daily picker. */
 export type SelectEligibleInput = {
   kind: "artist" | "track";
@@ -147,6 +161,12 @@ export interface MusicComponent {
         UpsertPlaylistInput,
         string
       >;
+      upsertAlbum: FunctionReference<
+        "mutation",
+        "internal",
+        UpsertAlbumInput,
+        string
+      >;
     };
     queries: {
       getArtist: FunctionReference<
@@ -166,6 +186,18 @@ export interface MusicComponent {
         "internal",
         { id: string },
         CatalogPlaylist | null
+      >;
+      getAlbum: FunctionReference<
+        "query",
+        "internal",
+        { id: string },
+        CatalogAlbum | null
+      >;
+      getAlbumByProvider: FunctionReference<
+        "query",
+        "internal",
+        { provider: Provider; providerId: string },
+        CatalogAlbum | null
       >;
       getTrackByIsrc: FunctionReference<
         "query",
@@ -338,6 +370,28 @@ export class Music {
     );
   }
 
+  /** Upsert an album by source-provider identity; returns the album id. */
+  upsertAlbum(ctx: RunMutationCtx, input: UpsertAlbumInput): Promise<string> {
+    return ctx.runMutation(this.component.catalog.mutations.upsertAlbum, input);
+  }
+
+  /** Fetch one album by id. */
+  getAlbum(ctx: RunQueryCtx, id: string): Promise<CatalogAlbum | null> {
+    return ctx.runQuery(this.component.catalog.queries.getAlbum, { id });
+  }
+
+  /** Resolve an album by its source-provider identity. */
+  getAlbumByProvider(
+    ctx: RunQueryCtx,
+    provider: Provider,
+    providerId: string,
+  ): Promise<CatalogAlbum | null> {
+    return ctx.runQuery(this.component.catalog.queries.getAlbumByProvider, {
+      provider,
+      providerId,
+    });
+  }
+
   /** Fetch one unified artist by id. */
   getArtist(ctx: RunQueryCtx, id: string): Promise<CatalogArtist | null> {
     return ctx.runQuery(this.component.catalog.queries.getArtist, { id });
@@ -472,6 +526,7 @@ export type {
   ArtistRef,
   CacheEntry,
   CacheValue,
+  CatalogAlbum,
   CatalogArtist,
   CatalogPlaylist,
   CatalogTrack,

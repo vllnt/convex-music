@@ -145,7 +145,7 @@ src/
 
 - Mutations in `mutations.ts`, queries in `queries.ts` (enforced by `@vllnt/eslint-config/convex`).
 - Explicit `args` + `returns` on every Convex function.
-- Sandboxed tables only (`cacheEntries` raw cache + the durable `artists`/`tracks`/`playlists` catalog + `*Providers` reverse-index junctions + `trackClaims`) — the component never reads host or sibling tables.
+- Sandboxed tables only (`cacheEntries` raw cache + the durable `artists`/`tracks`/`playlists`/`albums` catalog + `*Providers` reverse-index junctions + `trackClaims`) — the component never reads host or sibling tables.
 - No bare `v.any()` — host data is typed via the `*Value` validators.
 - 100% test coverage is BLOCKING (`vitest.config.mts` thresholds).
 - Runtime deps: only official `@convex-dev/*` + `@vllnt/*` — compose, never hand-roll. Committed

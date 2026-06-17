@@ -211,6 +211,28 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
     };
     catalog: {
       mutations: {
+        upsertAlbum: FunctionReference<
+          "mutation",
+          "internal",
+          {
+            artistIds: Array<string>;
+            coverUrl?: string;
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+            releaseDate?: string;
+            title: string;
+            trackCount?: number;
+            trackIds: Array<string>;
+            url?: string;
+          },
+          string,
+          Name
+        >;
         upsertArtist: FunctionReference<
           "mutation",
           "internal",
@@ -285,6 +307,92 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         >;
       };
       queries: {
+        getAlbum: FunctionReference<
+          "query",
+          "internal",
+          { id: string },
+          null | {
+            _creationTime: number;
+            _id: string;
+            artistIds: Array<string>;
+            coverUrl?: string;
+            lastRepairAt?: number;
+            lastSyncError?: string;
+            lastSyncedAt?: number;
+            nextSyncAt?: number;
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+            releaseDate?: string;
+            repairAttempts?: number;
+            repairError?: string;
+            repairStartedAt?: number;
+            repairStatus?:
+              | "clean"
+              | "needs_repair"
+              | "repairing"
+              | "failed_repair";
+            syncRetryCount?: number;
+            syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
+            title: string;
+            trackCount?: number;
+            trackIds: Array<string>;
+            updatedAt: number;
+            url?: string;
+          },
+          Name
+        >;
+        getAlbumByProvider: FunctionReference<
+          "query",
+          "internal",
+          {
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+          },
+          null | {
+            _creationTime: number;
+            _id: string;
+            artistIds: Array<string>;
+            coverUrl?: string;
+            lastRepairAt?: number;
+            lastSyncError?: string;
+            lastSyncedAt?: number;
+            nextSyncAt?: number;
+            provider:
+              | "spotify"
+              | "apple"
+              | "musicbrainz"
+              | "wikidata"
+              | "deezer";
+            providerId: string;
+            releaseDate?: string;
+            repairAttempts?: number;
+            repairError?: string;
+            repairStartedAt?: number;
+            repairStatus?:
+              | "clean"
+              | "needs_repair"
+              | "repairing"
+              | "failed_repair";
+            syncRetryCount?: number;
+            syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
+            title: string;
+            trackCount?: number;
+            trackIds: Array<string>;
+            updatedAt: number;
+            url?: string;
+          },
+          Name
+        >;
         getArtist: FunctionReference<
           "query",
           "internal",

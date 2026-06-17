@@ -189,6 +189,26 @@ export const playlistFields = {
   ...repairFields,
 };
 
+/**
+ * Columns of an album row. Provider-keyed like a playlist (cross-provider
+ * unification by (artist+title+year) is a later identity step); carries the
+ * album-specific facts + its track membership.
+ */
+export const albumFields = {
+  title: v.string(),
+  provider,
+  providerId: v.string(),
+  artistIds: v.array(v.id("artists")),
+  releaseDate: v.optional(v.string()),
+  coverUrl: v.optional(v.string()),
+  url: v.optional(v.string()),
+  trackCount: v.optional(v.number()),
+  trackIds: v.array(v.id("tracks")),
+  updatedAt: v.number(),
+  ...syncFields,
+  ...repairFields,
+};
+
 /** Reverse index: `(provider, providerId)` → artist (arrays aren't indexable). */
 export const artistProviderLinkFields = {
   artistId: v.id("artists"),
@@ -230,6 +250,13 @@ export const playlistDoc = v.object({
   _id: v.id("playlists"),
   _creationTime: v.number(),
   ...playlistFields,
+});
+
+/** Public shape of an album returned by queries. */
+export const albumDoc = v.object({
+  _id: v.id("albums"),
+  _creationTime: v.number(),
+  ...albumFields,
 });
 
 /**

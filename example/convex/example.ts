@@ -122,6 +122,35 @@ export const upsertPlaylist = mutation({
   handler: (ctx, args) => music.upsertPlaylist(ctx, args),
 });
 
+export const upsertAlbum = mutation({
+  args: {
+    provider,
+    providerId: v.string(),
+    title: v.string(),
+    artistIds: v.array(v.string()),
+    releaseDate: v.optional(v.string()),
+    coverUrl: v.optional(v.string()),
+    url: v.optional(v.string()),
+    trackCount: v.optional(v.number()),
+    trackIds: v.array(v.string()),
+  },
+  returns: v.string(),
+  handler: (ctx, args) => music.upsertAlbum(ctx, args),
+});
+
+export const getAlbum = query({
+  args: { id: v.string() },
+  returns: componentDoc,
+  handler: (ctx, args) => music.getAlbum(ctx, args.id),
+});
+
+export const getAlbumByProvider = query({
+  args: { provider, providerId: v.string() },
+  returns: componentDoc,
+  handler: (ctx, args) =>
+    music.getAlbumByProvider(ctx, args.provider, args.providerId),
+});
+
 export const getArtist = query({
   args: { id: v.string() },
   returns: componentDoc,
