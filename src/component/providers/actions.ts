@@ -95,5 +95,7 @@ export async function getProviderToken(
 ): Promise<string> {
   if (prov === "spotify") return await spotifyTokenCache.fetch(ctx, {});
   if (prov === "apple") return await appleTokenCache.fetch(ctx, {});
-  throw new Error(`No token resolver for provider "${prov}"`);
+  // No-auth providers (MusicBrainz / Wikidata / Deezer) carry their own headers
+  // (e.g. User-Agent) instead of a bearer token.
+  return "";
 }

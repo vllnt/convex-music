@@ -296,13 +296,38 @@ test("resolveByIsrc: no provider has it -> null", async () => {
   ).toBeNull();
 });
 
-test("a provider without a token resolver rejects", async () => {
+test("fetchArtist via MusicBrainz (no-auth) merges artist facts", async () => {
+  const t = setup();
+  // MusicBrainz needs no credentials — no configure()
+  stubFetch([
+    {
+      match: /musicbrainz\.org\/ws\/2\/artist\/mb1/,
+      body: {
+        id: "mb1",
+        name: "Daft Punk",
+        country: "FR",
+        gender: null,
+        type: "Group",
+        "life-span": { begin: "1993" },
+      },
+    },
+  ]);
+  const artist = await t.action(api.example.fetchArtist, {
+    provider: "musicbrainz",
+    externalId: "mb1",
+  });
+  expect(artist.country).toBe("FR");
+  expect(artist.members).toBe("group");
+  expect(artist.debutYear).toBe(1993);
+});
+
+test("a provider with no registered adapter rejects", async () => {
   const t = setup();
   await configureCreds(t);
   stubFetch([SPOTIFY_TOKEN]);
   await expect(
-    t.action(api.example.fetchArtist, { provider: "musicbrainz", externalId: "x" }),
-  ).rejects.toThrow(/No token resolver/);
+    t.action(api.example.fetchArtist, { provider: "deezer", externalId: "x" }),
+  ).rejects.toThrow(/No adapter registered/);
 });
 
 test("an unconfigured provider rejects", async () => {
