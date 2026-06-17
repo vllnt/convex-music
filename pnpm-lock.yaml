@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@convex-dev/action-cache':
+        specifier: ^0.3.0
+        version: 0.3.0(convex@1.41.0)
     devDependencies:
       '@edge-runtime/vm':
         specifier: ^4.0.0
@@ -122,6 +126,11 @@ packages:
   '@boundaries/elements@1.2.0':
     resolution: {integrity: sha512-W65Gum02liMd3hmNrLmDBX1u5BmRMcunouFjLXyhxHnNY4YlK1kTxsgfflZ5XBGSnPnO0MkiUzAcoGzYrlx0RQ==}
     engines: {node: '>=18.18'}
+
+  '@convex-dev/action-cache@0.3.0':
+    resolution: {integrity: sha512-B3GsOgwPv81whdu1mHaMKBwbIYHhNXsv3Fr5oMjynIOrRy1laGLUo9zRWDKWJgtKXfVnn8X/uxYD9RyWmPIbPQ==}
+    peerDependencies:
+      convex: ^1.24.8
 
   '@convex-dev/eslint-plugin@1.2.2':
     resolution: {integrity: sha512-hLElzzSHuO83O/7PqaeFrMy8EOaDPMAUBNaqo7wkOzCsUCgA+tI9SXVSVLUozDGBBQjyXjAaPYRIBKoPeZbZKg==}
@@ -2567,6 +2576,10 @@ snapshots:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
       - supports-color
+
+  '@convex-dev/action-cache@0.3.0(convex@1.41.0)':
+    dependencies:
+      convex: 1.41.0
 
   '@convex-dev/eslint-plugin@1.2.2(convex@1.41.0)(eslint@9.39.4)(typescript@5.9.3)':
     dependencies:

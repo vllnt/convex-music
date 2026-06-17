@@ -5,7 +5,10 @@
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@9.15.4",
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -46,7 +49,9 @@
     "alpha": "npm version prerelease --preid alpha && npm publish --tag alpha && git push --follow-tags",
     "release": "npm version patch && npm publish && git push --follow-tags"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@convex-dev/action-cache": "^0.3.0"
+  },
   "peerDependencies": {
     "convex": "^1.36.1"
   },
@@ -67,8 +72,14 @@
   "bugs": {
     "url": "https://github.com/vllnt/convex-music/issues"
   },
-  "author": { "name": "bntvllnt", "url": "https://bntvllnt.com" },
-  "funding": { "type": "github", "url": "https://github.com/sponsors/bntvllnt" },
+  "author": {
+    "name": "bntvllnt",
+    "url": "https://bntvllnt.com"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/bntvllnt"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/vllnt/convex-music"
