@@ -20,6 +20,9 @@ export default defineConfig({
         "src/component/schema.ts",
         "src/component/providers/fetch.ts",
         "src/component/providers/apple/jwt.ts",
+        "src/component/providers/spotify/mappers.ts",
+        "src/component/providers/spotify/client.ts",
+        "src/component/providers/spotify/impl.ts",
       ],
       thresholds: {
         statements: 100,
