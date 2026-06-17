@@ -157,6 +157,22 @@ test("a source with no cadence is one-shot", async () => {
 
 const FAR_FUTURE = Date.now() + 365 * 24 * 60 * 60 * 1000;
 
+test("runAutoImport stops when the throughput budget is exhausted", async () => {
+  const t = setup();
+  await configure(t);
+  await t.mutation(api.example.addSource, {
+    kind: "artist",
+    by: "providerId",
+    value: "a1",
+    provider: "spotify",
+  });
+  // drain the token bucket (default capacity = 60/hour)
+  expect(await t.action(api.example.consumeImportBudget, { count: 60 })).toBe(true);
+  stubFetch([TOKEN, ARTIST("a1")]);
+  // budget exhausted -> the due source is not imported
+  expect((await t.action(api.example.runAutoImport, { now: 1000 })).imported).toBe(0);
+});
+
 test("runRefresh re-syncs stale artists from their providers", async () => {
   const t = setup();
   await configure(t);

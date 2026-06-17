@@ -14,6 +14,9 @@ importers:
       '@convex-dev/action-cache':
         specifier: ^0.3.0
         version: 0.3.0(convex@1.41.0(react@18.3.1))
+      '@convex-dev/rate-limiter':
+        specifier: ^0.3.2
+        version: 0.3.2(convex@1.41.0(react@18.3.1))(react@18.3.1)
       '@convex-dev/workflow':
         specifier: 0.4.4
         version: 0.4.4(@convex-dev/workpool@0.4.7(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1)))(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1))
@@ -170,6 +173,15 @@ packages:
     resolution: {integrity: sha512-hLElzzSHuO83O/7PqaeFrMy8EOaDPMAUBNaqo7wkOzCsUCgA+tI9SXVSVLUozDGBBQjyXjAaPYRIBKoPeZbZKg==}
     peerDependencies:
       convex: 1.41.0
+
+  '@convex-dev/rate-limiter@0.3.2':
+    resolution: {integrity: sha512-+oBPsBfFbzdxiF/9XaaTQmVnvDlvEfg/c69/v8LxTbw4VLuiflIKlfnPQL8OS0azXQQ11hcPWHmU8ytFmHKDXA==}
+    peerDependencies:
+      convex: 1.41.0
+      react: ^18.2.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@convex-dev/workflow@0.4.4':
     resolution: {integrity: sha512-ZQfVspAAxG4zZJEep2qaRtupw8OewwMezq6KNKaXKjo/gA+YffS9bXz13x+L/TSt9/Lb6gioae6Y9PDrqh7xQg==}
@@ -2924,6 +2936,12 @@ snapshots:
       - eslint
       - supports-color
       - typescript
+
+  '@convex-dev/rate-limiter@0.3.2(convex@1.41.0(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      convex: 1.41.0(react@18.3.1)
+    optionalDependencies:
+      react: 18.3.1
 
   '@convex-dev/workflow@0.4.4(@convex-dev/workpool@0.4.7(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1)))(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1))':
     dependencies:

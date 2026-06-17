@@ -1309,6 +1309,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
     };
     sources: {
       actions: {
+        consumeImportBudget: FunctionReference<
+          "action",
+          "internal",
+          { count: number },
+          boolean,
+          Name
+        >;
         runAutoImport: FunctionReference<
           "action",
           "internal",

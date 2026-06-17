@@ -136,4 +136,5 @@ export const internal: FilterApi<
 export const components = componentsGeneric() as unknown as {
   actionCache: import("@convex-dev/action-cache/_generated/component.js").ComponentApi<"actionCache">;
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };

@@ -6,11 +6,22 @@
  * this is the new-source pull.)
  */
 
+import { HOUR, RateLimiter } from "@convex-dev/rate-limiter";
 import { v } from "convex/values";
-import { api } from "../_generated/api.js";
+import { api, components } from "../_generated/api.js";
 import type { Doc } from "../_generated/dataModel.js";
 import { type ActionCtx, action } from "../_generated/server.js";
 import type { Provider } from "../../shared.js";
+
+/**
+ * Auto-import throughput budgets — token buckets decoupled from cron frequency,
+ * separate for new-source import vs stale-row refresh. Default 60/hour each.
+ */
+export const AUTO_IMPORT_RATE_PER_HOUR = 60;
+const rateLimiter = new RateLimiter(components.rateLimiter, {
+  autoImport: { kind: "token bucket", rate: AUTO_IMPORT_RATE_PER_HOUR, period: HOUR },
+  refresh: { kind: "token bucket", rate: AUTO_IMPORT_RATE_PER_HOUR, period: HOUR },
+});
 
 /** Whether a source is due: never imported, or past its cadence (one-shot if no cadence). */
 function isDue(source: Doc<"sources">, now: number): boolean {
@@ -120,6 +131,10 @@ export const runAutoImport = action({
         skipped += 1;
         continue;
       }
+      // Throughput budget: stop the sweep when the token bucket is drained
+      // (decoupled from how often the cron fires).
+      const { ok } = await rateLimiter.limit(ctx, "autoImport");
+      if (!ok) break;
       await importSource(ctx, source, source.provider);
       await ctx.runMutation(api.sources.mutations.touchSource, {
         sourceId: source._id,
@@ -128,5 +143,21 @@ export const runAutoImport = action({
       imported += 1;
     }
     return { imported, skipped };
+  },
+});
+
+/**
+ * Consume `count` tokens from the auto-import throughput budget — for host-side
+ * pacing (reserve budget before a manual import burst). Returns whether the
+ * budget allowed it.
+ */
+export const consumeImportBudget = action({
+  args: { count: v.number() },
+  returns: v.boolean(),
+  handler: async (ctx, args): Promise<boolean> => {
+    const { ok } = await rateLimiter.limit(ctx, "autoImport", {
+      count: args.count,
+    });
+    return ok;
   },
 });

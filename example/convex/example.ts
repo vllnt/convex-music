@@ -383,6 +383,13 @@ export const runRefresh = action({
     ctx.runAction(components.music.sources.actions.runRefresh, args),
 });
 
+export const consumeImportBudget = action({
+  args: { count: v.number() },
+  returns: v.boolean(),
+  handler: (ctx, args) =>
+    ctx.runAction(components.music.sources.actions.consumeImportBudget, args),
+});
+
 export const listStale = query({
   args: {
     kind: v.union(v.literal("artist"), v.literal("track")),
