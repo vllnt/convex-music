@@ -13,6 +13,7 @@ import type { ArtistRef } from "../../client/types.js";
 import { getProviderToken } from "../providers/actions.js";
 import { createProvider } from "../providers/registry.js";
 import {
+  artistTracksMode,
   importMode,
   importPriority,
   importStatus,
@@ -42,6 +43,7 @@ export const runArtistImport = action({
     name: v.string(),
     providerId: v.string(),
     withTracks: v.optional(v.boolean()),
+    tracks: v.optional(artistTracksMode),
   },
   returns: v.object({ status: importStatus }),
   handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
@@ -83,13 +85,23 @@ export const runArtistImport = action({
       );
       let trackCount = 0;
       let tracksPartial = false;
-      if (args.withTracks === true) {
+      // `tracks` is the typed depth; `withTracks: true` stays a back-compat alias
+      // for `top`. none = artist only, top = top tracks, all = via albums.
+      const tracksMode =
+        args.tracks ?? (args.withTracks === true ? "top" : "none");
+      if (tracksMode !== "none") {
         // Partial-failure tolerance: a failed tracks sub-step (e.g. a provider
-        // 403 on top-tracks) must NOT fail the whole artist import — the artist
-        // is already promoted; record the tracks as partial and complete.
+        // 403 on top-tracks, or a facts-only provider rejecting albums) must NOT
+        // fail the whole artist import — the artist is already promoted; record
+        // the tracks as partial and complete.
         try {
-          const topTracks = await adapter.getArtistTopTracks(externalId);
-          const promotable = topTracks.filter(
+          const fetched =
+            tracksMode === "all"
+              ? (await adapter.getArtistAlbums(externalId)).albums.flatMap(
+                  (album) => album.tracks,
+                )
+              : await adapter.getArtistTopTracks(externalId);
+          const promotable = fetched.filter(
             (track) => track.value.isrc !== undefined,
           );
           await Promise.all(
@@ -138,6 +150,7 @@ export const importArtist = action({
     name: v.optional(v.string()),
     providerId: v.optional(v.string()),
     withTracks: v.optional(v.boolean()),
+    tracks: v.optional(artistTracksMode),
     mode: v.optional(importMode),
     priority: v.optional(importPriority),
   },
@@ -167,6 +180,7 @@ export const importArtist = action({
       name: args.name ?? "",
       providerId: args.providerId ?? "",
       withTracks: args.withTracks,
+      tracks: args.tracks,
     });
     return { requestId, status: result.status };
   },

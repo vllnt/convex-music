@@ -178,6 +178,49 @@ test("withTracks tolerates a tracks-step failure: artist completes, tracks parti
   expect(request.resultSummary).toContain("tracks partial");
 });
 
+test("importArtist tracks:'all' promotes ISRC tracks across the artist's albums", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([
+    TOKEN,
+    ARTIST,
+    {
+      match: /\/v1\/artists\/a1\/albums/,
+      body: { items: [{ id: "al1", name: "Discovery" }], total: 1 },
+    },
+    {
+      match: /\/v1\/albums\/al1/,
+      body: {
+        id: "al1",
+        name: "Discovery",
+        artists: [{ id: "a1", name: "Daft Punk" }],
+        tracks: {
+          items: [
+            {
+              id: "t1",
+              name: "One More Time",
+              artists: [{ id: "a1", name: "Daft Punk" }],
+              external_ids: { isrc: "GBALL00000001" },
+              duration_ms: 320_000,
+            },
+          ],
+        },
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importArtist, {
+    provider: "spotify",
+    targetMode: "providerId",
+    providerId: "a1",
+    tracks: "all",
+  });
+  expect(result.status).toBe("completed");
+  const request = await t.query(api.example.getImportRequest, {
+    requestId: result.requestId,
+  });
+  expect(request.resultSummary).toContain("+1 tracks");
+});
+
 test("importTrack promotes the track + its credited artists (with + without id)", async () => {
   const t = setup();
   await configure(t);

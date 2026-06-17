@@ -36,7 +36,10 @@ export type ImportArtistInput = {
   targetMode: "name" | "providerId";
   name?: string;
   providerId?: string;
+  /** Back-compat alias for `tracks: "top"`. */
   withTracks?: boolean;
+  /** Track traversal depth: artist only / top tracks / every album track. */
+  tracks?: "none" | "top" | "all";
   mode?: "import" | "refresh" | "reimport" | "repair";
   priority?: "high" | "normal" | "low";
 };

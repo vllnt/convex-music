@@ -281,6 +281,9 @@ export const importArtist = action({
     name: v.optional(v.string()),
     providerId: v.optional(v.string()),
     withTracks: v.optional(v.boolean()),
+    tracks: v.optional(
+      v.union(v.literal("none"), v.literal("top"), v.literal("all")),
+    ),
     mode: v.optional(importMode),
     priority: v.optional(importPriority),
   },

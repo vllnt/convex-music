@@ -269,6 +269,16 @@ export const importMode = v.union(
   v.literal("repair"),
 );
 
+/**
+ * Artist-import track traversal depth: `none` (artist only), `top` (the
+ * provider's top tracks), or `all` (every track across the artist's albums).
+ */
+export const artistTracksMode = v.union(
+  v.literal("none"),
+  v.literal("top"),
+  v.literal("all"),
+);
+
 /** Queue ordering hint. */
 export const importPriority = v.union(
   v.literal("high"),
