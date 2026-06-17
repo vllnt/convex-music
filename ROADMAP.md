@@ -244,12 +244,12 @@ Policy-driven import of provider data into the component's catalog (writes its O
 - `import-engine.7` `in-progress` — typed **`ImportOptions`** per call (no `v.any()`): **provider select** `providers?: Provider[]` (only these) OR `excludeProviders?: Provider[]` (default = catalog set) — what to FETCH this import; **traversal/depth** — artist `tracks?: false | { mode: "top"|"all"|"viaAlbums", limit?, importArtists?: bool }` + `albums?: false | { limit? }`, playlist `tracks?: { limit?, importArtists?: bool }`, track `withArtists?: bool` + `withAlbum?: bool`; **`mode`** `import|refresh|reimport|repair`; **`priority`** `high|normal|low`; **`catalog`** scope. Generalizes songtrivia's import request (provider scope `spotify|apple|any` → N-provider select; `withTracks` → traversal; `requestType`/`priority`). Conservative defaults (artist = artist only; playlist = its tracks, not their artists; track = just the track). Traversal `limit`s bound the workflow fan-out. **Ship first:** `withTracks`-equivalent + `mode` (songtrivia's proven surface); **defer** `viaAlbums` + album-limit traversal until a consumer needs it.
 - `import-engine.8` `planned` — **default import options** layered: per-catalog `defaultImport` at mount + per-`sources`-entry options (so cron re-imports honor them) + per-call override (deep-merge, per-call wins).
 
-## sync-lifecycle — `planned`
+## sync-lifecycle — `in-progress`
 
 Keep the catalog fresh; recover failures. Operates on the component's own catalog rows.
 
-- `sync-lifecycle.1` `planned` — sync-status state machine on catalog rows (`pending→running→synced/failed→stale`), validated transitions.
-- `sync-lifecycle.2` `planned` — retry with backoff (entity-level, hours-scale) distinct from provider-call retry (seconds, via action-retrier).
+- `sync-lifecycle.1` `in-progress` — sync-status state machine on catalog rows (`pending→running→synced/failed→stale`), validated transitions.
+- `sync-lifecycle.2` `done` — retry with backoff (entity-level, hours-scale) distinct from provider-call retry (seconds, via action-retrier).
 - `sync-lifecycle.3` `planned` — budgeted, cursored batch-repair (find unsynced/failed/stale → re-sync), idempotent + per-mount.
 - `sync-lifecycle.4` `planned` — maintenance crons (find-unsynced, retry-failed) — mount-safe, idempotent.
 - `sync-lifecycle.5` `planned` — concurrency-safe batch claims: acquire/release a lease (claim token + lease TTL) so parallel sync workers don't double-process; scavenge expired claims; ISRC chunking + dedup guardrails (mirrors `tracks/claims.ts` + `track_sync_guardrails.ts`).
