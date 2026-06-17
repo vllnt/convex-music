@@ -39,6 +39,7 @@ export default defineConfig({
         "src/component/imports/mutations.ts",
         "src/component/imports/queries.ts",
         "src/component/imports/actions.ts",
+        "src/component/crons.ts",
       ],
       thresholds: {
         statements: 100,

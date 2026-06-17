@@ -280,9 +280,9 @@ Configurable artist profile-image resolution across providers + scheduled refres
 - `artist-image-auto-sync.4` `planned` — auto-sync cron: idempotent, per-mount, re-fetches images on a configurable cadence and re-applies the policy (URLs only; binary storage stays host-side).
 - `artist-image-auto-sync.5` `planned` — front-tooling analysis: a reactive `useArtistImage` hook only if a consumer renders catalog images.
 
-## prune-cron — `planned`
+## prune-cron — `done`
 
-- `prune-cron.1` `planned` — in-component idempotent cron calling `pruneExpired` on the raw cache (mount-safe, per-instance).
+- `prune-cron.1` `done` — in-component idempotent cron calling `pruneExpired` on the raw cache (mount-safe, per-instance).
 
 ## consumer-migration — `planned`
 
