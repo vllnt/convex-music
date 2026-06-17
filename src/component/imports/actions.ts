@@ -294,6 +294,7 @@ export const runPlaylistImport = action({
     requestId: v.id("importRequests"),
     provider,
     providerId: v.string(),
+    limit: v.optional(v.number()),
   },
   returns: v.object({ status: importStatus }),
   handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
@@ -312,13 +313,18 @@ export const runPlaylistImport = action({
         Promise.resolve(token),
       );
       const playlist = await adapter.getPlaylist(args.providerId);
-      const promotable = playlist.tracks.filter(
+      // Optional cap on how many of the playlist's tracks to import.
+      const tracks =
+        args.limit === undefined
+          ? playlist.tracks
+          : playlist.tracks.slice(0, args.limit);
+      const promotable = tracks.filter(
         (track) => track.value.isrc !== undefined,
       );
       // ISRC enrichment: some providers (Spotify) return playlist tracks without
       // an ISRC. Batch-refetch those full tracks (when the adapter supports it)
       // to recover the ISRC so they unify, instead of dropping them.
-      const needsEnrich = playlist.tracks.filter(
+      const needsEnrich = tracks.filter(
         (track) => track.value.isrc === undefined,
       );
       const enriched =
@@ -387,6 +393,7 @@ export const importPlaylist = action({
   args: {
     provider,
     providerId: v.string(),
+    limit: v.optional(v.number()),
     mode: v.optional(importMode),
     priority: v.optional(importPriority),
   },
@@ -411,6 +418,7 @@ export const importPlaylist = action({
       requestId,
       provider: args.provider,
       providerId: args.providerId,
+      limit: args.limit,
     });
     return { requestId, status: result.status };
   },

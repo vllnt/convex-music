@@ -370,6 +370,36 @@ test("importPlaylist on a provider without batch fetch drops ISRC-less tracks", 
   expect(request.resultSummary).toContain("1 tracks");
 });
 
+test("importPlaylist caps tracks at the given limit", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([
+    TOKEN,
+    {
+      match: /\/v1\/playlists\/p3/,
+      body: {
+        id: "p3",
+        name: "Big",
+        tracks: {
+          items: [
+            { track: { id: "t1", name: "A", artists: [], external_ids: { isrc: "GBLIM0000001" } } },
+            { track: { id: "t2", name: "B", artists: [], external_ids: { isrc: "GBLIM0000002" } } },
+          ],
+        },
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importPlaylist, {
+    provider: "spotify",
+    providerId: "p3",
+    limit: 1,
+  });
+  const request = await t.query(api.example.getImportRequest, {
+    requestId: result.requestId,
+  });
+  expect(request.resultSummary).toContain("1 tracks");
+});
+
 test("importPlaylist with no providerId fails", async () => {
   const t = setup();
   await configure(t);

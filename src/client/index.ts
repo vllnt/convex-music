@@ -53,7 +53,10 @@ export type ImportTrackInput = {
 };
 
 /** Arguments to import a playlist (+ its tracks) into the catalog. */
-export type ImportPlaylistInput = ImportTrackInput;
+export type ImportPlaylistInput = ImportTrackInput & {
+  /** Cap how many of the playlist's tracks to import. */
+  limit?: number;
+};
 
 /** The outcome of an import: the request id + its terminal status. */
 export type ImportResult = { requestId: string; status: string };

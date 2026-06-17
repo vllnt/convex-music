@@ -306,6 +306,7 @@ export const importPlaylist = action({
   args: {
     provider,
     providerId: v.string(),
+    limit: v.optional(v.number()),
     mode: v.optional(importMode),
     priority: v.optional(importPriority),
   },

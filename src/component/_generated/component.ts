@@ -872,6 +872,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "action",
           "internal",
           {
+            limit?: number;
             mode?: "import" | "refresh" | "reimport" | "repair";
             priority?: "high" | "normal" | "low";
             provider:
@@ -958,6 +959,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "action",
           "internal",
           {
+            limit?: number;
             provider:
               | "spotify"
               | "apple"
