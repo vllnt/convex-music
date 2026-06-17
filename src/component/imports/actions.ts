@@ -8,10 +8,13 @@
 
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api.js";
-import { action } from "../_generated/server.js";
+import type { Id } from "../_generated/dataModel.js";
+import { type ActionCtx, action } from "../_generated/server.js";
 import type { ArtistRef } from "../../client/types.js";
+import type { Provider } from "../../shared.js";
 import { getProviderToken } from "../providers/actions.js";
 import { createProvider } from "../providers/registry.js";
+import type { MusicProvider, ProviderTrack } from "../providers/types.js";
 import {
   artistTracksMode,
   importMode,
@@ -28,6 +31,49 @@ function hasExternalId(
   ref: ArtistRef,
 ): ref is ArtistRef & { externalId: string } {
   return ref.externalId !== undefined;
+}
+
+/**
+ * Promote a list of provider tracks into the catalog: keep the ISRC-bearing
+ * ones, recover ISRC-less ones via the adapter's batch fetch when supported
+ * (else drop them), and upsert each track + its credited artists. Returns the
+ * unified track ids. Shared by the playlist + album import traversals.
+ */
+async function promoteTracks(
+  ctx: ActionCtx,
+  prov: Provider,
+  adapter: MusicProvider,
+  tracks: ProviderTrack[],
+): Promise<Array<Id<"tracks">>> {
+  const promotable = tracks.filter((track) => track.value.isrc !== undefined);
+  const needsEnrich = tracks.filter((track) => track.value.isrc === undefined);
+  const enriched =
+    needsEnrich.length > 0 && adapter.getSeveralTracks !== undefined
+      ? (
+          await adapter.getSeveralTracks(
+            needsEnrich.map((track) => track.externalId),
+          )
+        ).filter((track) => track.value.isrc !== undefined)
+      : [];
+  return await Promise.all(
+    [...promotable, ...enriched].map(async (track) => {
+      const artistIds = await Promise.all(
+        track.value.artists.filter(hasExternalId).map((ref) =>
+          ctx.runMutation(api.catalog.mutations.upsertArtist, {
+            provider: prov,
+            externalId: ref.externalId,
+            value: { name: ref.name, genres: [] },
+          }),
+        ),
+      );
+      return await ctx.runMutation(api.catalog.mutations.upsertTrack, {
+        provider: prov,
+        externalId: track.externalId,
+        value: track.value,
+        artistIds,
+      });
+    }),
+  );
 }
 
 /**
@@ -318,42 +364,11 @@ export const runPlaylistImport = action({
         args.limit === undefined
           ? playlist.tracks
           : playlist.tracks.slice(0, args.limit);
-      const promotable = tracks.filter(
-        (track) => track.value.isrc !== undefined,
-      );
-      // ISRC enrichment: some providers (Spotify) return playlist tracks without
-      // an ISRC. Batch-refetch those full tracks (when the adapter supports it)
-      // to recover the ISRC so they unify, instead of dropping them.
-      const needsEnrich = tracks.filter(
-        (track) => track.value.isrc === undefined,
-      );
-      const enriched =
-        needsEnrich.length > 0 && adapter.getSeveralTracks !== undefined
-          ? (
-              await adapter.getSeveralTracks(
-                needsEnrich.map((track) => track.externalId),
-              )
-            ).filter((track) => track.value.isrc !== undefined)
-          : [];
-      const toPromote = [...promotable, ...enriched];
-      const trackIds = await Promise.all(
-        toPromote.map(async (track) => {
-          const artistIds = await Promise.all(
-            track.value.artists.filter(hasExternalId).map((ref) =>
-              ctx.runMutation(api.catalog.mutations.upsertArtist, {
-                provider: args.provider,
-                externalId: ref.externalId,
-                value: { name: ref.name, genres: [] },
-              }),
-            ),
-          );
-          return await ctx.runMutation(api.catalog.mutations.upsertTrack, {
-            provider: args.provider,
-            externalId: track.externalId,
-            value: track.value,
-            artistIds,
-          });
-        }),
+      const trackIds = await promoteTracks(
+        ctx,
+        args.provider,
+        adapter,
+        tracks,
       );
       const playlistId = await ctx.runMutation(
         api.catalog.mutations.upsertPlaylist,
@@ -457,38 +472,11 @@ export const runAlbumImport = action({
         args.limit === undefined
           ? album.tracks
           : album.tracks.slice(0, args.limit);
-      const promotable = tracks.filter(
-        (track) => track.value.isrc !== undefined,
-      );
-      const needsEnrich = tracks.filter(
-        (track) => track.value.isrc === undefined,
-      );
-      const enriched =
-        needsEnrich.length > 0 && adapter.getSeveralTracks !== undefined
-          ? (
-              await adapter.getSeveralTracks(
-                needsEnrich.map((track) => track.externalId),
-              )
-            ).filter((track) => track.value.isrc !== undefined)
-          : [];
-      const trackIds = await Promise.all(
-        [...promotable, ...enriched].map(async (track) => {
-          const artistIds = await Promise.all(
-            track.value.artists.filter(hasExternalId).map((ref) =>
-              ctx.runMutation(api.catalog.mutations.upsertArtist, {
-                provider: args.provider,
-                externalId: ref.externalId,
-                value: { name: ref.name, genres: [] },
-              }),
-            ),
-          );
-          return await ctx.runMutation(api.catalog.mutations.upsertTrack, {
-            provider: args.provider,
-            externalId: track.externalId,
-            value: track.value,
-            artistIds,
-          });
-        }),
+      const trackIds = await promoteTracks(
+        ctx,
+        args.provider,
+        adapter,
+        tracks,
       );
       const albumArtistIds = await Promise.all(
         album.value.artists.filter(hasExternalId).map((ref) =>
