@@ -178,6 +178,47 @@ test("withTracks tolerates a tracks-step failure: artist completes, tracks parti
   expect(request.resultSummary).toContain("tracks partial");
 });
 
+test("importTrack promotes the track + its credited artists (with + without id)", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([
+    TOKEN,
+    {
+      match: /\/v1\/tracks\/t1/,
+      body: {
+        id: "t1",
+        name: "Genesis",
+        external_ids: { isrc: "FR1234567890" },
+        artists: [
+          { id: "a1", name: "Justice" },
+          { name: "Uncredited" }, // no id -> skipped as a relation
+        ],
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importTrack, {
+    provider: "spotify",
+    providerId: "t1",
+  });
+  expect(result.status).toBe("completed");
+  const track = await t.query(api.example.getTrackByIsrc, {
+    isrc: "FR1234567890",
+  });
+  expect(track.title).toBe("Genesis");
+  expect(track.artistIds).toHaveLength(1);
+});
+
+test("importTrack with no providerId fails", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([TOKEN]);
+  const result = await t.action(api.example.importTrack, {
+    provider: "spotify",
+    providerId: "",
+  });
+  expect(result.status).toBe("failed");
+});
+
 test("re-importing the same artist keeps a single catalog row", async () => {
   const t = setup();
   await configure(t);

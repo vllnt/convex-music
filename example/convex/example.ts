@@ -250,6 +250,17 @@ export const importArtist = action({
   handler: (ctx, args) => music.importArtist(ctx, args),
 });
 
+export const importTrack = action({
+  args: {
+    provider,
+    providerId: v.string(),
+    mode: v.optional(importMode),
+    priority: v.optional(importPriority),
+  },
+  returns: v.object({ requestId: v.string(), status: v.string() }),
+  handler: (ctx, args) => music.importTrack(ctx, args),
+});
+
 /** Host setup: read deployment env vars and configure the component once. */
 export const configureFromEnv = action({
   args: {},

@@ -9,6 +9,7 @@
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api.js";
 import { action } from "../_generated/server.js";
+import type { ArtistRef } from "../../client/types.js";
 import { getProviderToken } from "../providers/actions.js";
 import { createProvider } from "../providers/registry.js";
 import {
@@ -20,6 +21,13 @@ import {
 
 /** How an import artist is targeted. */
 const artistTargetMode = v.union(v.literal("name"), v.literal("providerId"));
+
+/** A credited artist ref that carries a provider id (so it can be unified). */
+function hasExternalId(
+  ref: ArtistRef,
+): ref is ArtistRef & { externalId: string } {
+  return ref.externalId !== undefined;
+}
 
 /**
  * Run an artist import: resolve the artist's provider id (directly or via
@@ -159,6 +167,103 @@ export const importArtist = action({
       name: args.name ?? "",
       providerId: args.providerId ?? "",
       withTracks: args.withTracks,
+    });
+    return { requestId, status: result.status };
+  },
+});
+
+/**
+ * Run a track import: fetch the track by provider id, resolve + promote its
+ * credited artists, and complete (or fail) the request. Returns the terminal
+ * status.
+ */
+export const runTrackImport = action({
+  args: {
+    requestId: v.id("importRequests"),
+    provider,
+    providerId: v.string(),
+  },
+  returns: v.object({ status: importStatus }),
+  handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
+    await ctx.runMutation(internal.imports.mutations.markClaimed, {
+      requestId: args.requestId,
+    });
+    await ctx.runMutation(internal.imports.mutations.markRunning, {
+      requestId: args.requestId,
+    });
+    try {
+      if (args.providerId === "") {
+        throw new Error("track import requires a providerId");
+      }
+      const token = await getProviderToken(ctx, args.provider);
+      const adapter = createProvider(args.provider, () =>
+        Promise.resolve(token),
+      );
+      const result = await adapter.getTrack(args.providerId);
+      const artistIds = await Promise.all(
+        result.value.artists.filter(hasExternalId).map((ref) =>
+          ctx.runMutation(api.catalog.mutations.upsertArtist, {
+            provider: args.provider,
+            externalId: ref.externalId,
+            value: { name: ref.name, genres: [] },
+          }),
+        ),
+      );
+      const trackId = await ctx.runMutation(api.catalog.mutations.upsertTrack, {
+        provider: args.provider,
+        externalId: result.externalId,
+        value: result.value,
+        artistIds,
+      });
+      await ctx.runMutation(internal.imports.mutations.markCompleted, {
+        requestId: args.requestId,
+        resolvedTrackId: trackId,
+        resultSummary: `imported track ${result.value.title}`,
+      });
+      return { status: "completed" };
+    } catch (err) {
+      await ctx.runMutation(internal.imports.mutations.markFailed, {
+        requestId: args.requestId,
+        status: "failed",
+        errorSummary: String(err),
+      });
+      return { status: "failed" };
+    }
+  },
+});
+
+/**
+ * Import a track by provider id, promoting it + its credited artists into the
+ * catalog. Returns the request id + terminal status.
+ */
+export const importTrack = action({
+  args: {
+    provider,
+    providerId: v.string(),
+    mode: v.optional(importMode),
+    priority: v.optional(importPriority),
+  },
+  returns: v.object({ requestId: v.string(), status: importStatus }),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ requestId: string; status: "completed" | "failed" }> => {
+    const { requestId } = await ctx.runMutation(
+      api.imports.mutations.createRequest,
+      {
+        entityType: "track",
+        requestType: args.mode ?? "import",
+        targetMode: "providerId",
+        providerScope: args.provider,
+        provider: args.provider,
+        providerId: args.providerId,
+        priority: args.priority,
+      },
+    );
+    const result = await ctx.runAction(api.imports.actions.runTrackImport, {
+      requestId,
+      provider: args.provider,
+      providerId: args.providerId,
     });
     return { requestId, status: result.status };
   },
