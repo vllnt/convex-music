@@ -23,6 +23,9 @@ export default defineConfig({
         "src/component/providers/spotify/mappers.ts",
         "src/component/providers/spotify/client.ts",
         "src/component/providers/spotify/impl.ts",
+        "src/component/providers/apple/mappers.ts",
+        "src/component/providers/apple/impl.ts",
+        "src/component/providers/registry.ts",
       ],
       thresholds: {
         statements: 100,
