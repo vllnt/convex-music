@@ -169,12 +169,12 @@ src/
 
 ## Docs sync
 
-When any of these change, update the matching docs in the SAME commit (then `pnpm generate:llms`):
+When any of these change, update the matching docs in the SAME commit:
 
 | Change | Update |
 |--------|--------|
-| Client method signature (`src/client/index.ts`) | `docs/API.md`, README API table, `llms.txt` context, regenerate `llms-full.txt` |
+| Client method signature (`src/client/index.ts`) | `docs/API.md`, README API table, `llms.txt` context |
 | Schema / table fields (`src/component/schema.ts`) | this file (Architecture), `docs/API.md` Types |
 | New feature / breaking change | `CHANGELOG.md`, README Features, `ROADMAP.md` |
 | `peerDependencies.convex` range | `llms.txt` context line, `docs/API.md` Compatibility line |
-| New planned capability | tag `[planned]` in README; do NOT add to `docs/API.md` or `llms-full.txt` source |
+| New planned capability | tag `[planned]` in README; do NOT add to `docs/API.md` source |
