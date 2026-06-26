@@ -65,7 +65,10 @@
   },
   "pnpm": {
     "overrides": {
-      "convex": "1.41.0"
+      "convex": "1.41.0",
+      "handlebars": "^4.7.9",
+      "ws": "^8.21.0",
+      "esbuild": "^0.28.1"
     }
   },
   "devDependencies": {
