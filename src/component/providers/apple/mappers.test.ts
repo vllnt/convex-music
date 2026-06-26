@@ -67,6 +67,7 @@ describe("mapAppleTrack", () => {
       attributes: {
         name: "One More Time",
         isrc: "GBDUW0000059",
+        genreNames: ["Electronic"],
         artistName: "Daft Punk",
         durationInMillis: 320_000,
         artwork: { url: "https://art/{w}x{h}.jpg" },
@@ -79,6 +80,7 @@ describe("mapAppleTrack", () => {
       title: "One More Time",
       artists: [{ name: "Daft Punk", externalId: "a1" }],
       isrc: "GBDUW0000059",
+      genres: ["Electronic"],
       durationMs: 320_000,
       previewUrl: "https://preview/1",
       coverUrl: "https://art/600x600.jpg",
@@ -96,6 +98,7 @@ describe("mapAppleTrack", () => {
       title: "Bare",
       artists: [{ name: "Solo" }],
       isrc: undefined,
+      genres: [],
       durationMs: undefined,
       previewUrl: undefined,
       coverUrl: undefined,

@@ -45,3 +45,10 @@ example/convex/_generated/ai/
 # Stray compiled example sources (the .ts are the truth; _generated/*.js stay)
 example/convex/*.js
 example/convex/*.js.map
+
+# Stray test declaration output (codegen emits these; tests are the .test.ts)
+example/convex/*.test.d.ts
+example/convex/*.test.d.ts.map
+
+# codebase-intelligence visualizer artifacts
+.code-visualizer/

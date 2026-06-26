@@ -282,7 +282,11 @@ const importRequestArgs = {
 
 export const createImportRequest = mutation({
   args: importRequestArgs,
-  returns: v.object({ requestId: v.string(), deduped: v.boolean() }),
+  returns: v.object({
+    requestId: v.string(),
+    deduped: v.boolean(),
+    status: importStatus,
+  }),
   handler: (ctx, args) =>
     ctx.runMutation(components.music.imports.mutations.createRequest, args),
 });
@@ -318,6 +322,25 @@ export const importArtist = action({
   },
   returns: v.object({ requestId: v.string(), status: v.string() }),
   handler: (ctx, args) => music.importArtist(ctx, args),
+});
+
+// Drives the raw artist traversal directly — exists so tests can exercise the
+// transition guard (re-driving a terminal/missing request must be rejected).
+export const runArtistImport = action({
+  args: {
+    requestId: v.string(),
+    provider,
+    targetMode: v.union(v.literal("name"), v.literal("providerId")),
+    name: v.string(),
+    providerId: v.string(),
+    withTracks: v.optional(v.boolean()),
+    tracks: v.optional(
+      v.union(v.literal("none"), v.literal("top"), v.literal("all")),
+    ),
+  },
+  returns: v.object({ status: importStatus }),
+  handler: (ctx, args) =>
+    ctx.runAction(components.music.imports.actions.runArtistImport, args),
 });
 
 export const importTrack = action({

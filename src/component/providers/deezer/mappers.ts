@@ -39,6 +39,7 @@ export function mapDeezerTrack(raw: DeezerTrack): NormalizedTrack {
     title: raw.title,
     artists: raw.artist === undefined ? [] : [mapArtistRef(raw.artist)],
     isrc: raw.isrc,
+    genres: [],
     durationMs: raw.duration === undefined ? undefined : raw.duration * 1000,
     previewUrl: raw.preview,
     coverUrl: raw.album?.cover_xl,

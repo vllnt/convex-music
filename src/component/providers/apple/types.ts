@@ -24,6 +24,7 @@ export interface AppleArtistAttributes {
 export interface AppleSongAttributes {
   name: string;
   isrc?: string;
+  genreNames?: string[];
   artistName: string;
   durationInMillis?: number;
   artwork?: AppleArtwork;

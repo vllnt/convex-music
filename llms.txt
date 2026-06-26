@@ -8,8 +8,11 @@ opaque provider id and cross-referenced by ISRC, each entry with an optional TTL
 spans every provider (Spotify and Apple Music today; Deezer, MusicBrainz, and Wikidata as adapters).
 The host owns auth; the component owns the factual catalog and the host keeps gameplay + editorial,
 referencing catalog rows by id / ISRC. `0.1.0` ships the raw cache core (`put`, `get`, `getByIsrc`,
-`invalidate`, `pruneExpired`, `stats`); the durable catalog (artists/tracks/playlists), provider
-adapters, the in-component import/sync engine, and artist-image auto-sync are planned (see the README).
+`invalidate`, `pruneExpired`, `stats`). The durable catalog (artists/tracks/albums/playlists),
+provider adapters, read-through fetch, the in-component import/sync engine, and an optional
+tree-shakeable `./react` hooks layer (`useArtist` / `useTrack` / `useArtistImage` / `useTrackPreview`
+/ `useSearchArtists` / `useSearchTracks`) are built on the working branch but not yet in a stable
+release; artist-image auto-sync and multi-catalog remain planned (see the README).
 
 ## Docs
 

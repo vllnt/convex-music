@@ -19,12 +19,12 @@ test("getTrackPreview resolves per the field-source policy", async () => {
   await t.mutation(api.example.upsertTrack, {
     provider: "spotify",
     externalId: "t1",
-    value: { title: "One More Time", artists: [], isrc: "GBDUW0000059", previewUrl: "https://sp/prev" },
+    value: { title: "One More Time", artists: [], isrc: "GBDUW0000059", genres: [], previewUrl: "https://sp/prev" },
   });
   await t.mutation(api.example.upsertTrack, {
     provider: "apple",
     externalId: "ap1",
-    value: { title: "One More Time", artists: [], isrc: "GBDUW0000059", previewUrl: "https://ap/prev" },
+    value: { title: "One More Time", artists: [], isrc: "GBDUW0000059", genres: [], previewUrl: "https://ap/prev" },
   });
 
   // {from} picks that provider's preview
@@ -61,7 +61,7 @@ test("getTrackPreview returns null when the chosen provider has no preview", asy
   await t.mutation(api.example.upsertTrack, {
     provider: "spotify",
     externalId: "t2",
-    value: { title: "No Preview", artists: [], isrc: "GBDUW0000060" },
+    value: { title: "No Preview", artists: [], isrc: "GBDUW0000060", genres: [] },
   });
   expect(
     await t.query(api.example.getTrackPreview, {

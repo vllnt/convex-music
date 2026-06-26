@@ -32,7 +32,7 @@ test("createImportRequest inserts a queued request with defaults", async () => {
   expect(request.status).toBe("queued");
   expect(request.priority).toBe("normal");
   expect(request.retryCount).toBe(0);
-  expect(request.dedupeKey).toContain("with_tracks");
+  expect(request.dedupeKey).toContain("tracks:top"); // withTracks:true → `top` depth
 });
 
 test("an identical in-flight request dedups onto the active one", async () => {

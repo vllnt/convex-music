@@ -13,6 +13,7 @@ import type * as catalog_browse_order from "../catalog/browse_order.js";
 import type * as catalog_field_source_policy from "../catalog/field_source_policy.js";
 import type * as catalog_merge from "../catalog/merge.js";
 import type * as catalog_mutations from "../catalog/mutations.js";
+import type * as catalog_promote from "../catalog/promote.js";
 import type * as catalog_queries from "../catalog/queries.js";
 import type * as config_mutations from "../config/mutations.js";
 import type * as config_queries from "../config/queries.js";
@@ -66,6 +67,7 @@ const fullApi: ApiFromModules<{
   "catalog/field_source_policy": typeof catalog_field_source_policy;
   "catalog/merge": typeof catalog_merge;
   "catalog/mutations": typeof catalog_mutations;
+  "catalog/promote": typeof catalog_promote;
   "catalog/queries": typeof catalog_queries;
   "config/mutations": typeof config_mutations;
   "config/queries": typeof config_queries;
@@ -135,6 +137,5 @@ export const internal: FilterApi<
 
 export const components = componentsGeneric() as unknown as {
   actionCache: import("@convex-dev/action-cache/_generated/component.js").ComponentApi<"actionCache">;
-  workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };

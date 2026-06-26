@@ -580,3 +580,60 @@ test("importTrack withAlbum is a no-op when the track has no album", async () =>
   });
   expect(result.status).toBe("completed");
 });
+
+test("an entry point attaches to an in-flight request instead of re-running", async () => {
+  const t = setup();
+  // pre-seed an active (queued) request the importArtist call will collapse onto
+  const seeded = await t.mutation(api.example.createImportRequest, {
+    entityType: "artist",
+    requestType: "import",
+    targetMode: "providerId",
+    providerScope: "spotify",
+    provider: "spotify",
+    providerId: "a1",
+  });
+  expect(seeded.deduped).toBe(false);
+  // no creds + no fetch stub: a dedup attach must NOT run the traversal
+  const res = await t.action(api.example.importArtist, {
+    provider: "spotify",
+    targetMode: "providerId",
+    providerId: "a1",
+  });
+  expect(res.requestId).toBe(seeded.requestId);
+  expect(res.status).toBe("queued"); // the active request's status, not re-run
+});
+
+test("driving a transition on a missing request is rejected", async () => {
+  const t = setup();
+  await expect(
+    t.action(api.example.runArtistImport, {
+      requestId: "000000000000999999importRequests",
+      provider: "spotify",
+      targetMode: "providerId",
+      name: "",
+      providerId: "a1",
+    }),
+  ).rejects.toThrow(/not found/);
+});
+
+test("re-driving a completed request is rejected by the transition guard", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([TOKEN, ARTIST]);
+  const done = await t.action(api.example.importArtist, {
+    provider: "spotify",
+    targetMode: "providerId",
+    providerId: "a1",
+  });
+  expect(done.status).toBe("completed");
+  // a second drive of the same now-completed request: completed → claimed is illegal
+  await expect(
+    t.action(api.example.runArtistImport, {
+      requestId: done.requestId,
+      provider: "spotify",
+      targetMode: "providerId",
+      name: "",
+      providerId: "a1",
+    }),
+  ).rejects.toThrow(/Invalid import transition/);
+});

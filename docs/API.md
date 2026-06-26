@@ -113,3 +113,22 @@ thrown by the cache core.
   so the expiry index never sweeps them.
 - `get` / `getByIsrc` treat expired entries as misses at read time; `pruneExpired` reclaims their
   storage. Call it from your own scheduled function (a cron). `[planned]` an in-component prune cron.
+
+## React hooks `[planned]`
+
+Shipped in the `./react` entry, wrapping the `[planned]` catalog query surface. Each hook is a thin
+wrapper over `convex/react`'s `useQuery` and takes the host's **own re-exported** query ref as its
+first argument — the component never owns the host's `api`. `react` + `convex/react` are optional
+peer deps. Returns `undefined` while loading.
+
+| Hook | Signature | Returns |
+| --- | --- | --- |
+| `useArtist` | `(ref, id)` | `CatalogArtist \| null` |
+| `useTrack` | `(ref, id)` | `CatalogTrack \| null` |
+| `useArtistImage` | `(ref, provider, providerId, policy?)` | `string \| null` |
+| `useTrackPreview` | `(ref, provider, providerId, policy?)` | `string \| null` |
+| `useSearchArtists` | `(ref, query, limit?)` | `CatalogArtist[]` |
+| `useSearchTracks` | `(ref, query, limit?)` | `CatalogTrack[]` |
+
+`policy` is a field-source policy: `{ from: Provider }` (single) or `{ prefer: Provider[] }` (ordered
+pick-first-available).

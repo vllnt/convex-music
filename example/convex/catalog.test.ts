@@ -23,6 +23,7 @@ const track = (over: Record<string, unknown> = {}) => ({
   title: "One More Time",
   artists: [{ name: "Daft Punk" }],
   isrc: "GBDUW0000059",
+  genres: [],
   ...over,
 });
 
@@ -162,6 +163,23 @@ test("upsertTrack re-links a provider's new external id for the same ISRC", asyn
   expect(got2._id).toBe(got1._id);
   expect(got2.providers).toHaveLength(1);
   expect(got2.providers[0].providerId).toBe("new");
+});
+
+test("upsertTrack rejects a provider id that changes its ISRC (mismatch guard)", async () => {
+  const t = setup();
+  await t.mutation(api.example.upsertTrack, {
+    provider: "spotify",
+    externalId: "t1",
+    value: track({ isrc: "GBDUW0000059" }),
+  });
+  // same provider id, different ISRC -> the provider disagrees on identity
+  await expect(
+    t.mutation(api.example.upsertTrack, {
+      provider: "spotify",
+      externalId: "t1",
+      value: track({ isrc: "USAAA0000001" }),
+    }),
+  ).rejects.toThrow(/changed ISRC/);
 });
 
 test("upsertPlaylist inserts + updates by source-provider identity", async () => {

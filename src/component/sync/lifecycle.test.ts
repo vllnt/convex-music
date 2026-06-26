@@ -16,11 +16,14 @@ describe("sync transitions", () => {
   it("allows + rejects", () => {
     expect(canSyncTransition("pending", "running")).toBe(true);
     expect(canSyncTransition("failed", "stale")).toBe(true);
+    // freshness can lapse from synced, and a crashed lease salvages running→stale
+    expect(canSyncTransition("synced", "stale")).toBe(true);
+    expect(canSyncTransition("running", "stale")).toBe(true);
     expect(canSyncTransition("synced", "running")).toBe(false);
   });
   it("asserts", () => {
     expect(() => assertSyncTransition("running", "synced")).not.toThrow();
-    expect(() => assertSyncTransition("synced", "stale")).toThrow(
+    expect(() => assertSyncTransition("synced", "running")).toThrow(
       /Invalid sync transition/,
     );
   });

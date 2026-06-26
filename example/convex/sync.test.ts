@@ -53,7 +53,7 @@ test("markStale handles the track kind", async () => {
   await t.mutation(api.example.upsertTrack, {
     provider: "spotify",
     externalId: "t1",
-    value: { title: "One More Time", artists: [], isrc: "GBDUW0000059" },
+    value: { title: "One More Time", artists: [], isrc: "GBDUW0000059", genres: [] },
   });
   expect(
     await t.mutation(api.example.markStale, {
@@ -79,6 +79,18 @@ test("listStale returns the rows markStale flagged (default limit)", async () =>
   // no limit arg -> exercises the default-limit branch
   const stale = await t.query(api.example.listStale, { kind: "artist" });
   expect(stale).toHaveLength(1);
+});
+
+test("listStale handles the track kind", async () => {
+  const t = setup();
+  await t.mutation(api.example.upsertTrack, {
+    provider: "spotify",
+    externalId: "t1",
+    value: { title: "One More Time", artists: [], isrc: "GBDUW0000059", genres: [] },
+  });
+  expect(await t.query(api.example.listStale, { kind: "track" })).toHaveLength(0);
+  await t.mutation(api.example.markStale, { kind: "track", now: Date.now() + YEAR_MS });
+  expect(await t.query(api.example.listStale, { kind: "track" })).toHaveLength(1);
 });
 
 test("recoverStuckSyncs salvages rows left running by a crashed re-sync", async () => {

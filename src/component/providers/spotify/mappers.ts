@@ -47,6 +47,8 @@ export function mapTrack(raw: SpotifyTrack): NormalizedTrack {
     title: raw.name,
     artists: raw.artists.map(mapArtistRef),
     isrc: raw.external_ids?.isrc,
+    genres: [],
+    popularity: raw.popularity,
     durationMs: raw.duration_ms,
     previewUrl: raw.preview_url ?? undefined,
     coverUrl: firstImage(raw.album?.images),

@@ -79,6 +79,21 @@ async function linkArtistProvider(
   }
 }
 
+/** Find the track a provider id already resolves to, via the reverse index. */
+async function findTrackByProvider(
+  ctx: MutationCtx,
+  prov: Provider,
+  providerId: string,
+): Promise<Id<"tracks"> | null> {
+  const link = await ctx.db
+    .query("trackProviders")
+    .withIndex("by_provider_id", (q) =>
+      q.eq("provider", prov).eq("providerId", providerId),
+    )
+    .first();
+  return link?.trackId ?? null;
+}
+
 /** Ensure exactly one `(trackId, provider)` link points at `providerId`. */
 async function linkTrackProvider(
   ctx: MutationCtx,
@@ -102,8 +117,14 @@ async function linkTrackProvider(
 }
 
 /**
- * Upsert one provider's artist into the unified catalog (identity by resolved
- * name; merged across providers via `providers[]`). Returns the artist id.
+ * Upsert one provider's artist into the unified catalog. Identity resolves by the
+ * existing provider link first, else by case-normalized name (`nameKey`). Merged
+ * across providers via `providers[]`. Returns the artist id.
+ *
+ * Limitation: name-only fallback is lossy — a rename can split one artist across
+ * providers, and two distinct same-named artists collapse into one. A stable
+ * cross-provider id (MusicBrainz MBID) keyed ahead of name is the planned
+ * hardening; until then keep one provider authoritative per artist where exact.
  */
 export const upsertArtist = mutation({
   args: { provider, externalId: v.string(), value: artistValue },
@@ -167,6 +188,21 @@ export const upsertTrack = mutation({
     }
     const isrc = args.value.isrc;
     const now = Date.now();
+    // ISRC-mismatch guard (catalog-store.1): if this provider id already maps to
+    // a track with a DIFFERENT ISRC, the provider disagrees on identity — throw
+    // rather than silently re-point the link (which would orphan provenance).
+    const priorLink = await findTrackByProvider(
+      ctx,
+      args.provider,
+      args.externalId,
+    );
+    const priorTrack = priorLink ? await ctx.db.get(priorLink) : null;
+    if (priorTrack && priorTrack.isrc !== isrc) {
+      throw new Error(
+        `provider ${args.provider} id ${args.externalId} changed ISRC ` +
+          `${priorTrack.isrc} -> ${isrc}; refusing to silently re-link`,
+      );
+    }
     const existing = await ctx.db
       .query("tracks")
       .withIndex("by_isrc", (q) => q.eq("isrc", isrc))

@@ -1,8 +1,8 @@
 /**
  * The import control-plane state machine (songtrivia's 8-state `music_imports`,
- * generalized). The component OWNS this — it's layered over `@convex-dev/workflow`
- * (which runs the traversal steps). Pure transition + retry logic; the mutations
- * enforce it on the request rows.
+ * generalized). A component-owned control-plane over the `importRequests` table —
+ * NOT `@convex-dev/workflow`; the bounded traversal runs inline. Pure transition +
+ * retry logic; the mutations enforce it on the request rows via `assertTransition`.
  */
 
 /** The lifecycle states of an import request. */

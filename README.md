@@ -112,6 +112,31 @@ export const cacheTrack = internalMutation({
 
 Full reference — signatures, value shapes, and error codes: [`docs/API.md`](docs/API.md).
 
+## React [planned]
+
+> Shipped in the `./react` entry; wraps the **planned** catalog query surface (not in 0.1.0).
+
+Optional, tree-shakeable hooks over `convex/react`. The host re-exports its own catalog query
+refs and passes them in — the component never owns the host's `api`. `react` + `convex/react`
+are optional peer deps, so a backend-only consumer pulls in zero React.
+
+```tsx
+import { useArtist, useSearchTracks } from "@vllnt/convex-music/react";
+import { api } from "../convex/_generated/api"; // your wrappers re-exporting the component queries
+
+const artist = useArtist(api.music.getArtist, artistId);
+const tracks = useSearchTracks(api.music.searchTracks, query, 20);
+```
+
+| Hook | Returns | Description |
+| --- | --- | --- |
+| `useArtist(ref, id)` | `CatalogArtist \| null` | Reactively read one unified artist by id. |
+| `useTrack(ref, id)` | `CatalogTrack \| null` | Reactively read one unified track by id. |
+| `useArtistImage(ref, provider, id, policy?)` | `string \| null` | Project an artist image per a field-source policy. |
+| `useTrackPreview(ref, provider, id, policy?)` | `string \| null` | Project a track preview URL per a field-source policy. |
+| `useSearchArtists(ref, query, limit?)` | `CatalogArtist[]` | Reactively search artists by name. |
+| `useSearchTracks(ref, query, limit?)` | `CatalogTrack[]` | Reactively search tracks by title. |
+
 ## Security
 
 - The component caches only public catalog facts — no secrets or credentials are stored.

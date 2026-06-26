@@ -4,7 +4,10 @@ import { api } from "./_generated/api.js";
 /**
  * Component-internal scheduled maintenance. Mount-safe (each `app.use` mount runs
  * its own crons) and idempotent. `pruneExpired` is bounded to expired rows, so
- * running it hourly safely reclaims raw-cache storage.
+ * running it hourly safely reclaims raw-cache storage. Overlapping ticks are safe:
+ * the refresh sweep claims each stale row atomically (`claimNextStale`) and the
+ * auto-import sweep collapses duplicate requests (dedup is serializable under
+ * Convex OCC), so two concurrent sweeps never double-process the same row.
  */
 const crons = cronJobs();
 

@@ -213,7 +213,7 @@ test("runRefresh re-syncs stale tracks + no-ops when none are stale", async () =
   await t.mutation(api.example.upsertTrack, {
     provider: "spotify",
     externalId: "tr1",
-    value: { title: "X", artists: [], isrc: "GBTEST000099" },
+    value: { title: "X", artists: [], isrc: "GBTEST000099", genres: [] },
   });
   await t.mutation(api.example.markStale, { kind: "track", now: FAR_FUTURE });
   stubFetch([

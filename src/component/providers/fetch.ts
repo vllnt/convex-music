@@ -127,8 +127,15 @@ export async function fetchJson<T>(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), cfg.timeoutMs);
     let res: Response;
+    let body: string;
     try {
       res = await deps.fetch(url, { ...init, signal: controller.signal });
+      if (res.ok) {
+        return (await res.json()) as T;
+      }
+      // Read the body under the SAME timeout: a provider that sends headers fast
+      // then stalls the stream is aborted too, not just the headers wait.
+      body = await res.text();
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         if (isLast) throw new ProviderTimeoutError(provider, cfg.timeoutMs);
@@ -140,11 +147,6 @@ export async function fetchJson<T>(
       clearTimeout(timeoutId);
     }
 
-    if (res.ok) {
-      return (await res.json()) as T;
-    }
-
-    const body = await res.text();
     if (RETRYABLE_STATUSES.has(res.status)) {
       if (isLast) throw new ProviderHttpError(res.status, body, provider);
       const retryAfter = parseRetryAfterMs(

@@ -19,6 +19,7 @@ const artist = (over: Partial<NormalizedArtist> = {}): NormalizedArtist => ({
 const track = (over: Partial<NormalizedTrack> = {}): NormalizedTrack => ({
   title: "One More Time",
   artists: [],
+  genres: [],
   ...over,
 });
 
@@ -121,14 +122,16 @@ describe("mergeTrack", () => {
     const merged = mergeTrack(null, "spotify", "t1", {
       title: "One More Time",
       artists: [],
+      genres: ["house"],
+      popularity: 85,
       previewUrl: "https://prev",
       coverUrl: "https://cov",
       url: "https://sp",
       durationMs: 320_000,
     });
     expect(merged).toEqual<TrackMergeState>({
-      genres: [],
-      popularity: undefined,
+      genres: ["house"],
+      popularity: 85,
       durationMs: 320_000,
       providers: [
         {
@@ -163,5 +166,22 @@ describe("mergeTrack", () => {
     };
     const merged = mergeTrack(existing, "apple", "t2", track({ durationMs: 200 }));
     expect(merged.durationMs).toBe(200);
+  });
+
+  it("unions genres + takes max popularity across providers", () => {
+    const existing: TrackMergeState = {
+      genres: ["house"],
+      popularity: 70,
+      durationMs: 320_000,
+      providers: [{ provider: "spotify", providerId: "t1" }],
+    };
+    const merged = mergeTrack(
+      existing,
+      "apple",
+      "t9",
+      track({ genres: ["electronic"], popularity: 90 }),
+    );
+    expect(merged.genres).toEqual(["house", "electronic"]);
+    expect(merged.popularity).toBe(90);
   });
 });

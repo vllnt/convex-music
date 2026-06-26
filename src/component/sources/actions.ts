@@ -62,6 +62,12 @@ async function importSource(
  * from each provider already on their record (mode `refresh`), bringing them
  * back to `synced`. The freshness mechanism `markStale` flips rows to `stale`;
  * this re-syncs them. Opt-in by construction (no stale rows → no-op).
+ *
+ * `refreshed` counts rows claimed + dispatched, not necessarily re-synced: a row
+ * whose providers all fail stays `running` (the imports record their own failure
+ * but don't throw) until `recoverStuckSyncs` salvages it back to `stale` after the
+ * lease — the lease doubles as the retry backoff. A persistently-failing row thus
+ * retries slowly (lease-paced, rate-limited), never hot-loops.
  */
 export const runRefresh = action({
   args: {
@@ -71,21 +77,24 @@ export const runRefresh = action({
   returns: v.object({ refreshed: v.number() }),
   handler: async (ctx, args): Promise<{ refreshed: number }> => {
     const limit = args.limit ?? 10;
-    const stale = await ctx.runQuery(api.sync.queries.listStale, {
-      kind: args.kind,
-      limit,
-    });
     let refreshed = 0;
-    for (const row of stale) {
+    for (let i = 0; i < limit; i++) {
       // Separate refresh budget (distinct from the new-source import budget).
       const { ok } = await rateLimiter.limit(ctx, "refresh");
       if (!ok) break;
-      // Lease the row as `running` so a crashed re-sync is recoverable; the
-      // re-import's upsert returns it to `synced`.
-      await ctx.runMutation(api.sync.mutations.markSyncRunning, { id: row._id });
+      // Atomically claim the next stale row as `running` in one mutation, so two
+      // overlapping sweeps can't both refresh it. `null` => nothing left stale.
+      // The re-import's upsert returns it to `synced`; `recoverStuckSyncs`
+      // salvages a lease whose holder crashed.
+      const row = await ctx.runMutation(api.sync.mutations.claimNextStale, {
+        kind: args.kind,
+      });
+      if (row === null) break;
+      const providers: ReadonlyArray<{ provider: Provider; providerId: string }> =
+        row.providers;
       if (args.kind === "artist") {
         await Promise.all(
-          row.providers.map((prov) =>
+          providers.map((prov) =>
             ctx.runAction(api.imports.actions.importArtist, {
               provider: prov.provider,
               targetMode: "providerId",
@@ -96,7 +105,7 @@ export const runRefresh = action({
         );
       } else {
         await Promise.all(
-          row.providers.map((prov) =>
+          providers.map((prov) =>
             ctx.runAction(api.imports.actions.importTrack, {
               provider: prov.provider,
               providerId: prov.providerId,

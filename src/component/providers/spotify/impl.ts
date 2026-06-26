@@ -103,22 +103,25 @@ export class SpotifyProvider implements MusicProvider {
   }
 
   async getArtist(externalId: string): Promise<ProviderArtist> {
-    const raw = await this.api<SpotifyArtist>(`/artists/${externalId}`);
+    const raw = await this.api<SpotifyArtist>(
+      `/artists/${encodeURIComponent(externalId)}`,
+    );
     return { externalId: raw.id, value: mapArtist(raw) };
   }
 
   async getTrack(externalId: string): Promise<ProviderTrack> {
-    const raw = await this.api<SpotifyTrack>(`/tracks/${externalId}`, {
-      market: this.cfg.market,
-    });
+    const raw = await this.api<SpotifyTrack>(
+      `/tracks/${encodeURIComponent(externalId)}`,
+      { market: this.cfg.market },
+    );
     return this.toTrack(raw);
   }
 
   async getAlbum(externalId: string): Promise<ProviderAlbum> {
-    const raw = await this.api<SpotifyAlbumDetail>(`/albums/${externalId}`, {
-      market: this.cfg.market,
-      limit: String(this.cfg.pageLimit),
-    });
+    const raw = await this.api<SpotifyAlbumDetail>(
+      `/albums/${encodeURIComponent(externalId)}`,
+      { market: this.cfg.market, limit: String(this.cfg.pageLimit) },
+    );
     const items = raw.tracks?.items ?? [];
     return {
       externalId: raw.id,
@@ -129,7 +132,7 @@ export class SpotifyProvider implements MusicProvider {
 
   async getPlaylist(externalId: string): Promise<ProviderPlaylist> {
     const raw = await this.api<SpotifyPlaylistResponse>(
-      `/playlists/${externalId}`,
+      `/playlists/${encodeURIComponent(externalId)}`,
       { market: this.cfg.market },
     );
     const tracks: ProviderTrack[] = [];
@@ -141,7 +144,7 @@ export class SpotifyProvider implements MusicProvider {
 
   async getArtistTopTracks(externalId: string): Promise<ProviderTrack[]> {
     const raw = await this.api<SpotifyTopTracksResponse>(
-      `/artists/${externalId}/top-tracks`,
+      `/artists/${encodeURIComponent(externalId)}/top-tracks`,
       { market: this.cfg.market },
     );
     return raw.tracks.map((track) => this.toTrack(track));
@@ -149,7 +152,7 @@ export class SpotifyProvider implements MusicProvider {
 
   async getArtistAlbums(externalId: string): Promise<ArtistAlbumsResult> {
     const raw = await this.api<SpotifyPagedAlbums>(
-      `/artists/${externalId}/albums`,
+      `/artists/${encodeURIComponent(externalId)}/albums`,
       {
         market: this.cfg.market,
         limit: String(this.cfg.pageLimit),

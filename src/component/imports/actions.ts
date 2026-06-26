@@ -6,14 +6,18 @@
  * traversal reuses the tested token + adapter + catalog-upsert layers.
  */
 
+import type { FunctionArgs } from "convex/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api.js";
 import type { Id } from "../_generated/dataModel.js";
 import { type ActionCtx, action } from "../_generated/server.js";
-import type { ArtistRef } from "../../client/types.js";
 import type { Provider } from "../../shared.js";
-import { getProviderToken } from "../providers/actions.js";
-import { createProvider } from "../providers/registry.js";
+import {
+  IMPORT_CONCURRENCY,
+  upsertCreditedArtists,
+} from "../catalog/promote.js";
+import { adapterFor } from "../providers/actions.js";
+import { mapWithConcurrency } from "../providers/fetch.js";
 import type { MusicProvider, ProviderTrack } from "../providers/types.js";
 import {
   artistTracksMode,
@@ -22,15 +26,34 @@ import {
   importStatus,
   provider,
 } from "../validators.js";
+import type { ImportStatus } from "./state.js";
 
 /** How an import artist is targeted. */
 const artistTargetMode = v.union(v.literal("name"), v.literal("providerId"));
 
-/** A credited artist ref that carries a provider id (so it can be unified). */
-function hasExternalId(
-  ref: ArtistRef,
-): ref is ArtistRef & { externalId: string } {
-  return ref.externalId !== undefined;
+/** The request id + the request's terminal (or, when deduped, current) status. */
+type ImportOutcome = { requestId: string; status: ImportStatus };
+
+/**
+ * Create the control-plane request, then EITHER attach to an existing in-flight
+ * request (dedup collapse — return its current status WITHOUT re-running the
+ * traversal, so a duplicate import doesn't double-fetch/double-write) OR run the
+ * traversal for the freshly-queued request. Shared by every entry point.
+ */
+async function runOrDedupe(
+  ctx: ActionCtx,
+  createArgs: FunctionArgs<typeof api.imports.mutations.createRequest>,
+  run: (requestId: Id<"importRequests">) => Promise<{ status: ImportStatus }>,
+): Promise<ImportOutcome> {
+  const { requestId, deduped, status } = await ctx.runMutation(
+    api.imports.mutations.createRequest,
+    createArgs,
+  );
+  if (deduped) {
+    return { requestId, status };
+  }
+  const result = await run(requestId);
+  return { requestId, status: result.status };
 }
 
 /**
@@ -55,16 +78,14 @@ async function promoteTracks(
           )
         ).filter((track) => track.value.isrc !== undefined)
       : [];
-  return await Promise.all(
-    [...promotable, ...enriched].map(async (track) => {
-      const artistIds = await Promise.all(
-        track.value.artists.filter(hasExternalId).map((ref) =>
-          ctx.runMutation(api.catalog.mutations.upsertArtist, {
-            provider: prov,
-            externalId: ref.externalId,
-            value: { name: ref.name, genres: [] },
-          }),
-        ),
+  return await mapWithConcurrency(
+    [...promotable, ...enriched],
+    IMPORT_CONCURRENCY,
+    async (track) => {
+      const artistIds = await upsertCreditedArtists(
+        ctx,
+        prov,
+        track.value.artists,
       );
       return await ctx.runMutation(api.catalog.mutations.upsertTrack, {
         provider: prov,
@@ -72,7 +93,7 @@ async function promoteTracks(
         value: track.value,
         artistIds,
       });
-    }),
+    },
   );
 }
 
@@ -116,10 +137,7 @@ export const runArtistImport = action({
       if (externalId === "") {
         throw new Error("import by providerId requires a providerId");
       }
-      const token = await getProviderToken(ctx, args.provider);
-      const adapter = createProvider(args.provider, () =>
-        Promise.resolve(token),
-      );
+      const adapter = await adapterFor(ctx, args.provider);
       const result = await adapter.getArtist(externalId);
       const artistId = await ctx.runMutation(
         api.catalog.mutations.upsertArtist,
@@ -130,7 +148,7 @@ export const runArtistImport = action({
         },
       );
       let trackCount = 0;
-      let tracksPartial = false;
+      let tracksError: string | undefined;
       // `tracks` is the typed depth; `withTracks: true` stays a back-compat alias
       // for `top`. none = artist only, top = top tracks, all = via albums.
       const tracksMode =
@@ -139,7 +157,7 @@ export const runArtistImport = action({
         // Partial-failure tolerance: a failed tracks sub-step (e.g. a provider
         // 403 on top-tracks, or a facts-only provider rejecting albums) must NOT
         // fail the whole artist import — the artist is already promoted; record
-        // the tracks as partial and complete.
+        // the error (not silently swallow it) and complete partial.
         try {
           const fetched =
             tracksMode === "all"
@@ -150,26 +168,24 @@ export const runArtistImport = action({
           const promotable = fetched.filter(
             (track) => track.value.isrc !== undefined,
           );
-          await Promise.all(
-            promotable.map((track) =>
-              ctx.runMutation(api.catalog.mutations.upsertTrack, {
-                provider: args.provider,
-                externalId: track.externalId,
-                value: track.value,
-                artistIds: [artistId],
-              }),
-            ),
+          await mapWithConcurrency(promotable, IMPORT_CONCURRENCY, (track) =>
+            ctx.runMutation(api.catalog.mutations.upsertTrack, {
+              provider: args.provider,
+              externalId: track.externalId,
+              value: track.value,
+              artistIds: [artistId],
+            }),
           );
           trackCount = promotable.length;
-        } catch {
-          tracksPartial = true;
+        } catch (err) {
+          tracksError = String(err);
         }
       }
       await ctx.runMutation(internal.imports.mutations.markCompleted, {
         requestId: args.requestId,
         resolvedArtistId: artistId,
         resultSummary: `imported artist ${result.value.name} (+${trackCount} tracks${
-          tracksPartial ? ", tracks partial" : ""
+          tracksError !== undefined ? `, tracks partial: ${tracksError}` : ""
         })`,
       });
       return { status: "completed" };
@@ -201,12 +217,9 @@ export const importArtist = action({
     priority: v.optional(importPriority),
   },
   returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{ requestId: string; status: "completed" | "failed" }> => {
-    const { requestId } = await ctx.runMutation(
-      api.imports.mutations.createRequest,
+  handler: async (ctx, args): Promise<ImportOutcome> =>
+    runOrDedupe(
+      ctx,
       {
         entityType: "artist",
         requestType: args.mode ?? "import",
@@ -216,20 +229,20 @@ export const importArtist = action({
         providerId: args.providerId,
         name: args.name,
         withTracks: args.withTracks,
+        tracks: args.tracks,
         priority: args.priority,
       },
-    );
-    const result = await ctx.runAction(api.imports.actions.runArtistImport, {
-      requestId,
-      provider: args.provider,
-      targetMode: args.targetMode,
-      name: args.name ?? "",
-      providerId: args.providerId ?? "",
-      withTracks: args.withTracks,
-      tracks: args.tracks,
-    });
-    return { requestId, status: result.status };
-  },
+      (requestId) =>
+        ctx.runAction(api.imports.actions.runArtistImport, {
+          requestId,
+          provider: args.provider,
+          targetMode: args.targetMode,
+          name: args.name ?? "",
+          providerId: args.providerId ?? "",
+          withTracks: args.withTracks,
+          tracks: args.tracks,
+        }),
+    ),
 });
 
 /**
@@ -256,19 +269,12 @@ export const runTrackImport = action({
       if (args.providerId === "") {
         throw new Error("track import requires a providerId");
       }
-      const token = await getProviderToken(ctx, args.provider);
-      const adapter = createProvider(args.provider, () =>
-        Promise.resolve(token),
-      );
+      const adapter = await adapterFor(ctx, args.provider);
       const result = await adapter.getTrack(args.providerId);
-      const artistIds = await Promise.all(
-        result.value.artists.filter(hasExternalId).map((ref) =>
-          ctx.runMutation(api.catalog.mutations.upsertArtist, {
-            provider: args.provider,
-            externalId: ref.externalId,
-            value: { name: ref.name, genres: [] },
-          }),
-        ),
+      const artistIds = await upsertCreditedArtists(
+        ctx,
+        args.provider,
+        result.value.artists,
       );
       const trackId = await ctx.runMutation(api.catalog.mutations.upsertTrack, {
         provider: args.provider,
@@ -313,12 +319,9 @@ export const importTrack = action({
     priority: v.optional(importPriority),
   },
   returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{ requestId: string; status: "completed" | "failed" }> => {
-    const { requestId } = await ctx.runMutation(
-      api.imports.mutations.createRequest,
+  handler: async (ctx, args): Promise<ImportOutcome> =>
+    runOrDedupe(
+      ctx,
       {
         entityType: "track",
         requestType: args.mode ?? "import",
@@ -326,17 +329,17 @@ export const importTrack = action({
         providerScope: args.provider,
         provider: args.provider,
         providerId: args.providerId,
+        withAlbum: args.withAlbum,
         priority: args.priority,
       },
-    );
-    const result = await ctx.runAction(api.imports.actions.runTrackImport, {
-      requestId,
-      provider: args.provider,
-      providerId: args.providerId,
-      withAlbum: args.withAlbum,
-    });
-    return { requestId, status: result.status };
-  },
+      (requestId) =>
+        ctx.runAction(api.imports.actions.runTrackImport, {
+          requestId,
+          provider: args.provider,
+          providerId: args.providerId,
+          withAlbum: args.withAlbum,
+        }),
+    ),
 });
 
 /**
@@ -364,10 +367,7 @@ export const runPlaylistImport = action({
       if (args.providerId === "") {
         throw new Error("playlist import requires a providerId");
       }
-      const token = await getProviderToken(ctx, args.provider);
-      const adapter = createProvider(args.provider, () =>
-        Promise.resolve(token),
-      );
+      const adapter = await adapterFor(ctx, args.provider);
       const playlist = await adapter.getPlaylist(args.providerId);
       // Optional cap on how many of the playlist's tracks to import.
       const tracks =
@@ -423,12 +423,9 @@ export const importPlaylist = action({
     priority: v.optional(importPriority),
   },
   returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{ requestId: string; status: "completed" | "failed" }> => {
-    const { requestId } = await ctx.runMutation(
-      api.imports.mutations.createRequest,
+  handler: async (ctx, args): Promise<ImportOutcome> =>
+    runOrDedupe(
+      ctx,
       {
         entityType: "playlist",
         requestType: args.mode ?? "import",
@@ -438,15 +435,14 @@ export const importPlaylist = action({
         providerId: args.providerId,
         priority: args.priority,
       },
-    );
-    const result = await ctx.runAction(api.imports.actions.runPlaylistImport, {
-      requestId,
-      provider: args.provider,
-      providerId: args.providerId,
-      limit: args.limit,
-    });
-    return { requestId, status: result.status };
-  },
+      (requestId) =>
+        ctx.runAction(api.imports.actions.runPlaylistImport, {
+          requestId,
+          provider: args.provider,
+          providerId: args.providerId,
+          limit: args.limit,
+        }),
+    ),
 });
 
 /**
@@ -473,10 +469,7 @@ export const runAlbumImport = action({
       if (args.providerId === "") {
         throw new Error("album import requires a providerId");
       }
-      const token = await getProviderToken(ctx, args.provider);
-      const adapter = createProvider(args.provider, () =>
-        Promise.resolve(token),
-      );
+      const adapter = await adapterFor(ctx, args.provider);
       const album = await adapter.getAlbum(args.providerId);
       const tracks =
         args.limit === undefined
@@ -488,14 +481,10 @@ export const runAlbumImport = action({
         adapter,
         tracks,
       );
-      const albumArtistIds = await Promise.all(
-        album.value.artists.filter(hasExternalId).map((ref) =>
-          ctx.runMutation(api.catalog.mutations.upsertArtist, {
-            provider: args.provider,
-            externalId: ref.externalId,
-            value: { name: ref.name, genres: [] },
-          }),
-        ),
+      const albumArtistIds = await upsertCreditedArtists(
+        ctx,
+        args.provider,
+        album.value.artists,
       );
       const albumId = await ctx.runMutation(
         api.catalog.mutations.upsertAlbum,
@@ -541,12 +530,9 @@ export const importAlbum = action({
     priority: v.optional(importPriority),
   },
   returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{ requestId: string; status: "completed" | "failed" }> => {
-    const { requestId } = await ctx.runMutation(
-      api.imports.mutations.createRequest,
+  handler: async (ctx, args): Promise<ImportOutcome> =>
+    runOrDedupe(
+      ctx,
       {
         entityType: "album",
         requestType: args.mode ?? "import",
@@ -556,13 +542,12 @@ export const importAlbum = action({
         providerId: args.providerId,
         priority: args.priority,
       },
-    );
-    const result = await ctx.runAction(api.imports.actions.runAlbumImport, {
-      requestId,
-      provider: args.provider,
-      providerId: args.providerId,
-      limit: args.limit,
-    });
-    return { requestId, status: result.status };
-  },
+      (requestId) =>
+        ctx.runAction(api.imports.actions.runAlbumImport, {
+          requestId,
+          provider: args.provider,
+          providerId: args.providerId,
+          limit: args.limit,
+        }),
+    ),
 });

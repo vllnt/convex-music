@@ -189,6 +189,10 @@ export const searchTracks = query({
  * a stable rotation. Default `salt` is the UTC day (rotates daily); pass a custom
  * `salt` for a different deterministic shuffle. The selection primitive for daily
  * pickers — the daily-puzzle assignment (freeze, no-repeat) stays host-side.
+ *
+ * The eligible universe is the first `scanLimit` rows (creation order); rows past
+ * it are not selectable. Keep a catalog under `scanLimit`, or raise it, so the
+ * rotation draws from the whole catalog rather than a fixed prefix.
  */
 export const selectEligible = query({
   args: {

@@ -15,7 +15,7 @@ Convex agent skills for common tasks can be installed by running `npx convex ai-
 `@vllnt/convex-music` is a provider-neutral, cached music catalog as a Convex component. It caches
 normalized music facts — tracks, artists, albums — from many providers (Spotify, Apple Music, and
 more) in its own sandboxed tables, behind one typed client API. It follows the vllnt Component
-Standard (see the `convex-components` hub `.claude/rules/component-standard.md`). This file is the
+Standard (see the `oss-packages` hub `.claude/rules/component-standard.md`). This file is the
 canonical agent guide; `CLAUDE.md` is a verbatim mirror.
 
 ## Architecture
@@ -25,14 +25,23 @@ src/
 ├── shared.ts              # PROVIDER / ENTITY_KIND codes, NEVER_EXPIRES sentinel, shared types
 ├── test.ts                # convex-test registration helper (exported via "./test")
 ├── client/
-│   ├── types.ts           # Public TS interfaces (CacheEntry, PutInput, EntryKey, Normalized*)
+│   ├── types.ts           # Public TS interfaces (Catalog*, Normalized*, CacheEntry, ...)
 │   └── index.ts           # Music client class — the consumer-facing API
+├── react/
+│   └── index.ts           # optional ./react hooks (useArtist / useSearch* / ...)
 └── component/
-    ├── mutations.ts        # put, invalidate, pruneExpired
-    ├── queries.ts          # get, getByIsrc, stats
-    ├── validators.ts       # provider, entityKind, *Value, cacheEntryFields, cacheEntryDoc
-    ├── schema.ts           # cacheEntries table (by_lookup, by_isrc, by_expiry)
-    └── convex.config.ts    # defineComponent("music")
+    ├── schema.ts          # cacheEntries + catalog (artists/tracks/playlists/albums) + *Providers + trackClaims + providerConfig + importRequests + sources
+    ├── validators.ts      # provider/entity validators, *Value, *Fields, *Doc
+    ├── convex.config.ts   # defineComponent("music"); mounts action-cache + rate-limiter
+    ├── mutations.ts / queries.ts   # raw cache: put / get / getByIsrc / invalidate / pruneExpired / stats
+    ├── actions.ts         # read-through fetch (fetch / search / resolveByIsrc)
+    ├── crons.ts           # prune + mark-stale + auto-import/refresh + stuck-sync recovery sweeps
+    ├── catalog/           # mutations/queries + merge / field_source_policy / browse_order
+    ├── providers/         # fetch + registry + per-provider adapters (spotify/apple/deezer/musicbrainz/wikidata)
+    ├── imports/           # actions/mutations/queries + state + dedupe (import control-plane)
+    ├── sync/              # lifecycle + mutations/queries (freshness)
+    ├── sources/           # actions/mutations/queries (the sources registry)
+    └── config/            # mutations/queries (provider credentials)
 ```
 
 ## Ownership boundary
@@ -40,7 +49,7 @@ src/
 | Domain | Owner |
 |--------|-------|
 | Music catalog — `artists` / `tracks` / `playlists` (the music database) + raw `cacheEntries` | **Component** — sandboxed; the factual record, read by hosts via API |
-| Import / sync / repair + sync-status lifecycle (over the catalog) | **Component** — writes its own catalog tables; composes `@convex-dev/workflow`/`workpool` |
+| Import / sync / repair + sync-status lifecycle (over the catalog) | **Component** — writes its own catalog tables via a component-owned control-plane (`importRequests`); not `@convex-dev/workflow`/`workpool` |
 | Provider ids / ISRC (opaque refs) | **Host** — supplies them; the component stores and indexes as-is |
 | Provider credentials (Spotify/Apple keys, tokens) | **Host reads** its deployment env vars + calls `configure()`; the **component stores** them in its own sandboxed `providerConfig` table (a component is isolated from the deployment's env vars). Tokens are cached via `@convex-dev/action-cache`. Never readable by the host or sibling components. |
 | Editorial overrides + `sourceRefs` + frozen gameplay snapshot | **Host** — its own domain tables, referencing catalog rows by id / ISRC |
@@ -68,7 +77,11 @@ src/
   baked into `convex-music`.
 - **Import lives in the component.** Because the catalog is the component's own tables, the
   import/sync/repair engine + sync-status lifecycle run here (writing its own tables), driven by
-  mount policy. It **composes** `@convex-dev/workflow` / `workpool`; it never re-implements them.
+  mount policy. The traversal is a **bounded in-action fetch→upsert fan-out** (concurrency-bounded via
+  `mapWithConcurrency`); the request lifecycle is a **component-owned control-plane** (`imports/state.ts`
+  + the `importRequests` table, transitions enforced by `assertTransition`) — NOT
+  `@convex-dev/workflow`/`workpool`, since it is not durable, resumable, cross-failure orchestration.
+  A workflow-backed durable traversal is a future option if catalogs grow large (see `ROADMAP.md`).
 - **Catalog content is runtime + host-owned, not mount-config.** Mount config governs HOW (providers,
   TTLs, filters, schedule, image policy), never WHAT. The host populates the catalog at runtime via
   the import primitives + a generic `sources` registry; its *curated, categorized* definitions
@@ -122,8 +135,9 @@ src/
   or MusicBrainz never changes the public API. The capability is "music catalog," not any one vendor
   — swapping the backing provider must never force a rename.
 - **Typed facts, no `v.any()`.** Cached values are typed unions (`trackValue` / `artistValue` /
-  `albumValue`). Provider-varying fields are optional (e.g. `popularity` is Spotify; `country` /
-  `gender` / `members` / `debutYear` are MusicBrainz/Wikidata).
+  `albumValue`). Provider-varying fields are optional (e.g. artist `popularity` is Spotify; `country` /
+  `gender` / `members` / `debutYear` are MusicBrainz/Wikidata; track `genres` come from Apple and
+  track `popularity` from Spotify — both folded across providers, the latter scaling staleness).
 - **Field-source projection policy (every field, any subset, N-proof).** Search + catalog reads take
   a policy choosing entity **kinds**, **fields**, and — for **every field independently** — which
   provider(s) supply it: `{ from: "<p>" }` single · `{ prefer: [...] }` ordered-pick-one · `{ from:
@@ -136,10 +150,12 @@ src/
   real number, not `undefined`) so the `by_expiry` index never sweeps a never-expiring row.
 - **Read-time expiry + prune.** `get`/`getByIsrc` treat expired entries as misses; `pruneExpired`
   reclaims storage and is idempotent (bounded to expired rows), safe on a schedule.
-- **Scope at 0.1.0 = raw cache core only.** The durable catalog (`catalog-store`), provider adapters
-  (Apple V8 ES256 signer, Spotify, then Deezer/MusicBrainz/Wikidata), read-through fetch, the
-  `import-engine`, `sync-lifecycle`, and artist-image auto-sync are all planned — see `ROADMAP.md`.
-  Agents MUST NOT implement planned surface without an explicit instruction.
+- **Scope.** Built: the raw cache core, the durable catalog (`catalog-store`), provider adapters
+  (Apple V8 ES256 signer, Spotify, Deezer, MusicBrainz, Wikidata), read-through fetch, the
+  `import-engine`, `sync-lifecycle`, and auto-import. Still planned: artist-image auto-sync and
+  multi-catalog (`catalog-store.6`) — see `ROADMAP.md`. Published versions stay `0.1.0`/canary until
+  the owner cuts a stable release. Agents MUST NOT implement planned surface without an explicit
+  instruction.
 
 ## Conventions
 
@@ -148,16 +164,18 @@ src/
 - Sandboxed tables only (`cacheEntries` raw cache + the durable `artists`/`tracks`/`playlists`/`albums` catalog + `*Providers` reverse-index junctions + `trackClaims`) — the component never reads host or sibling tables.
 - No bare `v.any()` — host data is typed via the `*Value` validators.
 - 100% test coverage is BLOCKING (`vitest.config.mts` thresholds).
-- Runtime deps: only official `@convex-dev/*` + `@vllnt/*` — compose, never hand-roll. Committed
-  child components (mounted in `convex.config.ts` as each layer lands): **`@convex-dev/action-cache`**
-  (provider token cache — Spotify token + Apple JWT, wired as the adapters' `getToken`),
-  **`@convex-dev/workflow`** + **`@convex-dev/workpool`** (import traversal orchestration + step
-  retries + bounded batch concurrency), **`@convex-dev/rate-limiter`** (two buckets: auto-import
-  throughput budget AND provider-API 429/529 guard), **`@vllnt/convex-idempotency`** (import-request
-  dedup — the exactly-once seam under the component-owned control-plane). Deliberate NON-composition:
-  the per-HTTP-request resilient fetch (429/Retry-After/backoff, `providers/fetch.ts`) is inline, not
-  `@convex-dev/action-retrier` (that retries whole actions — a different layer). A component runs in
-  V8: Apple's ES256 JWT uses Web Crypto, not `jsonwebtoken`.
+- Runtime deps: only official `@convex-dev/*` + `@vllnt/*` — compose, never hand-roll. Mounted child
+  components (`convex.config.ts`): **`@convex-dev/action-cache`** (provider token cache — Spotify token
+  + Apple JWT, wired as the adapters' `getToken`) and **`@convex-dev/rate-limiter`** (auto-import
+  throughput budgets — token buckets, separate import vs refresh). Deliberate NON-composition: the
+  import traversal is a bounded in-action fetch→upsert fan-out with a component-owned control-plane
+  (`imports/state.ts` + the `importRequests` table), concurrency-bounded via `mapWithConcurrency` — NOT
+  `@convex-dev/workflow`/`workpool` (it is not durable, resumable, cross-failure orchestration);
+  import-request dedup is the control-plane's own check (serializable under Convex OCC), not
+  `@vllnt/convex-idempotency`; the per-HTTP-request resilient fetch (429/Retry-After/backoff,
+  `providers/fetch.ts`) is inline, not `@convex-dev/action-retrier`. A component runs in V8: Apple's
+  ES256 JWT uses Web Crypto, not `jsonwebtoken`. (A workflow-backed durable traversal is a future
+  option if catalogs grow large — see `ROADMAP.md`.)
 - Credential seam (BLOCKING — a component is sandboxed from the deployment's env vars, so it CANNOT
   read `process.env`; verified live). The **host** reads its own deployment env vars — Spotify
   `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`; Apple `APPLE_MUSIC_ISSUER` / `APPLE_MUSIC_KID` /

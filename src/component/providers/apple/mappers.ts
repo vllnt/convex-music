@@ -63,6 +63,7 @@ export function mapAppleTrack(raw: AppleSong): NormalizedTrack {
       ),
     ],
     isrc: raw.attributes.isrc,
+    genres: raw.attributes.genreNames ?? [],
     durationMs: raw.attributes.durationInMillis,
     previewUrl: raw.attributes.previews?.[0]?.url,
     coverUrl: formatArtwork(raw.attributes.artwork),

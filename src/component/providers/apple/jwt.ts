@@ -44,7 +44,14 @@ function pemToDer(pem: string): ArrayBuffer {
   if (body.length === 0) {
     throw new Error("Apple private key PEM is empty");
   }
-  const binary = atob(body);
+  let binary: string;
+  try {
+    binary = atob(body);
+  } catch {
+    // A non-base64 body (e.g. a PEM pasted with literal `\n` escapes) — fail with
+    // an actionable message, never echoing the key material.
+    throw new Error("Apple private key PEM is malformed");
+  }
   const buffer = new ArrayBuffer(binary.length);
   const bytes = new Uint8Array(buffer);
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
@@ -63,7 +70,12 @@ export async function signAppleDeveloperToken(
   input: AppleTokenInput,
   subtle: SubtleCrypto = crypto.subtle,
 ): Promise<string> {
-  const ttl = input.ttlSec ?? APPLE_TOKEN_MAX_TTL_SEC;
+  // Clamp to Apple's 6-month maximum: a longer-lived signed token is rejected by
+  // Apple anyway, and a long-lived credential widens the blast radius if leaked.
+  const ttl = Math.min(
+    input.ttlSec ?? APPLE_TOKEN_MAX_TTL_SEC,
+    APPLE_TOKEN_MAX_TTL_SEC,
+  );
   const header = { alg: "ES256", kid: input.keyId, typ: "JWT" };
   const payload = {
     iss: input.issuer,

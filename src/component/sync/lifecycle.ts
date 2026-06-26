@@ -23,8 +23,8 @@ export type RepairStatus =
 
 const SYNC_TRANSITIONS: Record<SyncStatus, readonly SyncStatus[]> = {
   pending: ["running", "synced", "failed"],
-  running: ["synced", "failed"],
-  synced: [],
+  running: ["synced", "failed", "stale"],
+  synced: ["stale"],
   failed: ["running", "synced", "failed", "stale"],
   stale: ["running", "synced"],
 };

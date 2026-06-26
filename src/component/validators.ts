@@ -27,6 +27,8 @@ export const trackValue = v.object({
   title: v.string(),
   artists: v.array(artistRef),
   isrc: v.optional(v.string()),
+  genres: v.array(v.string()),
+  popularity: v.optional(v.number()),
   durationMs: v.optional(v.number()),
   previewUrl: v.optional(v.string()),
   coverUrl: v.optional(v.string()),
@@ -279,8 +281,8 @@ export const providerConfigFields = {
 /*
  * ── Import control plane ────────────────────────────────────────────────────
  * The component-owned 8-state import-request machine (songtrivia's
- * `music_imports`, generalized), layered over `@convex-dev/workflow` for the
- * actual traversal steps.
+ * `music_imports`, generalized) over the `importRequests` table — NOT
+ * `@convex-dev/workflow`; the bounded traversal runs inline.
  */
 
 /** What an import targets. */
@@ -361,7 +363,6 @@ export const importRequestFields = {
   priority: importPriority,
   status: importStatus,
   dedupeKey: v.string(),
-  workflowId: v.optional(v.string()),
   retryCount: v.number(),
   nextAttemptAt: v.optional(v.number()),
   resolvedArtistId: v.optional(v.id("artists")),

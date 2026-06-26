@@ -6,7 +6,29 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- Durable catalog store: unified `artists` / `tracks` / `playlists` / `albums` tables with
+  per-provider `providers[]` provenance, identity merge, the field-source projection policy, and a
+  daily-rotation `selectEligible` primitive.
+- Provider adapters behind one interface — Spotify, Apple Music (V8 Web-Crypto ES256 developer
+  token), Deezer, MusicBrainz, Wikidata — plus a resilient `fetchJson` (429 + overload retry,
+  `Retry-After`, capped backoff + jitter, per-request timeout) and bounded `mapWithConcurrency`.
+- Read-through fetch (`fetch`, `search`, `resolveByIsrc`) and the import engine (`importArtist` /
+  `importTrack` / `importPlaylist` / `importAlbum`) over a component-owned, guarded request
+  control-plane with dedup.
+- Sync lifecycle (freshness `mark-stale` → atomic `claimNextStale` refresh → stuck-sync recovery),
+  opt-in auto-import with per-budget rate limiting, and a runtime `sources` registry.
+- Credential seam (`configure`) storing provider secrets in a sandboxed `providerConfig` table,
+  read only inside the component's token actions; optional tree-shakeable `./react` hooks.
+
+### Changed
+
+- Track facts now carry `genres` (Apple) + `popularity` (Spotify), folded across providers; track
+  `popularity` scales sync staleness.
+
+> Unreleased: the catalog engine above is built on the feature branch but not yet in a stable
+> release — published versions stay `0.1.0`/canary until the first stable cut.
 
 ## [0.1.0] - 2026-06-16
 

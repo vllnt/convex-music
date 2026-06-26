@@ -73,8 +73,7 @@ export default defineSchema({
 
   importRequests: defineTable(importRequestFields)
     .index("by_status", ["status", "requestedAt"])
-    .index("by_dedupe_status", ["dedupeKey", "status"])
-    .index("by_workflow", ["workflowId"]),
+    .index("by_dedupe_status", ["dedupeKey", "status"]),
 
   sources: defineTable(sourceFields)
     .index("by_enabled", ["enabled", "lastImportedAt"])

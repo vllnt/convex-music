@@ -100,6 +100,31 @@ describe("signAppleDeveloperToken", () => {
     expect(payload["exp"]).toBe(1_000 + 3_600);
   });
 
+  it("clamps a ttl beyond Apple's 6-month maximum", async () => {
+    const { pem } = await generatePemKeyPair();
+    const token = await signAppleDeveloperToken({
+      issuer: "T",
+      keyId: "K",
+      privateKeyPem: pem,
+      nowSec: 1_000,
+      ttlSec: APPLE_TOKEN_MAX_TTL_SEC * 10,
+    });
+    const payload = decodeJsonSegment(jwsParts(token)[1]);
+    expect(payload["exp"]).toBe(1_000 + APPLE_TOKEN_MAX_TTL_SEC);
+  });
+
+  it("rejects a malformed (non-base64) PEM", async () => {
+    await expect(
+      signAppleDeveloperToken({
+        issuer: "T",
+        keyId: "K",
+        privateKeyPem:
+          "-----BEGIN PRIVATE KEY-----\n!!!not base64!!!\n-----END PRIVATE KEY-----",
+        nowSec: 0,
+      }),
+    ).rejects.toThrow("Apple private key PEM is malformed");
+  });
+
   it("rejects an empty PEM", async () => {
     await expect(
       signAppleDeveloperToken({

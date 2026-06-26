@@ -80,9 +80,10 @@ export class MusicBrainzProvider implements MusicProvider {
   }
 
   async getArtist(externalId: string): Promise<ProviderArtist> {
-    const raw = await this.api<MusicBrainzArtist>(`/artist/${externalId}`, {
-      inc: "tags",
-    });
+    const raw = await this.api<MusicBrainzArtist>(
+      `/artist/${encodeURIComponent(externalId)}`,
+      { inc: "tags" },
+    );
     return { externalId: raw.id, value: mapMusicBrainzArtist(raw) };
   }
 

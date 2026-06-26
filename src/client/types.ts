@@ -44,11 +44,15 @@ export interface ArtistRef {
   externalId?: string;
 }
 
-/** Normalized, provider-sourced track facts. */
+/** Normalized, provider-sourced track facts (fields vary by provider). */
 export interface NormalizedTrack {
   title: string;
   artists: ArtistRef[];
   isrc?: string;
+  /** Track genres where the provider supplies them (Apple); `[]` otherwise. */
+  genres: string[];
+  /** 0–100 where the provider supplies it (Spotify); scales staleness. */
+  popularity?: number;
   durationMs?: number;
   previewUrl?: string;
   coverUrl?: string;

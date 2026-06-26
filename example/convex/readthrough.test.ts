@@ -242,6 +242,7 @@ test("resolveByIsrc: catalog hit returns without searching", async () => {
       title: "Cached",
       artists: [{ name: "X" }],
       isrc: "GBDUW0000059",
+      genres: [],
     },
   });
   // no fetch stub: a catalog hit must not hit the network

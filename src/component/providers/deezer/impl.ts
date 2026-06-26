@@ -88,20 +88,28 @@ export class DeezerProvider implements MusicProvider {
   }
 
   async getArtist(externalId: string): Promise<ProviderArtist> {
-    const raw = await this.api<DeezerArtist>(`/artist/${externalId}`);
+    const raw = await this.api<DeezerArtist>(
+      `/artist/${encodeURIComponent(externalId)}`,
+    );
     return { externalId: String(raw.id), value: mapDeezerArtist(raw) };
   }
 
   async getTrack(externalId: string): Promise<ProviderTrack> {
-    return this.toTrack(await this.api<DeezerTrack>(`/track/${externalId}`));
+    return this.toTrack(
+      await this.api<DeezerTrack>(`/track/${encodeURIComponent(externalId)}`),
+    );
   }
 
   async getAlbum(externalId: string): Promise<ProviderAlbum> {
-    return this.toAlbum(await this.api<DeezerAlbum>(`/album/${externalId}`));
+    return this.toAlbum(
+      await this.api<DeezerAlbum>(`/album/${encodeURIComponent(externalId)}`),
+    );
   }
 
   async getPlaylist(externalId: string): Promise<ProviderPlaylist> {
-    const raw = await this.api<DeezerPlaylist>(`/playlist/${externalId}`);
+    const raw = await this.api<DeezerPlaylist>(
+      `/playlist/${encodeURIComponent(externalId)}`,
+    );
     return {
       externalId: String(raw.id),
       value: mapDeezerPlaylist(raw),
@@ -111,7 +119,7 @@ export class DeezerProvider implements MusicProvider {
 
   async getArtistTopTracks(externalId: string): Promise<ProviderTrack[]> {
     const res = await this.api<DeezerList<DeezerTrack>>(
-      `/artist/${externalId}/top`,
+      `/artist/${encodeURIComponent(externalId)}/top`,
       { limit: String(this.cfg.topLimit) },
     );
     return res.data.map((track) => this.toTrack(track));
@@ -119,7 +127,7 @@ export class DeezerProvider implements MusicProvider {
 
   async getArtistAlbums(externalId: string): Promise<ArtistAlbumsResult> {
     const res = await this.api<DeezerList<DeezerAlbum> & { next?: string }>(
-      `/artist/${externalId}/albums`,
+      `/artist/${encodeURIComponent(externalId)}/albums`,
       { limit: String(this.cfg.maxAlbumsPerArtist) },
     );
     const isPartial = res.next !== undefined;
@@ -162,7 +170,7 @@ export class DeezerProvider implements MusicProvider {
 
   async searchByIsrc(isrc: string): Promise<ProviderTrack[]> {
     const raw = await this.api<DeezerTrack & { error?: unknown }>(
-      `/track/isrc:${isrc}`,
+      `/track/isrc:${encodeURIComponent(isrc)}`,
     );
     return raw.error === undefined && raw.id !== undefined
       ? [this.toTrack(raw)]

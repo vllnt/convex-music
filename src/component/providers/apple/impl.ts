@@ -122,7 +122,7 @@ export class AppleProvider implements MusicProvider {
 
   async getArtist(externalId: string): Promise<ProviderArtist> {
     const res = await this.api<AppleDataResponse<AppleArtist>>(
-      `${this.catalog}/artists/${externalId}`,
+      `${this.catalog}/artists/${encodeURIComponent(externalId)}`,
     );
     const raw = this.firstOrThrow(res.data, "artist", externalId);
     return { externalId: raw.id, value: mapAppleArtist(raw) };
@@ -130,14 +130,14 @@ export class AppleProvider implements MusicProvider {
 
   async getTrack(externalId: string): Promise<ProviderTrack> {
     const res = await this.api<AppleDataResponse<AppleSong>>(
-      `${this.catalog}/songs/${externalId}`,
+      `${this.catalog}/songs/${encodeURIComponent(externalId)}`,
     );
     return this.toTrack(this.firstOrThrow(res.data, "song", externalId));
   }
 
   async getAlbum(externalId: string): Promise<ProviderAlbum> {
     const res = await this.api<AppleDataResponse<AppleAlbum>>(
-      `${this.catalog}/albums/${externalId}`,
+      `${this.catalog}/albums/${encodeURIComponent(externalId)}`,
       { include: "tracks,artists" },
     );
     return this.toAlbum(this.firstOrThrow(res.data, "album", externalId));
@@ -145,7 +145,7 @@ export class AppleProvider implements MusicProvider {
 
   async getPlaylist(externalId: string): Promise<ProviderPlaylist> {
     const res = await this.api<AppleDataResponse<ApplePlaylist>>(
-      `${this.catalog}/playlists/${externalId}`,
+      `${this.catalog}/playlists/${encodeURIComponent(externalId)}`,
       { include: "tracks" },
     );
     const raw = this.firstOrThrow(res.data, "playlist", externalId);
@@ -159,14 +159,14 @@ export class AppleProvider implements MusicProvider {
 
   async getArtistTopTracks(externalId: string): Promise<ProviderTrack[]> {
     const res = await this.api<AppleDataResponse<AppleSong>>(
-      `${this.catalog}/artists/${externalId}/view/top-songs`,
+      `${this.catalog}/artists/${encodeURIComponent(externalId)}/view/top-songs`,
     );
     return res.data.map((track) => this.toTrack(track));
   }
 
   async getArtistAlbums(externalId: string): Promise<ArtistAlbumsResult> {
     const res = await this.api<AppleDataResponse<AppleAlbum>>(
-      `${this.catalog}/artists/${externalId}/albums`,
+      `${this.catalog}/artists/${encodeURIComponent(externalId)}/albums`,
       { include: "tracks,artists", limit: String(this.cfg.albumLimit) },
     );
     const isPartial = res.next !== undefined;

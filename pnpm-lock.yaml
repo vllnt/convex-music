@@ -17,12 +17,6 @@ importers:
       '@convex-dev/rate-limiter':
         specifier: ^0.3.2
         version: 0.3.2(convex@1.41.0(react@18.3.1))(react@18.3.1)
-      '@convex-dev/workflow':
-        specifier: 0.4.4
-        version: 0.4.4(@convex-dev/workpool@0.4.7(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1)))(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1))
-      '@convex-dev/workpool':
-        specifier: 0.4.7
-        version: 0.4.7(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1))
     devDependencies:
       '@edge-runtime/vm':
         specifier: ^4.0.0
@@ -182,19 +176,6 @@ packages:
     peerDependenciesMeta:
       react:
         optional: true
-
-  '@convex-dev/workflow@0.4.4':
-    resolution: {integrity: sha512-ZQfVspAAxG4zZJEep2qaRtupw8OewwMezq6KNKaXKjo/gA+YffS9bXz13x+L/TSt9/Lb6gioae6Y9PDrqh7xQg==}
-    peerDependencies:
-      '@convex-dev/workpool': ^0.4.4
-      convex: 1.41.0
-      convex-helpers: ^0.1.99
-
-  '@convex-dev/workpool@0.4.7':
-    resolution: {integrity: sha512-4O3VKcJXqYZ9icDgKdVPxjDGUAFK3oG0hbUwLcyYMYgsvVKlZDhvZRmczqSBZHLyrCGPpf925byh0dBigCfAGA==}
-    peerDependencies:
-      convex: 1.41.0
-      convex-helpers: ^0.1.94
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -1087,9 +1068,6 @@ packages:
   ast-v8-to-istanbul@0.3.12:
     resolution: {integrity: sha512-BRRC8VRZY2R4Z4lFIL35MwNXmwVqBityvOIwETtsCSwvjl0IdgFsy9NhdaA6j74nUdtJJlIypeRhpDam19Wq3g==}
 
-  async-channel@0.2.0:
-    resolution: {integrity: sha512-BJyjI/sfKlyijaBt2hbOSxT28xGNtLR0QLzAKO1Hlnv5BULY7sAoYoTPW3lfr1ZIC7y+FxabxO9T8GXpyoofGg==}
-
   async-function@1.0.0:
     resolution: {integrity: sha512-hsU18Ae8CDTR6Kgu9DYf0EbCr/a5iGL0rytQDobUcdpYOKokk8LEjVphnXkDkgpi0wYVsqrXuP0bZxJaTqdgoA==}
     engines: {node: '>= 0.4'}
@@ -1209,28 +1187,6 @@ packages:
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
-
-  convex-helpers@0.1.119:
-    resolution: {integrity: sha512-fGNK9KAlBLk8Un729ZXBqD9S5jy910nxSrH6PloIL/Gl6TalFJvjN8+xCCwahlox8Ft+bb54SSg9MbcrsQb98w==}
-    hasBin: true
-    peerDependencies:
-      '@standard-schema/spec': ^1.0.0
-      convex: 1.41.0
-      hono: ^4.0.5
-      react: ^17.0.2 || ^18.0.0 || ^19.0.0
-      typescript: ^5.5 || ^6.0.0
-      zod: ^3.25.0 || ^4.0.0
-    peerDependenciesMeta:
-      '@standard-schema/spec':
-        optional: true
-      hono:
-        optional: true
-      react:
-        optional: true
-      typescript:
-        optional: true
-      zod:
-        optional: true
 
   convex-test@0.0.53:
     resolution: {integrity: sha512-bouZQTnTvZi8IHljHL++yClj1vcV+/9ZxEcd8JZz7RDxOfPkRKrkMgkk/xlX4M1EAiwcEJPNiQE7VJFvDM3lCQ==}
@@ -2943,18 +2899,6 @@ snapshots:
     optionalDependencies:
       react: 18.3.1
 
-  '@convex-dev/workflow@0.4.4(@convex-dev/workpool@0.4.7(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1)))(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1))':
-    dependencies:
-      '@convex-dev/workpool': 0.4.7(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1))
-      async-channel: 0.2.0
-      convex: 1.41.0(react@18.3.1)
-      convex-helpers: 0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3)
-
-  '@convex-dev/workpool@0.4.7(convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@18.3.1))':
-    dependencies:
-      convex: 1.41.0(react@18.3.1)
-      convex-helpers: 0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3)
-
   '@csstools/color-helpers@5.1.0': {}
 
   '@csstools/css-calc@2.1.4(@csstools/css-parser-algorithms@3.0.5(@csstools/css-tokenizer@3.0.4))(@csstools/css-tokenizer@3.0.4)':
@@ -3729,8 +3673,6 @@ snapshots:
       estree-walker: 3.0.3
       js-tokens: 10.0.0
 
-  async-channel@0.2.0: {}
-
   async-function@1.0.0: {}
 
   asynckit@0.4.0: {}
@@ -3837,14 +3779,6 @@ snapshots:
   concat-map@0.0.1: {}
 
   convert-source-map@2.0.0: {}
-
-  convex-helpers@0.1.119(convex@1.41.0(react@18.3.1))(react@18.3.1)(typescript@5.9.3)(zod@4.4.3):
-    dependencies:
-      convex: 1.41.0(react@18.3.1)
-    optionalDependencies:
-      react: 18.3.1
-      typescript: 5.9.3
-      zod: 4.4.3
 
   convex-test@0.0.53(convex@1.41.0(react@18.3.1)):
     dependencies:

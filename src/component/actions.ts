@@ -10,13 +10,9 @@ import { v } from "convex/values";
 import { api } from "./_generated/api.js";
 import type { Doc } from "./_generated/dataModel.js";
 import { action } from "./_generated/server.js";
-import type {
-  ArtistRef,
-  NormalizedArtist,
-  NormalizedTrack,
-} from "../client/types.js";
-import { getProviderToken } from "./providers/actions.js";
-import { createProvider } from "./providers/registry.js";
+import type { NormalizedArtist, NormalizedTrack } from "../client/types.js";
+import { upsertCreditedArtists } from "./catalog/promote.js";
+import { adapterFor } from "./providers/actions.js";
 import { artistDoc, artistValue, provider, trackDoc, trackValue } from "./validators.js";
 
 /** A normalized search hit (provider id + value), discriminated by kind. */
@@ -39,13 +35,6 @@ const searchResult = v.union(
   }),
 );
 
-/** A track/album artist ref that carries a provider id. */
-function hasExternalId(
-  ref: ArtistRef,
-): ref is ArtistRef & { externalId: string } {
-  return ref.externalId !== undefined;
-}
-
 /**
  * Fetch an artist by provider id, promoting it into the catalog. Returns the
  * unified artist row (cache-through unless `force`).
@@ -61,8 +50,7 @@ export const fetchArtist = action({
       );
       if (existing !== null) return existing;
     }
-    const token = await getProviderToken(ctx, args.provider);
-    const adapter = createProvider(args.provider, () => Promise.resolve(token));
+    const adapter = await adapterFor(ctx, args.provider);
     const result = await adapter.getArtist(args.externalId);
     const artistId = await ctx.runMutation(
       api.catalog.mutations.upsertArtist,
@@ -88,17 +76,12 @@ export const fetchTrack = action({
       );
       if (existing !== null) return existing;
     }
-    const token = await getProviderToken(ctx, args.provider);
-    const adapter = createProvider(args.provider, () => Promise.resolve(token));
+    const adapter = await adapterFor(ctx, args.provider);
     const result = await adapter.getTrack(args.externalId);
-    const artistIds = await Promise.all(
-      result.value.artists.filter(hasExternalId).map((ref) =>
-        ctx.runMutation(api.catalog.mutations.upsertArtist, {
-          provider: args.provider,
-          externalId: ref.externalId,
-          value: { name: ref.name, genres: [] },
-        }),
-      ),
+    const artistIds = await upsertCreditedArtists(
+      ctx,
+      args.provider,
+      result.value.artists,
     );
     const trackId = await ctx.runMutation(api.catalog.mutations.upsertTrack, {
       provider: args.provider,
@@ -118,8 +101,7 @@ export const search = action({
   args: { provider, query: v.string(), type: searchType },
   returns: v.array(searchResult),
   handler: async (ctx, args): Promise<SearchHit[]> => {
-    const token = await getProviderToken(ctx, args.provider);
-    const adapter = createProvider(args.provider, () => Promise.resolve(token));
+    const adapter = await adapterFor(ctx, args.provider);
     const results = await adapter.search(args.query, args.type);
     return results.map((hit) =>
       hit.type === "artist"
@@ -152,19 +134,14 @@ export const resolveByIsrc = action({
       isrc: args.isrc,
     });
     if (existing !== null) return existing;
-    const token = await getProviderToken(ctx, args.provider);
-    const adapter = createProvider(args.provider, () => Promise.resolve(token));
+    const adapter = await adapterFor(ctx, args.provider);
     const hits = await adapter.searchByIsrc(args.isrc);
     const first = hits[0];
     if (first === undefined) return null;
-    const artistIds = await Promise.all(
-      first.value.artists.filter(hasExternalId).map((ref) =>
-        ctx.runMutation(api.catalog.mutations.upsertArtist, {
-          provider: args.provider,
-          externalId: ref.externalId,
-          value: { name: ref.name, genres: [] },
-        }),
-      ),
+    const artistIds = await upsertCreditedArtists(
+      ctx,
+      args.provider,
+      first.value.artists,
     );
     await ctx.runMutation(api.catalog.mutations.upsertTrack, {
       provider: args.provider,

@@ -38,6 +38,7 @@ export default defineConfig({
         "src/component/catalog/field_source_policy.ts",
         "src/component/catalog/mutations.ts",
         "src/component/catalog/queries.ts",
+        "src/component/catalog/promote.ts",
         "src/component/providers/actions.ts",
         "src/component/actions.ts",
         "src/component/config/mutations.ts",

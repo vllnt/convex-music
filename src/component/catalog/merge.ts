@@ -107,8 +107,9 @@ export function mergeArtist(
 
 /**
  * Merge a provider track into the unified track state. ISRC keys the row (the
- * mutation enforces it), so this only folds genres/popularity/duration + the
- * provider's media-url slice.
+ * mutation enforces it); genres union across providers, popularity takes the max
+ * (it scales staleness), duration takes the max, and the provider's media-url
+ * slice lands in `providers[]`.
  */
 export function mergeTrack(
   existing: TrackMergeState | null,
@@ -125,8 +126,8 @@ export function mergeTrack(
     url: value.url,
   };
   return {
-    genres: base.genres,
-    popularity: base.popularity,
+    genres: unionGenres(base.genres, value.genres),
+    popularity: maxDefined(base.popularity, value.popularity),
     durationMs: maxDefined(base.durationMs, value.durationMs),
     providers: upsertEntry(base.providers, entry),
   };

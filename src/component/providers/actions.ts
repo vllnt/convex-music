@@ -11,7 +11,9 @@ import { components, internal } from "../_generated/api.js";
 import { type ActionCtx, internalAction } from "../_generated/server.js";
 import type { Provider } from "../../shared.js";
 import { signAppleDeveloperToken } from "./apple/jwt.js";
+import { createProvider } from "./registry.js";
 import { fetchSpotifyToken } from "./spotify/client.js";
+import type { MusicProvider } from "./types.js";
 
 /** Spotify token TTL — Spotify tokens last ~1h; cache 55m. */
 const SPOTIFY_TOKEN_TTL_MS = 55 * 60 * 1000;
@@ -108,4 +110,18 @@ export async function getProviderToken(
   // No-auth providers (MusicBrainz / Wikidata / Deezer) carry their own headers
   // (e.g. User-Agent) instead of a bearer token.
   return "";
+}
+
+/**
+ * Build a ready-to-use provider adapter: resolve the (cached) token and wire it
+ * as the adapter's `getToken`. The single seam where token resolution meets
+ * adapter construction — every read-through + import traversal builds its adapter
+ * here, so the token plumbing lives in one place.
+ */
+export async function adapterFor(
+  ctx: ActionCtx,
+  prov: Provider,
+): Promise<MusicProvider> {
+  const token = await getProviderToken(ctx, prov);
+  return createProvider(prov, () => Promise.resolve(token));
 }

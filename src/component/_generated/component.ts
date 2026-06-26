@@ -200,7 +200,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 artists: Array<{ externalId?: string; name: string }>;
                 coverUrl?: string;
                 durationMs?: number;
+                genres: Array<string>;
                 isrc?: string;
+                popularity?: number;
                 previewUrl?: string;
                 title: string;
                 url?: string;
@@ -298,7 +300,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               artists: Array<{ externalId?: string; name: string }>;
               coverUrl?: string;
               durationMs?: number;
+              genres: Array<string>;
               isrc?: string;
+              popularity?: number;
               previewUrl?: string;
               title: string;
               url?: string;
@@ -1197,10 +1201,24 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             providerScope: string;
             requestType: "import" | "refresh" | "reimport" | "repair";
             targetMode: "name" | "url" | "isrc" | "providerId" | "entityId";
+            tracks?: "none" | "top" | "all";
             url?: string;
+            withAlbum?: boolean;
             withTracks?: boolean;
           },
-          { deduped: boolean; requestId: string },
+          {
+            deduped: boolean;
+            requestId: string;
+            status:
+              | "queued"
+              | "claimed"
+              | "running"
+              | "retry_waiting"
+              | "completed"
+              | "failed"
+              | "canceled"
+              | "stale";
+          },
           Name
         >;
       };
@@ -1251,7 +1269,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             updatedAt: number;
             url?: string;
             withTracks?: boolean;
-            workflowId?: string;
           },
           Name
         >;
@@ -1312,7 +1329,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             updatedAt: number;
             url?: string;
             withTracks?: boolean;
-            workflowId?: string;
           }>,
           Name
         >;
@@ -1346,7 +1362,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 artists: Array<{ externalId?: string; name: string }>;
                 coverUrl?: string;
                 durationMs?: number;
+                genres: Array<string>;
                 isrc?: string;
+                popularity?: number;
                 previewUrl?: string;
                 title: string;
                 url?: string;
@@ -1399,7 +1417,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 artists: Array<{ externalId?: string; name: string }>;
                 coverUrl?: string;
                 durationMs?: number;
+                genres: Array<string>;
                 isrc?: string;
+                popularity?: number;
                 previewUrl?: string;
                 title: string;
                 url?: string;
@@ -1445,7 +1465,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 artists: Array<{ externalId?: string; name: string }>;
                 coverUrl?: string;
                 durationMs?: number;
+                genres: Array<string>;
                 isrc?: string;
+                popularity?: number;
                 previewUrl?: string;
                 title: string;
                 url?: string;
@@ -1577,18 +1599,106 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
     };
     sync: {
       mutations: {
+        claimNextStale: FunctionReference<
+          "mutation",
+          "internal",
+          { kind: "artist" | "track" },
+          | null
+          | {
+              _creationTime: number;
+              _id: string;
+              country?: string;
+              debutYear?: number;
+              gender?: string;
+              genres: Array<string>;
+              imageUrl?: string;
+              lastRepairAt?: number;
+              lastSyncError?: string;
+              lastSyncedAt?: number;
+              members?: "solo" | "group";
+              name: string;
+              nameKey: string;
+              nextSyncAt?: number;
+              popularity?: number;
+              providers: Array<{
+                genres?: Array<string>;
+                imageUrl?: string;
+                popularity?: number;
+                provider:
+                  | "spotify"
+                  | "apple"
+                  | "musicbrainz"
+                  | "wikidata"
+                  | "deezer";
+                providerId: string;
+                url?: string;
+              }>;
+              repairAttempts?: number;
+              repairError?: string;
+              repairStartedAt?: number;
+              repairStatus?:
+                | "clean"
+                | "needs_repair"
+                | "repairing"
+                | "failed_repair";
+              syncRetryCount?: number;
+              syncStatus?:
+                | "pending"
+                | "running"
+                | "synced"
+                | "failed"
+                | "stale";
+              updatedAt: number;
+            }
+          | {
+              _creationTime: number;
+              _id: string;
+              artistIds: Array<string>;
+              durationMs?: number;
+              genres: Array<string>;
+              isrc: string;
+              lastRepairAt?: number;
+              lastSyncError?: string;
+              lastSyncedAt?: number;
+              nextSyncAt?: number;
+              popularity?: number;
+              providers: Array<{
+                coverUrl?: string;
+                previewUrl?: string;
+                provider:
+                  | "spotify"
+                  | "apple"
+                  | "musicbrainz"
+                  | "wikidata"
+                  | "deezer";
+                providerId: string;
+                url?: string;
+              }>;
+              repairAttempts?: number;
+              repairError?: string;
+              repairStartedAt?: number;
+              repairStatus?:
+                | "clean"
+                | "needs_repair"
+                | "repairing"
+                | "failed_repair";
+              syncRetryCount?: number;
+              syncStatus?:
+                | "pending"
+                | "running"
+                | "synced"
+                | "failed"
+                | "stale";
+              title: string;
+              updatedAt: number;
+            },
+          Name
+        >;
         markStale: FunctionReference<
           "mutation",
           "internal",
           { kind: "artist" | "track"; limit?: number; now?: number },
           number,
-          Name
-        >;
-        markSyncRunning: FunctionReference<
-          "mutation",
-          "internal",
-          { id: string | string },
-          null,
           Name
         >;
         recoverStuckSyncs: FunctionReference<
