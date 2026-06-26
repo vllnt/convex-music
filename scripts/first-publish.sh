@@ -16,7 +16,22 @@
 # provenance). This script is then no longer needed and can be deleted.
 #
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
+
+# --- preflight: fail with a clear message, not a confusing "module not found" ---
+for t in git node npm pnpm; do
+  command -v "$t" >/dev/null 2>&1 || {
+    echo "ERROR: '$t' is not on your PATH. Install it and retry." >&2; exit 1; }
+done
+# Run from the repo root regardless of where you invoke it. If you copied the
+# script elsewhere, this is what surfaces as a 'path not found' — cd into your
+# convex-music checkout first.
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  echo "ERROR: not inside a git repo. cd into your convex-music checkout, then run:" >&2
+  echo "         git pull origin main && bash scripts/first-publish.sh" >&2; exit 1; }
+cd "$ROOT"
+if [ ! -f package.json ] || [ "$(node -p "require('./package.json').name" 2>/dev/null)" != "@vllnt/convex-music" ]; then
+  echo "ERROR: $ROOT is not the @vllnt/convex-music repo root." >&2; exit 1; fi
+# --------------------------------------------------------------------------------
 
 PKG=$(node -p "require('./package.json').name")
 BASE_VERSION=$(node -p "require('./package.json').version")
