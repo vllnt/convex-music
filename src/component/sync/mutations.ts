@@ -1,31 +1,10 @@
 import { v } from "convex/values";
 import { type MutationCtx, mutation } from "../_generated/server.js";
-import type { Doc } from "../_generated/dataModel.js";
 import { artistDoc, trackDoc } from "../validators.js";
 import { isStale } from "./lifecycle.js";
 
 /** Default rows scanned per markStale run. */
 const DEFAULT_LIMIT = 200;
-
-/** A synced catalog row carrying the fields staleness needs. */
-type Syncable = Doc<"artists"> | Doc<"tracks">;
-
-/** Mark a batch of synced rows whose freshness window has elapsed as `stale`. */
-async function markStaleRows(
-  ctx: MutationCtx,
-  rows: Syncable[],
-  now: number,
-): Promise<number> {
-  const stale = rows.filter((row) =>
-    isStale(row.lastSyncedAt, row.popularity, now),
-  );
-  await Promise.all(
-    stale.map((row) =>
-      ctx.db.patch(row._id, { syncStatus: "stale", updatedAt: now }),
-    ),
-  );
-  return stale.length;
-}
 
 /**
  * Flip past-freshness-window catalog rows from `synced` to `stale` for a kind.
@@ -48,13 +27,35 @@ export const markStale = mutation({
         .query("artists")
         .withIndex("by_sync", (q) => q.eq("syncStatus", "synced"))
         .take(take);
-      return await markStaleRows(ctx, rows, at);
+      const stale = rows.filter((row) =>
+        isStale(row.lastSyncedAt, row.popularity, at),
+      );
+      await Promise.all(
+        stale.map((row) =>
+          ctx.db.patch("artists", row._id, {
+            syncStatus: "stale",
+            updatedAt: at,
+          }),
+        ),
+      );
+      return stale.length;
     }
     const rows = await ctx.db
       .query("tracks")
       .withIndex("by_sync", (q) => q.eq("syncStatus", "synced"))
       .take(take);
-    return await markStaleRows(ctx, rows, at);
+    const stale = rows.filter((row) =>
+      isStale(row.lastSyncedAt, row.popularity, at),
+    );
+    await Promise.all(
+      stale.map((row) =>
+        ctx.db.patch("tracks", row._id, {
+          syncStatus: "stale",
+          updatedAt: at,
+        }),
+      ),
+    );
+    return stale.length;
   },
 });
 
@@ -83,7 +84,7 @@ export const claimNextStale = mutation({
         .withIndex("by_sync", (q) => q.eq("syncStatus", "stale"))
         .first();
       if (row === null) return null;
-      await ctx.db.patch(row._id, { syncStatus: "running", updatedAt: now });
+      await ctx.db.patch("artists", row._id, { syncStatus: "running", updatedAt: now });
       return row;
     }
     const row = await ctx.db
@@ -91,7 +92,7 @@ export const claimNextStale = mutation({
       .withIndex("by_sync", (q) => q.eq("syncStatus", "stale"))
       .first();
     if (row === null) return null;
-    await ctx.db.patch(row._id, { syncStatus: "running", updatedAt: now });
+    await ctx.db.patch("tracks", row._id, { syncStatus: "running", updatedAt: now });
     return row;
   },
 });
@@ -119,20 +120,33 @@ export const recoverStuckSyncs = mutation({
     const at = args.now ?? Date.now();
     const cutoff = at - (args.leaseMs ?? DEFAULT_SYNC_LEASE_MS);
     const take = args.limit ?? DEFAULT_LIMIT;
-    const rows: Syncable[] =
-      args.kind === "artist"
-        ? await ctx.db
-            .query("artists")
-            .withIndex("by_sync", (q) => q.eq("syncStatus", "running"))
-            .take(take)
-        : await ctx.db
-            .query("tracks")
-            .withIndex("by_sync", (q) => q.eq("syncStatus", "running"))
-            .take(take);
+    if (args.kind === "artist") {
+      const rows = await ctx.db
+        .query("artists")
+        .withIndex("by_sync", (q) => q.eq("syncStatus", "running"))
+        .take(take);
+      const stuck = rows.filter((row) => row.updatedAt < cutoff);
+      await Promise.all(
+        stuck.map((row) =>
+          ctx.db.patch("artists", row._id, {
+            syncStatus: "stale",
+            updatedAt: at,
+          }),
+        ),
+      );
+      return stuck.length;
+    }
+    const rows = await ctx.db
+      .query("tracks")
+      .withIndex("by_sync", (q) => q.eq("syncStatus", "running"))
+      .take(take);
     const stuck = rows.filter((row) => row.updatedAt < cutoff);
     await Promise.all(
       stuck.map((row) =>
-        ctx.db.patch(row._id, { syncStatus: "stale", updatedAt: at }),
+        ctx.db.patch("tracks", row._id, {
+          syncStatus: "stale",
+          updatedAt: at,
+        }),
       ),
     );
     return stuck.length;

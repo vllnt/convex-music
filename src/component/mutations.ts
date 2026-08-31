@@ -52,7 +52,7 @@ export const put = mutation({
       args.externalId,
     );
     if (existing !== null) {
-      await ctx.db.patch(existing._id, fields);
+      await ctx.db.patch("cacheEntries", existing._id, fields);
       return existing._id;
     }
     return await ctx.db.insert("cacheEntries", fields);
@@ -73,7 +73,7 @@ export const invalidate = mutation({
     if (existing === null) {
       return false;
     }
-    await ctx.db.delete(existing._id);
+    await ctx.db.delete("cacheEntries", existing._id);
     return true;
   },
 });
@@ -89,7 +89,7 @@ export const pruneExpired = mutation({
       .withIndex("by_expiry", (q) => q.lte("expiresAt", now))
       .collect();
     for (const entry of expired) {
-      await ctx.db.delete(entry._id);
+      await ctx.db.delete("cacheEntries", entry._id);
     }
     return expired.length;
   },

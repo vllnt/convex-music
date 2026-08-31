@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- Require `convex@^1.45.0`, update `convex-test` to `^0.0.56`, and update
+  `@convex-dev/action-cache` to `^0.3.1`.
+
 ### Added
 
 - Durable catalog store: unified `artists` / `tracks` / `playlists` / `albums` tables with

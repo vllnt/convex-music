@@ -22,7 +22,7 @@ export const configure = mutation({
         secrets: args.secrets,
       });
     } else {
-      await ctx.db.patch(existing._id, { secrets: args.secrets });
+      await ctx.db.patch("providerConfig", existing._id, { secrets: args.secrets });
     }
     return null;
   },

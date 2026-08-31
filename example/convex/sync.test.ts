@@ -115,12 +115,32 @@ test("recoverStuckSyncs salvages rows left running by a crashed re-sync", async 
       now: Date.now() + 3_600_000,
     }),
   ).toBe(1);
-  // track branch + explicit leaseMs/limit + default now (nothing running)
+  // Track branch: a failed refresh leaves a running row that the explicit
+  // lease/limit configuration recovers.
+  await t.mutation(api.example.upsertTrack, {
+    provider: "spotify",
+    externalId: "t1",
+    value: {
+      title: "Track",
+      artists: [],
+      genres: [],
+      isrc: "GBDUW0000059",
+    },
+  });
+  await t.mutation(api.example.markStale, {
+    kind: "track",
+    now: Date.now() + YEAR_MS,
+  });
+  await t.action(api.example.runRefresh, { kind: "track" });
   expect(
     await t.mutation(api.example.recoverStuckSyncs, {
       kind: "track",
       leaseMs: 1000,
       limit: 10,
+      now: Date.now() + 3_600_000,
     }),
+  ).toBe(1);
+  expect(
+    await t.mutation(api.example.recoverStuckSyncs, { kind: "track" }),
   ).toBe(0);
 });

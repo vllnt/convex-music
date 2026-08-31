@@ -131,12 +131,12 @@ async function applyTransition(
   to: ImportStatus,
   extra: TransitionExtra = {},
 ): Promise<void> {
-  const request = await ctx.db.get(requestId);
+  const request = await ctx.db.get("importRequests", requestId);
   if (request === null) {
     throw new Error(`import request not found: ${requestId}`);
   }
   assertTransition(request.status, to);
-  await ctx.db.patch(requestId, { status: to, updatedAt: Date.now(), ...extra });
+  await ctx.db.patch("importRequests", requestId, { status: to, updatedAt: Date.now(), ...extra });
 }
 
 /** queued → claimed. */

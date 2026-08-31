@@ -35,7 +35,7 @@ export const removeSource = mutation({
   args: { sourceId: v.id("sources") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.sourceId);
+    await ctx.db.delete("sources", args.sourceId);
     return null;
   },
 });
@@ -45,7 +45,7 @@ export const setSourceEnabled = mutation({
   args: { sourceId: v.id("sources"), enabled: v.boolean() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.sourceId, {
+    await ctx.db.patch("sources", args.sourceId, {
       enabled: args.enabled,
       updatedAt: Date.now(),
     });
@@ -58,7 +58,7 @@ export const touchSource = mutation({
   args: { sourceId: v.id("sources"), now: v.number() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.sourceId, {
+    await ctx.db.patch("sources", args.sourceId, {
       lastImportedAt: args.now,
       updatedAt: args.now,
     });
