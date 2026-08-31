@@ -15,8 +15,13 @@ Convex agent skills for common tasks can be installed by running `npx convex ai-
 `@vllnt/convex-music` is a provider-neutral, cached music catalog as a Convex component. It caches
 normalized music facts — tracks, artists, albums — from many providers (Spotify, Apple Music, and
 more) in its own sandboxed tables, behind one typed client API. It follows the vllnt Component
-Standard (see the `oss-packages` hub `.claude/rules/component-standard.md`). This file is the
-canonical agent guide; `CLAUDE.md` is a verbatim mirror.
+Standard (see the `oss-packages` hub `AGENTS.md`). This file is the
+canonical agent guide.
+
+## Agent instructions
+
+`AGENTS.md` is the sole agent-instruction source for this repository. Do not add
+`CLAUDE.md` or `.claude` content.
 
 ## Architecture
 
@@ -210,3 +215,9 @@ When any of these change, update the matching docs in the SAME commit (then `pnp
 | New feature / breaking change | `CHANGELOG.md`, README Features, `ROADMAP.md` |
 | `peerDependencies.convex` range | `llms.txt` context line, `docs/API.md` Compatibility line |
 | New planned capability | tag `[planned]` in README; do NOT add to `docs/API.md` or `llms-full.txt` source |
+
+## Generated code
+
+- Every `**/_generated/**` file is owned exclusively by Convex CLI codegen.
+- Never create, edit, lint, or format generated files manually.
+- Run `pnpm codegen` to regenerate them and commit the generated output unchanged.

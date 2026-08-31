@@ -39,16 +39,18 @@
   "module": "./dist/client/index.js",
   "scripts": {
     "build": "tsc --project ./tsconfig.build.json",
-    "build:codegen": "pnpm convex codegen --component-dir ./src/component && pnpm build",
+    "build:codegen": "pnpm codegen && pnpm build",
     "build:clean": "rm -rf dist *.tsbuildinfo && pnpm build:codegen",
     "typecheck": "tsc --noEmit",
     "typecheck:ci": "tsc --noEmit --project tsconfig.ci.json",
-    "lint": "eslint .",
+    "lint": "pnpm check:agents && eslint .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --typecheck --clearScreen false",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "generate:llms": "node scripts/generate-llms.mjs",
-    "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test:coverage && pnpm typecheck && pnpm generate:llms"
+    "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test:coverage && pnpm typecheck && pnpm generate:llms",
+    "check:agents": "node -e \"const f=require('node:fs');if(!f.existsSync('AGENTS.md')||f.existsSync('CLAUDE.md')||f.existsSync('.claude'))process.exit(1)\"",
+    "codegen": "pnpm convex codegen --component-dir ./src/component"
   },
   "dependencies": {
     "@convex-dev/action-cache": "^0.3.1",
