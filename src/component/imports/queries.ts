@@ -9,7 +9,7 @@ const DEFAULT_LIST_LIMIT = 50;
 export const getRequest = query({
   args: { requestId: v.id("importRequests") },
   returns: v.union(v.null(), importRequestDoc),
-  handler: async (ctx, args) => await ctx.db.get(args.requestId),
+  handler: async (ctx, args) => await ctx.db.get("importRequests", args.requestId),
 });
 
 /** List import requests in a status, newest first. */

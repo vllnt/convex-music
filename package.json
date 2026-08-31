@@ -51,11 +51,11 @@
     "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test:coverage && pnpm typecheck && pnpm generate:llms"
   },
   "dependencies": {
-    "@convex-dev/action-cache": "^0.3.0",
+    "@convex-dev/action-cache": "^0.3.1",
     "@convex-dev/rate-limiter": "^0.3.2"
   },
   "peerDependencies": {
-    "convex": "^1.41.0",
+    "convex": "^1.45.0",
     "react": "^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
@@ -65,7 +65,7 @@
   },
   "pnpm": {
     "overrides": {
-      "convex": "1.41.0",
+      "convex": "1.45.0",
       "handlebars": "^4.7.9",
       "ws": "^8.21.0",
       "esbuild": "^0.28.1"
@@ -76,17 +76,18 @@
     "@testing-library/react": "^16",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@typescript/native": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "^3.0.0",
-    "@vllnt/eslint-config": "^1.0.0",
-    "@vllnt/typescript": "^1.0.0",
-    "convex": "1.41.0",
-    "convex-test": "^0.0.53",
+    "@vllnt/eslint-config": "2.0.0-canary.87019a5",
+    "@vllnt/typescript": "2.0.0",
+    "convex": "1.45.0",
+    "convex-test": "^0.0.56",
     "eslint": "^9.0.0",
     "jsdom": "^25",
     "prettier": "^3.4.0",
     "react": "^18",
     "react-dom": "^18",
-    "typescript": "^5.7.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^7.3.5",
     "vitest": "^3.0.0"
   },

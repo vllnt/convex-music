@@ -72,7 +72,7 @@ async function linkArtistProvider(
   await Promise.all(
     sameProvider
       .filter((link) => link.providerId !== providerId)
-      .map((link) => ctx.db.delete(link._id)),
+      .map((link) => ctx.db.delete("artistProviders", link._id)),
   );
   if (!sameProvider.some((link) => link.providerId === providerId)) {
     await ctx.db.insert("artistProviders", { artistId, provider: prov, providerId });
@@ -109,7 +109,7 @@ async function linkTrackProvider(
   await Promise.all(
     sameProvider
       .filter((link) => link.providerId !== providerId)
-      .map((link) => ctx.db.delete(link._id)),
+      .map((link) => ctx.db.delete("trackProviders", link._id)),
   );
   if (!sameProvider.some((link) => link.providerId === providerId)) {
     await ctx.db.insert("trackProviders", { trackId, provider: prov, providerId });
@@ -138,7 +138,7 @@ export const upsertArtist = mutation({
       args.externalId,
     );
     const existing = byProviderId
-      ? await ctx.db.get(byProviderId)
+      ? await ctx.db.get("artists", byProviderId)
       : await ctx.db
           .query("artists")
           .withIndex("by_name_key", (q) => q.eq("nameKey", nameKey))
@@ -159,7 +159,7 @@ export const upsertArtist = mutation({
     };
     let artistId: Id<"artists">;
     if (existing) {
-      await ctx.db.patch(existing._id, fields);
+      await ctx.db.patch("artists", existing._id, fields);
       artistId = existing._id;
     } else {
       artistId = await ctx.db.insert("artists", fields);
@@ -196,7 +196,7 @@ export const upsertTrack = mutation({
       args.provider,
       args.externalId,
     );
-    const priorTrack = priorLink ? await ctx.db.get(priorLink) : null;
+    const priorTrack = priorLink ? await ctx.db.get("tracks", priorLink) : null;
     if (priorTrack && priorTrack.isrc !== isrc) {
       throw new Error(
         `provider ${args.provider} id ${args.externalId} changed ISRC ` +
@@ -228,7 +228,7 @@ export const upsertTrack = mutation({
     };
     let trackId: Id<"tracks">;
     if (existing) {
-      await ctx.db.patch(existing._id, fields);
+      await ctx.db.patch("tracks", existing._id, fields);
       trackId = existing._id;
     } else {
       trackId = await ctx.db.insert("tracks", fields);
@@ -276,7 +276,7 @@ export const upsertPlaylist = mutation({
       lastSyncedAt: now,
     };
     if (existing) {
-      await ctx.db.patch(existing._id, fields);
+      await ctx.db.patch("playlists", existing._id, fields);
       return existing._id;
     }
     return await ctx.db.insert("playlists", fields);
@@ -320,7 +320,7 @@ export const upsertAlbum = mutation({
       lastSyncedAt: now,
     };
     if (existing) {
-      await ctx.db.patch(existing._id, fields);
+      await ctx.db.patch("albums", existing._id, fields);
       return existing._id;
     }
     return await ctx.db.insert("albums", fields);

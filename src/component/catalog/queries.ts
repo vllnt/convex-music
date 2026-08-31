@@ -28,28 +28,28 @@ const DEFAULT_SEARCH_LIMIT = 20;
 export const getArtist = query({
   args: { id: v.id("artists") },
   returns: v.union(v.null(), artistDoc),
-  handler: async (ctx, args) => await ctx.db.get(args.id),
+  handler: async (ctx, args) => await ctx.db.get("artists", args.id),
 });
 
 /** Fetch one unified track by id. */
 export const getTrack = query({
   args: { id: v.id("tracks") },
   returns: v.union(v.null(), trackDoc),
-  handler: async (ctx, args) => await ctx.db.get(args.id),
+  handler: async (ctx, args) => await ctx.db.get("tracks", args.id),
 });
 
 /** Fetch one playlist by id. */
 export const getPlaylist = query({
   args: { id: v.id("playlists") },
   returns: v.union(v.null(), playlistDoc),
-  handler: async (ctx, args) => await ctx.db.get(args.id),
+  handler: async (ctx, args) => await ctx.db.get("playlists", args.id),
 });
 
 /** Fetch one album by id. */
 export const getAlbum = query({
   args: { id: v.id("albums") },
   returns: v.union(v.null(), albumDoc),
-  handler: async (ctx, args) => await ctx.db.get(args.id),
+  handler: async (ctx, args) => await ctx.db.get("albums", args.id),
 });
 
 /** Resolve an album by its source-provider identity. */
@@ -87,7 +87,7 @@ export const getArtistByProvider = query({
         q.eq("provider", args.provider).eq("providerId", args.providerId),
       )
       .first();
-    return link === null ? null : await ctx.db.get(link.artistId);
+    return link === null ? null : await ctx.db.get("artists", link.artistId);
   },
 });
 
@@ -102,7 +102,7 @@ export const getTrackByProvider = query({
         q.eq("provider", args.provider).eq("providerId", args.providerId),
       )
       .first();
-    return link === null ? null : await ctx.db.get(link.trackId);
+    return link === null ? null : await ctx.db.get("tracks", link.trackId);
   },
 });
 
@@ -122,7 +122,7 @@ export const getArtistImage = query({
         q.eq("provider", args.provider).eq("providerId", args.providerId),
       )
       .first();
-    const artist = link === null ? null : await ctx.db.get(link.artistId);
+    const artist = link === null ? null : await ctx.db.get("artists", link.artistId);
     return artist === null
       ? null
       : (projectField(
@@ -150,7 +150,7 @@ export const getTrackPreview = query({
         q.eq("provider", args.provider).eq("providerId", args.providerId),
       )
       .first();
-    const track = link === null ? null : await ctx.db.get(link.trackId);
+    const track = link === null ? null : await ctx.db.get("tracks", link.trackId);
     return track === null
       ? null
       : (projectField(
