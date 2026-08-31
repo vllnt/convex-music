@@ -212,6 +212,32 @@ describe("fetchJson", () => {
     );
   });
 
+  it("aborts a stalled fetch when the configured timeout elapses", async () => {
+    vi.useFakeTimers();
+    const deps: FetchDeps = {
+      fetch: (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(abortError()));
+        }),
+      sleep: () => Promise.resolve(),
+      random: () => 0,
+    };
+    const timedOut = fetchJson(
+      "spotify",
+      "https://x",
+      {},
+      { ...FAST, maxAttempts: 1, timeoutMs: 10 },
+      deps,
+    );
+    try {
+      const rejection = expect(timedOut).rejects.toThrow(ProviderTimeoutError);
+      await vi.advanceTimersByTimeAsync(10);
+      await rejection;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("rethrows a non-abort network error without retry", async () => {
     const { deps, calls } = testDeps([
       () => Promise.reject(new Error("ECONNRESET")),
