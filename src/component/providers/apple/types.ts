@@ -55,7 +55,7 @@ export interface AppleResource<A> {
   attributes: A;
   relationships?: {
     artists?: AppleArtistRelationship;
-    tracks?: { data?: Array<AppleResource<AppleSongAttributes>> };
+    tracks?: { data?: Array<AppleResource<AppleSongAttributes>>; next?: string };
   };
 }
 

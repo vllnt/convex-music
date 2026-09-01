@@ -3,6 +3,7 @@ import type { Doc, Id } from "../_generated/dataModel.js";
 import { type MutationCtx, mutation } from "../_generated/server.js";
 import { artistValue, provider, trackValue } from "../validators.js";
 import type { Provider } from "../../shared.js";
+import { stalenessWindowMs } from "../sync/lifecycle.js";
 import {
   type ArtistMergeState,
   type TrackMergeState,
@@ -156,6 +157,7 @@ export const upsertArtist = mutation({
       updatedAt: now,
       syncStatus: "synced" as const,
       lastSyncedAt: now,
+      nextSyncAt: now + stalenessWindowMs(merged.popularity),
     };
     let artistId: Id<"artists">;
     if (existing) {
@@ -225,6 +227,7 @@ export const upsertTrack = mutation({
       updatedAt: now,
       syncStatus: "synced" as const,
       lastSyncedAt: now,
+      nextSyncAt: now + stalenessWindowMs(merged.popularity),
     };
     let trackId: Id<"tracks">;
     if (existing) {
@@ -252,6 +255,7 @@ export const upsertPlaylist = mutation({
     url: v.optional(v.string()),
     owner: v.optional(v.string()),
     trackIds: v.array(v.id("tracks")),
+    membershipComplete: v.optional(v.boolean()),
   },
   returns: v.id("playlists"),
   handler: async (ctx, args): Promise<Id<"playlists">> => {
@@ -270,10 +274,15 @@ export const upsertPlaylist = mutation({
       coverUrl: args.coverUrl,
       url: args.url,
       owner: args.owner,
-      trackIds: args.trackIds,
+      trackIds:
+        existing && args.membershipComplete === false
+          ? unionIds(existing.trackIds, args.trackIds)
+          : args.trackIds,
+      membershipComplete: args.membershipComplete ?? true,
       updatedAt: now,
       syncStatus: "synced" as const,
       lastSyncedAt: now,
+      nextSyncAt: now + stalenessWindowMs(undefined),
     };
     if (existing) {
       await ctx.db.patch("playlists", existing._id, fields);
@@ -295,6 +304,7 @@ export const upsertAlbum = mutation({
     url: v.optional(v.string()),
     trackCount: v.optional(v.number()),
     trackIds: v.array(v.id("tracks")),
+    membershipComplete: v.optional(v.boolean()),
   },
   returns: v.id("albums"),
   handler: async (ctx, args): Promise<Id<"albums">> => {
@@ -314,10 +324,15 @@ export const upsertAlbum = mutation({
       coverUrl: args.coverUrl,
       url: args.url,
       trackCount: args.trackCount,
-      trackIds: args.trackIds,
+      trackIds:
+        existing && args.membershipComplete === false
+          ? unionIds(existing.trackIds, args.trackIds)
+          : args.trackIds,
+      membershipComplete: args.membershipComplete ?? true,
       updatedAt: now,
       syncStatus: "synced" as const,
       lastSyncedAt: now,
+      nextSyncAt: now + stalenessWindowMs(undefined),
     };
     if (existing) {
       await ctx.db.patch("albums", existing._id, fields);

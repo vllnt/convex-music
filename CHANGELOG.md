@@ -6,8 +6,21 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- Dispatch registered sources only to compatible import APIs, including albums, and leave failed
+  imports due for retry instead of marking them imported.
+- Recover abandoned import requests so dead deduplication rows cannot block future work, prune
+  terminal request history after 30 days, and rotate provider token-cache keys with credentials.
+- Detect truncated provider album/playlist membership and merge newly observed tracks into existing
+  membership instead of destructively replacing it with a partial page or caller-limited import.
+- Reconcile the maintained cache counter for pre-upgrade rows in bounded batches, and heartbeat
+  running imports so abandoned-request recovery does not invalidate healthy traversals.
+
 ### Changed
 
+- Make freshness maintenance query indexed `nextSyncAt` due rows so fresh rows cannot starve stale
+  detection, and make cache pruning/stats bounded via self-draining batches plus a maintained count.
 - Treat Convex `_generated` output as CLI-owned, exclude it from formatting, and expose a
   dedicated codegen script.
 - Refresh all direct dependencies to their latest compatible releases for canary validation.

@@ -46,18 +46,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           members?: "solo" | "group";
           name: string;
           nameKey: string;
-          nextSyncAt?: number;
+          nextSyncAt: number;
           popularity?: number;
           providers: Array<{
             genres?: Array<string>;
             imageUrl?: string;
             popularity?: number;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             url?: string;
           }>;
@@ -65,10 +61,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           repairError?: string;
           repairStartedAt?: number;
           repairStatus?:
-            | "clean"
-            | "needs_repair"
-            | "repairing"
-            | "failed_repair";
+            "clean" | "needs_repair" | "repairing" | "failed_repair";
           syncRetryCount?: number;
           syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
           updatedAt: number;
@@ -93,17 +86,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           lastRepairAt?: number;
           lastSyncError?: string;
           lastSyncedAt?: number;
-          nextSyncAt?: number;
+          nextSyncAt: number;
           popularity?: number;
           providers: Array<{
             coverUrl?: string;
             previewUrl?: string;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             url?: string;
           }>;
@@ -111,10 +100,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           repairError?: string;
           repairStartedAt?: number;
           repairStatus?:
-            | "clean"
-            | "needs_repair"
-            | "repairing"
-            | "failed_repair";
+            "clean" | "needs_repair" | "repairing" | "failed_repair";
           syncRetryCount?: number;
           syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
           title: string;
@@ -139,17 +125,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           lastRepairAt?: number;
           lastSyncError?: string;
           lastSyncedAt?: number;
-          nextSyncAt?: number;
+          nextSyncAt: number;
           popularity?: number;
           providers: Array<{
             coverUrl?: string;
             previewUrl?: string;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             url?: string;
           }>;
@@ -157,10 +139,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           repairError?: string;
           repairStartedAt?: number;
           repairStatus?:
-            | "clean"
-            | "needs_repair"
-            | "repairing"
-            | "failed_repair";
+            "clean" | "needs_repair" | "repairing" | "failed_repair";
           syncRetryCount?: number;
           syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
           title: string;
@@ -220,12 +199,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           {
             artistIds: Array<string>;
             coverUrl?: string;
+            membershipComplete?: boolean;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             releaseDate?: string;
             title: string;
@@ -242,11 +218,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           {
             externalId: string;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             value: {
               country?: string;
               debutYear?: number;
@@ -268,13 +240,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           {
             coverUrl?: string;
             description?: string;
+            membershipComplete?: boolean;
             owner?: string;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             title: string;
             trackIds: Array<string>;
@@ -290,11 +259,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             artistIds?: Array<string>;
             externalId: string;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             value: {
               albumId?: string;
               artists: Array<{ externalId?: string; name: string }>;
@@ -325,23 +290,17 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             lastRepairAt?: number;
             lastSyncError?: string;
             lastSyncedAt?: number;
-            nextSyncAt?: number;
+            membershipComplete?: boolean;
+            nextSyncAt: number;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             releaseDate?: string;
             repairAttempts?: number;
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
             title: string;
@@ -357,11 +316,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "internal",
           {
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
           },
           null | {
@@ -372,23 +327,17 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             lastRepairAt?: number;
             lastSyncError?: string;
             lastSyncedAt?: number;
-            nextSyncAt?: number;
+            membershipComplete?: boolean;
+            nextSyncAt: number;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             releaseDate?: string;
             repairAttempts?: number;
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
             title: string;
@@ -417,18 +366,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             members?: "solo" | "group";
             name: string;
             nameKey: string;
-            nextSyncAt?: number;
+            nextSyncAt: number;
             popularity?: number;
             providers: Array<{
               genres?: Array<string>;
               imageUrl?: string;
               popularity?: number;
               provider:
-                | "spotify"
-                | "apple"
-                | "musicbrainz"
-                | "wikidata"
-                | "deezer";
+                "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
               providerId: string;
               url?: string;
             }>;
@@ -436,10 +381,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
             updatedAt: number;
@@ -451,11 +393,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "internal",
           {
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
           },
           null | {
@@ -472,18 +410,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             members?: "solo" | "group";
             name: string;
             nameKey: string;
-            nextSyncAt?: number;
+            nextSyncAt: number;
             popularity?: number;
             providers: Array<{
               genres?: Array<string>;
               imageUrl?: string;
               popularity?: number;
               provider:
-                | "spotify"
-                | "apple"
-                | "musicbrainz"
-                | "wikidata"
-                | "deezer";
+                "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
               providerId: string;
               url?: string;
             }>;
@@ -491,10 +425,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
             updatedAt: number;
@@ -508,11 +439,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             policy?:
               | {
                   from:
-                    | "spotify"
-                    | "apple"
-                    | "musicbrainz"
-                    | "wikidata"
-                    | "deezer";
+                    "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
                 }
               | {
                   prefer: Array<
@@ -520,11 +447,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   >;
                 };
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
           },
           null | string,
@@ -542,23 +465,17 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             lastRepairAt?: number;
             lastSyncError?: string;
             lastSyncedAt?: number;
-            nextSyncAt?: number;
+            membershipComplete?: boolean;
+            nextSyncAt: number;
             owner?: string;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             repairAttempts?: number;
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             snapshotVersion?: string;
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
@@ -583,17 +500,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             lastRepairAt?: number;
             lastSyncError?: string;
             lastSyncedAt?: number;
-            nextSyncAt?: number;
+            nextSyncAt: number;
             popularity?: number;
             providers: Array<{
               coverUrl?: string;
               previewUrl?: string;
               provider:
-                | "spotify"
-                | "apple"
-                | "musicbrainz"
-                | "wikidata"
-                | "deezer";
+                "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
               providerId: string;
               url?: string;
             }>;
@@ -601,10 +514,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
             title: string;
@@ -626,17 +536,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             lastRepairAt?: number;
             lastSyncError?: string;
             lastSyncedAt?: number;
-            nextSyncAt?: number;
+            nextSyncAt: number;
             popularity?: number;
             providers: Array<{
               coverUrl?: string;
               previewUrl?: string;
               provider:
-                | "spotify"
-                | "apple"
-                | "musicbrainz"
-                | "wikidata"
-                | "deezer";
+                "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
               providerId: string;
               url?: string;
             }>;
@@ -644,10 +550,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
             title: string;
@@ -660,11 +563,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "internal",
           {
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
           },
           null | {
@@ -677,17 +576,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             lastRepairAt?: number;
             lastSyncError?: string;
             lastSyncedAt?: number;
-            nextSyncAt?: number;
+            nextSyncAt: number;
             popularity?: number;
             providers: Array<{
               coverUrl?: string;
               previewUrl?: string;
               provider:
-                | "spotify"
-                | "apple"
-                | "musicbrainz"
-                | "wikidata"
-                | "deezer";
+                "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
               providerId: string;
               url?: string;
             }>;
@@ -695,10 +590,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
             title: string;
@@ -713,11 +605,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             policy?:
               | {
                   from:
-                    | "spotify"
-                    | "apple"
-                    | "musicbrainz"
-                    | "wikidata"
-                    | "deezer";
+                    "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
                 }
               | {
                   prefer: Array<
@@ -725,11 +613,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                   >;
                 };
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
           },
           null | string,
@@ -753,18 +637,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             members?: "solo" | "group";
             name: string;
             nameKey: string;
-            nextSyncAt?: number;
+            nextSyncAt: number;
             popularity?: number;
             providers: Array<{
               genres?: Array<string>;
               imageUrl?: string;
               popularity?: number;
               provider:
-                | "spotify"
-                | "apple"
-                | "musicbrainz"
-                | "wikidata"
-                | "deezer";
+                "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
               providerId: string;
               url?: string;
             }>;
@@ -772,10 +652,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
             updatedAt: number;
@@ -796,17 +673,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             lastRepairAt?: number;
             lastSyncError?: string;
             lastSyncedAt?: number;
-            nextSyncAt?: number;
+            nextSyncAt: number;
             popularity?: number;
             providers: Array<{
               coverUrl?: string;
               previewUrl?: string;
               provider:
-                | "spotify"
-                | "apple"
-                | "musicbrainz"
-                | "wikidata"
-                | "deezer";
+                "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
               providerId: string;
               url?: string;
             }>;
@@ -814,10 +687,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             repairError?: string;
             repairStartedAt?: number;
             repairStatus?:
-              | "clean"
-              | "needs_repair"
-              | "repairing"
-              | "failed_repair";
+              "clean" | "needs_repair" | "repairing" | "failed_repair";
             syncRetryCount?: number;
             syncStatus?: "pending" | "running" | "synced" | "failed" | "stale";
             title: string;
@@ -850,18 +720,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 members?: "solo" | "group";
                 name: string;
                 nameKey: string;
-                nextSyncAt?: number;
+                nextSyncAt: number;
                 popularity?: number;
                 providers: Array<{
                   genres?: Array<string>;
                   imageUrl?: string;
                   popularity?: number;
                   provider:
-                    | "spotify"
-                    | "apple"
-                    | "musicbrainz"
-                    | "wikidata"
-                    | "deezer";
+                    "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
                   providerId: string;
                   url?: string;
                 }>;
@@ -869,17 +735,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 repairError?: string;
                 repairStartedAt?: number;
                 repairStatus?:
-                  | "clean"
-                  | "needs_repair"
-                  | "repairing"
-                  | "failed_repair";
+                  "clean" | "needs_repair" | "repairing" | "failed_repair";
                 syncRetryCount?: number;
                 syncStatus?:
-                  | "pending"
-                  | "running"
-                  | "synced"
-                  | "failed"
-                  | "stale";
+                  "pending" | "running" | "synced" | "failed" | "stale";
                 updatedAt: number;
               }
             | {
@@ -892,17 +751,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 lastRepairAt?: number;
                 lastSyncError?: string;
                 lastSyncedAt?: number;
-                nextSyncAt?: number;
+                nextSyncAt: number;
                 popularity?: number;
                 providers: Array<{
                   coverUrl?: string;
                   previewUrl?: string;
                   provider:
-                    | "spotify"
-                    | "apple"
-                    | "musicbrainz"
-                    | "wikidata"
-                    | "deezer";
+                    "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
                   providerId: string;
                   url?: string;
                 }>;
@@ -910,17 +765,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 repairError?: string;
                 repairStartedAt?: number;
                 repairStatus?:
-                  | "clean"
-                  | "needs_repair"
-                  | "repairing"
-                  | "failed_repair";
+                  "clean" | "needs_repair" | "repairing" | "failed_repair";
                 syncRetryCount?: number;
                 syncStatus?:
-                  | "pending"
-                  | "running"
-                  | "synced"
-                  | "failed"
-                  | "stale";
+                  "pending" | "running" | "synced" | "failed" | "stale";
                 title: string;
                 updatedAt: number;
               }
@@ -936,11 +784,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "internal",
           {
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             secrets: Record<string, string>;
           },
           null,
@@ -958,11 +802,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             mode?: "import" | "refresh" | "reimport" | "repair";
             priority?: "high" | "normal" | "low";
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
           },
           {
@@ -987,11 +827,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             name?: string;
             priority?: "high" | "normal" | "low";
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId?: string;
             targetMode: "name" | "providerId";
             tracks?: "none" | "top" | "all";
@@ -1019,11 +855,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             mode?: "import" | "refresh" | "reimport" | "repair";
             priority?: "high" | "normal" | "low";
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
           },
           {
@@ -1047,11 +879,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             mode?: "import" | "refresh" | "reimport" | "repair";
             priority?: "high" | "normal" | "low";
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             withAlbum?: boolean;
           },
@@ -1075,11 +903,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           {
             limit?: number;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             requestId: string;
           },
@@ -1102,11 +926,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           {
             name: string;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             requestId: string;
             targetMode: "name" | "providerId";
@@ -1132,11 +952,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           {
             limit?: number;
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             requestId: string;
           },
@@ -1158,11 +974,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           "internal",
           {
             provider:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId: string;
             requestId: string;
             withAlbum?: boolean;
@@ -1192,11 +1004,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             name?: string;
             priority?: "high" | "normal" | "low";
             provider?:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId?: string;
             providerScope: string;
             requestType: "import" | "refresh" | "reimport" | "repair";
@@ -1221,6 +1029,28 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           },
           Name
         >;
+        pruneTerminal: FunctionReference<
+          "mutation",
+          "internal",
+          {
+            batch?: number;
+            before?: number;
+            status: "completed" | "failed" | "canceled" | "stale";
+          },
+          number,
+          Name
+        >;
+        recoverAbandoned: FunctionReference<
+          "mutation",
+          "internal",
+          {
+            batch?: number;
+            before?: number;
+            status: "queued" | "claimed" | "running" | "retry_waiting";
+          },
+          number,
+          Name
+        >;
       };
       queries: {
         getRequest: FunctionReference<
@@ -1240,11 +1070,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             nextAttemptAt?: number;
             priority: "high" | "normal" | "low";
             provider?:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId?: string;
             providerScope: string;
             requestType: "import" | "refresh" | "reimport" | "repair";
@@ -1300,11 +1126,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             nextAttemptAt?: number;
             priority: "high" | "normal" | "low";
             provider?:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             providerId?: string;
             providerScope: string;
             requestType: "import" | "refresh" | "reimport" | "repair";
@@ -1390,6 +1212,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               };
         },
         string,
+        Name
+      >;
+      reconcileCacheStats: FunctionReference<
+        "mutation",
+        "internal",
+        {},
+        number,
         Name
       >;
     };
@@ -1536,11 +1365,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             enabled?: boolean;
             kind: "artist" | "track" | "playlist" | "album";
             provider?:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             value: string;
             withTracks?: boolean;
           },
@@ -1584,11 +1409,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             kind: "artist" | "track" | "playlist" | "album";
             lastImportedAt?: number;
             provider?:
-              | "spotify"
-              | "apple"
-              | "musicbrainz"
-              | "wikidata"
-              | "deezer";
+              "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
             updatedAt: number;
             value: string;
             withTracks?: boolean;
@@ -1618,18 +1439,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               members?: "solo" | "group";
               name: string;
               nameKey: string;
-              nextSyncAt?: number;
+              nextSyncAt: number;
               popularity?: number;
               providers: Array<{
                 genres?: Array<string>;
                 imageUrl?: string;
                 popularity?: number;
                 provider:
-                  | "spotify"
-                  | "apple"
-                  | "musicbrainz"
-                  | "wikidata"
-                  | "deezer";
+                  "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
                 providerId: string;
                 url?: string;
               }>;
@@ -1637,17 +1454,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               repairError?: string;
               repairStartedAt?: number;
               repairStatus?:
-                | "clean"
-                | "needs_repair"
-                | "repairing"
-                | "failed_repair";
+                "clean" | "needs_repair" | "repairing" | "failed_repair";
               syncRetryCount?: number;
               syncStatus?:
-                | "pending"
-                | "running"
-                | "synced"
-                | "failed"
-                | "stale";
+                "pending" | "running" | "synced" | "failed" | "stale";
               updatedAt: number;
             }
           | {
@@ -1660,17 +1470,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               lastRepairAt?: number;
               lastSyncError?: string;
               lastSyncedAt?: number;
-              nextSyncAt?: number;
+              nextSyncAt: number;
               popularity?: number;
               providers: Array<{
                 coverUrl?: string;
                 previewUrl?: string;
                 provider:
-                  | "spotify"
-                  | "apple"
-                  | "musicbrainz"
-                  | "wikidata"
-                  | "deezer";
+                  "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
                 providerId: string;
                 url?: string;
               }>;
@@ -1678,17 +1484,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               repairError?: string;
               repairStartedAt?: number;
               repairStatus?:
-                | "clean"
-                | "needs_repair"
-                | "repairing"
-                | "failed_repair";
+                "clean" | "needs_repair" | "repairing" | "failed_repair";
               syncRetryCount?: number;
               syncStatus?:
-                | "pending"
-                | "running"
-                | "synced"
-                | "failed"
-                | "stale";
+                "pending" | "running" | "synced" | "failed" | "stale";
               title: string;
               updatedAt: number;
             },
@@ -1733,18 +1532,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               members?: "solo" | "group";
               name: string;
               nameKey: string;
-              nextSyncAt?: number;
+              nextSyncAt: number;
               popularity?: number;
               providers: Array<{
                 genres?: Array<string>;
                 imageUrl?: string;
                 popularity?: number;
                 provider:
-                  | "spotify"
-                  | "apple"
-                  | "musicbrainz"
-                  | "wikidata"
-                  | "deezer";
+                  "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
                 providerId: string;
                 url?: string;
               }>;
@@ -1752,17 +1547,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               repairError?: string;
               repairStartedAt?: number;
               repairStatus?:
-                | "clean"
-                | "needs_repair"
-                | "repairing"
-                | "failed_repair";
+                "clean" | "needs_repair" | "repairing" | "failed_repair";
               syncRetryCount?: number;
               syncStatus?:
-                | "pending"
-                | "running"
-                | "synced"
-                | "failed"
-                | "stale";
+                "pending" | "running" | "synced" | "failed" | "stale";
               updatedAt: number;
             }>
           | Array<{
@@ -1775,17 +1563,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               lastRepairAt?: number;
               lastSyncError?: string;
               lastSyncedAt?: number;
-              nextSyncAt?: number;
+              nextSyncAt: number;
               popularity?: number;
               providers: Array<{
                 coverUrl?: string;
                 previewUrl?: string;
                 provider:
-                  | "spotify"
-                  | "apple"
-                  | "musicbrainz"
-                  | "wikidata"
-                  | "deezer";
+                  "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
                 providerId: string;
                 url?: string;
               }>;
@@ -1793,17 +1577,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               repairError?: string;
               repairStartedAt?: number;
               repairStatus?:
-                | "clean"
-                | "needs_repair"
-                | "repairing"
-                | "failed_repair";
+                "clean" | "needs_repair" | "repairing" | "failed_repair";
               syncRetryCount?: number;
               syncStatus?:
-                | "pending"
-                | "running"
-                | "synced"
-                | "failed"
-                | "stale";
+                "pending" | "running" | "synced" | "failed" | "stale";
               title: string;
               updatedAt: number;
             }>,

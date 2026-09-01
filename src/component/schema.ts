@@ -1,9 +1,11 @@
 import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 import {
   albumFields,
   artistFields,
   artistProviderLinkFields,
   cacheEntryFields,
+  cacheStatsFields,
   importRequestFields,
   playlistFields,
   providerConfigFields,
@@ -28,10 +30,16 @@ import {
  * editorial, referencing catalog rows by id / ISRC.
  */
 export default defineSchema({
-  cacheEntries: defineTable(cacheEntryFields)
+  cacheEntries: defineTable({
+    ...cacheEntryFields,
+    countedInStats: v.optional(v.boolean()),
+  })
     .index("by_lookup", ["kind", "provider", "externalId"])
+    .index("by_counted", ["countedInStats"])
     .index("by_isrc", ["kind", "isrc"])
     .index("by_expiry", ["expiresAt"]),
+
+  cacheStats: defineTable(cacheStatsFields).index("by_key", ["key"]),
 
   artists: defineTable(artistFields)
     .index("by_name_key", ["nameKey"])
@@ -73,6 +81,7 @@ export default defineSchema({
 
   importRequests: defineTable(importRequestFields)
     .index("by_status", ["status", "requestedAt"])
+    .index("by_status_updated", ["status", "updatedAt"])
     .index("by_dedupe_status", ["dedupeKey", "status"]),
 
   sources: defineTable(sourceFields)

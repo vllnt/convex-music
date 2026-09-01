@@ -96,6 +96,7 @@ describe("SpotifyProvider", () => {
               { id: "t2", name: "B", artists: [{ id: "a1", name: "Daft Punk" }] },
             ],
             total: 2,
+            next: "https://api.spotify.test/next",
           },
         },
       },
@@ -103,6 +104,21 @@ describe("SpotifyProvider", () => {
     const album = await provider.getAlbum("al1");
     expect(album.value.title).toBe("Discovery");
     expect(album.tracks.map((t) => t.externalId)).toEqual(["t1", "t2"]);
+    expect(album.isPartial).toBe(true);
+  });
+
+  it("getAlbum detects truncation from total when next is absent", async () => {
+    const { provider } = makeProvider([
+      {
+        match: /\/albums\/al-total\?/,
+        body: {
+          id: "al-total",
+          name: "Partial",
+          tracks: { items: [], total: 1 },
+        },
+      },
+    ]);
+    expect((await provider.getAlbum("al-total")).isPartial).toBe(true);
   });
 
   it("getAlbum tolerates a missing tracks object", async () => {
@@ -132,6 +148,7 @@ describe("SpotifyProvider", () => {
               },
               { track: null },
             ],
+            total: 3,
           },
         },
       },
@@ -139,6 +156,7 @@ describe("SpotifyProvider", () => {
     const playlist = await provider.getPlaylist("p1");
     expect(playlist.value.owner).toBe("Spotify");
     expect(playlist.tracks).toHaveLength(1);
+    expect(playlist.isPartial).toBe(true);
   });
 
   it("getPlaylist tolerates a missing tracks object", async () => {

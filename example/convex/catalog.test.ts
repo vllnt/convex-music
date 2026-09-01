@@ -209,6 +209,35 @@ test("upsertPlaylist inserts + updates by source-provider identity", async () =>
   const got2 = await t.query(api.example.getPlaylist, { id });
   expect(got2.title).toBe("Top Hits 2024");
   expect(got2.trackIds).toEqual([]);
+
+  await t.mutation(api.example.upsertPlaylist, {
+    provider: "spotify",
+    providerId: "pl1",
+    title: "Partial page",
+    trackIds: [trackId],
+    membershipComplete: false,
+  });
+  const preserved = await t.query(api.example.getPlaylist, { id });
+  expect(preserved.trackIds).toEqual([trackId]);
+  expect(preserved.membershipComplete).toBe(false);
+
+  const partialId = await t.mutation(api.example.upsertPlaylist, {
+    provider: "spotify",
+    providerId: "partial",
+    title: "Partial",
+    trackIds: [trackId],
+    membershipComplete: false,
+  });
+  await t.mutation(api.example.upsertPlaylist, {
+    provider: "spotify",
+    providerId: "partial",
+    title: "Still partial",
+    trackIds: [],
+    membershipComplete: false,
+  });
+  const stillPartial = await t.query(api.example.getPlaylist, { id: partialId });
+  expect(stillPartial.trackIds).toEqual([trackId]);
+  expect(stillPartial.membershipComplete).toBe(false);
 });
 
 test("upsertPlaylist membership is a replace — removals + reorders, not a union", async () => {
@@ -279,6 +308,38 @@ test("upsertAlbum inserts + updates by source-provider identity", async () => {
   });
   expect(byProv.title).toBe("Discovery (Remastered)");
   expect(byProv.trackIds).toEqual([]);
+
+  await t.mutation(api.example.upsertAlbum, {
+    provider: "spotify",
+    providerId: "al1",
+    title: "Partial page",
+    artistIds: [artistId],
+    trackIds: [trackId],
+    membershipComplete: false,
+  });
+  const preserved = await t.query(api.example.getAlbum, { id });
+  expect(preserved.trackIds).toEqual([trackId]);
+  expect(preserved.membershipComplete).toBe(false);
+
+  const partialId = await t.mutation(api.example.upsertAlbum, {
+    provider: "spotify",
+    providerId: "partial",
+    title: "Partial",
+    artistIds: [artistId],
+    trackIds: [trackId],
+    membershipComplete: false,
+  });
+  await t.mutation(api.example.upsertAlbum, {
+    provider: "spotify",
+    providerId: "partial",
+    title: "Still partial",
+    artistIds: [artistId],
+    trackIds: [],
+    membershipComplete: false,
+  });
+  const stillPartial = await t.query(api.example.getAlbum, { id: partialId });
+  expect(stillPartial.trackIds).toEqual([trackId]);
+  expect(stillPartial.membershipComplete).toBe(false);
 
   expect(
     await t.query(api.example.getAlbumByProvider, {

@@ -27,7 +27,7 @@ const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalI
 - Sandboxed cache tables with a per-entry TTL — dedupe provider calls and ease rate limits.
 - Tracks, artists, and albums, cached by opaque provider id and cross-referenced by ISRC.
 - `getByIsrc` resolves the same recording across every provider you've cached.
-- `pruneExpired` is an idempotent sweep, safe to run on a schedule.
+- `pruneExpired` deletes an indexed 100-row batch and reschedules full batches until the backlog drains.
 - Stores only public catalog facts — no secrets or credentials.
 - `[planned]` Owns a durable music catalog (artists / tracks / playlists) populated from providers
   and read via API; your app keeps gameplay + editorial, referencing catalog rows by id / ISRC.
@@ -107,8 +107,8 @@ export const cacheTrack = internalMutation({
 | `get(ctx, key)` | query | Fetch one cached entry, or `null` if missing or expired. |
 | `getByIsrc(ctx, isrc)` | query | Every fresh cached track for an ISRC, across providers. |
 | `invalidate(ctx, key)` | mutation | Drop one cached entry; returns whether a row was deleted. |
-| `pruneExpired(ctx)` | mutation | Delete every expired entry; returns the count removed. |
-| `stats(ctx)` | query | Count of cached entries. |
+| `pruneExpired(ctx)` | mutation | Delete one bounded expired-entry batch, rescheduling until drained; returns this batch's count. |
+| `stats(ctx)` | query | Maintained count of cached entries (no table scan). |
 
 Full reference — signatures, value shapes, and error codes: [`docs/API.md`](docs/API.md).
 

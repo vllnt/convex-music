@@ -87,6 +87,15 @@ test("runAutoImport imports due sources by kind + skips provider-less ones", asy
         },
       },
     },
+    {
+      match: /\/v1\/albums\/al1/,
+      body: {
+        id: "al1",
+        name: "Album",
+        artists: [],
+        tracks: { items: [] },
+      },
+    },
   ]);
   await t.mutation(api.example.addSource, {
     kind: "artist",
@@ -107,17 +116,67 @@ test("runAutoImport imports due sources by kind + skips provider-less ones", asy
     provider: "spotify",
   });
   await t.mutation(api.example.addSource, {
+    kind: "album",
+    by: "providerId",
+    value: "al1",
+    provider: "spotify",
+  });
+  await t.mutation(api.example.addSource, {
     kind: "artist",
     by: "name",
     value: "no-provider",
   });
 
   const first = await t.action(api.example.runAutoImport, { now: 1000 });
-  expect(first).toEqual({ imported: 3, skipped: 1 });
+  expect(first).toEqual({ imported: 4, skipped: 1 });
 
   // re-run with defaults (no now/limit): one-shot sources are no longer due
   const second = await t.action(api.example.runAutoImport, {});
   expect(second).toEqual({ imported: 0, skipped: 1 });
+});
+
+test("failed imports stay due and are retried without being counted", async () => {
+  const t = setup();
+  await configure(t);
+  stubFetch([TOKEN]);
+  await t.mutation(api.example.addSource, {
+    kind: "track",
+    by: "providerId",
+    value: "missing",
+    provider: "spotify",
+  });
+
+  expect(await t.action(api.example.runAutoImport, { now: 1000 })).toEqual({
+    imported: 0,
+    skipped: 0,
+  });
+  expect((await t.query(api.example.listSources, {}))[0]?.lastImportedAt).toBeUndefined();
+  expect(await t.action(api.example.runAutoImport, { now: 2000 })).toEqual({
+    imported: 0,
+    skipped: 0,
+  });
+  expect(
+    await t.query(api.example.listImportRequests, { status: "failed" }),
+  ).toHaveLength(2);
+});
+
+test.each([
+  ["artist", "isrc"],
+  ["track", "name"],
+  ["playlist", "url"],
+  ["album", "name"],
+] as const)("rejects unsupported %s-by-%s sources", async (kind, by) => {
+  const t = setup();
+  await t.mutation(api.example.addSource, {
+    kind,
+    by,
+    value: "unsupported",
+    provider: "spotify",
+  });
+
+  await expect(
+    t.action(api.example.runAutoImport, { now: 1000 }),
+  ).rejects.toThrow(`unsupported source target: ${kind} by ${by}`);
 });
 
 test("runAutoImport respects cadence (isDue)", async () => {

@@ -28,11 +28,15 @@ import {
 } from "../validators.js";
 import type { ImportStatus } from "./state.js";
 
+async function heartbeat(ctx: ActionCtx, requestId: Id<"importRequests">): Promise<void> {
+  await ctx.runMutation(internal.imports.mutations.heartbeat, { requestId });
+}
+
 /** How an import artist is targeted. */
 const artistTargetMode = v.union(v.literal("name"), v.literal("providerId"));
 
 /** The request id + the request's terminal (or, when deduped, current) status. */
-type ImportOutcome = { requestId: string; status: ImportStatus };
+export type ImportOutcome = { requestId: string; status: ImportStatus };
 
 /**
  * Create the control-plane request, then EITHER attach to an existing in-flight
@@ -139,6 +143,7 @@ export const runArtistImport = action({
       }
       const adapter = await adapterFor(ctx, args.provider);
       const result = await adapter.getArtist(externalId);
+      await heartbeat(ctx, args.requestId);
       const artistId = await ctx.runMutation(
         api.catalog.mutations.upsertArtist,
         {
@@ -165,6 +170,7 @@ export const runArtistImport = action({
                   (album) => album.tracks,
                 )
               : await adapter.getArtistTopTracks(externalId);
+          await heartbeat(ctx, args.requestId);
           const promotable = fetched.filter(
             (track) => track.value.isrc !== undefined,
           );
@@ -271,6 +277,7 @@ export const runTrackImport = action({
       }
       const adapter = await adapterFor(ctx, args.provider);
       const result = await adapter.getTrack(args.providerId);
+      await heartbeat(ctx, args.requestId);
       const artistIds = await upsertCreditedArtists(
         ctx,
         args.provider,
@@ -369,6 +376,7 @@ export const runPlaylistImport = action({
       }
       const adapter = await adapterFor(ctx, args.provider);
       const playlist = await adapter.getPlaylist(args.providerId);
+      await heartbeat(ctx, args.requestId);
       // Optional cap on how many of the playlist's tracks to import.
       const tracks =
         args.limit === undefined
@@ -380,6 +388,7 @@ export const runPlaylistImport = action({
         adapter,
         tracks,
       );
+      await heartbeat(ctx, args.requestId);
       const playlistId = await ctx.runMutation(
         api.catalog.mutations.upsertPlaylist,
         {
@@ -391,6 +400,7 @@ export const runPlaylistImport = action({
           url: playlist.value.url,
           owner: playlist.value.owner,
           trackIds,
+          membershipComplete: args.limit === undefined && playlist.isPartial !== true,
         },
       );
       await ctx.runMutation(internal.imports.mutations.markCompleted, {
@@ -471,6 +481,7 @@ export const runAlbumImport = action({
       }
       const adapter = await adapterFor(ctx, args.provider);
       const album = await adapter.getAlbum(args.providerId);
+      await heartbeat(ctx, args.requestId);
       const tracks =
         args.limit === undefined
           ? album.tracks
@@ -481,6 +492,7 @@ export const runAlbumImport = action({
         adapter,
         tracks,
       );
+      await heartbeat(ctx, args.requestId);
       const albumArtistIds = await upsertCreditedArtists(
         ctx,
         args.provider,
@@ -498,6 +510,7 @@ export const runAlbumImport = action({
           url: album.value.url,
           trackCount: album.value.trackCount,
           trackIds,
+          membershipComplete: args.limit === undefined && album.isPartial !== true,
         },
       );
       await ctx.runMutation(internal.imports.mutations.markCompleted, {

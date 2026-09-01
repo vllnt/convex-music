@@ -127,6 +127,9 @@ export class SpotifyProvider implements MusicProvider {
       externalId: raw.id,
       value: mapAlbum(raw),
       tracks: items.map((track) => this.toTrack(track)),
+      isPartial:
+        raw.tracks?.next != null ||
+        (raw.tracks?.total !== undefined && raw.tracks.total > items.length),
     };
   }
 
@@ -139,7 +142,14 @@ export class SpotifyProvider implements MusicProvider {
     for (const item of raw.tracks?.items ?? []) {
       if (item.track !== null) tracks.push(this.toTrack(item.track));
     }
-    return { externalId: raw.id, value: mapPlaylist(raw), tracks };
+    return {
+      externalId: raw.id,
+      value: mapPlaylist(raw),
+      tracks,
+      isPartial:
+        raw.tracks?.next != null ||
+        (raw.tracks?.total !== undefined && raw.tracks.total > raw.tracks.items.length),
+    };
   }
 
   async getArtistTopTracks(externalId: string): Promise<ProviderTrack[]> {

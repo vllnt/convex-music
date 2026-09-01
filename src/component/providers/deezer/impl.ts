@@ -84,6 +84,7 @@ export class DeezerProvider implements MusicProvider {
       externalId: String(raw.id),
       value: mapDeezerAlbum(raw),
       tracks: (raw.tracks?.data ?? []).map((track) => this.toTrack(track)),
+      isPartial: raw.tracks?.next !== undefined,
     };
   }
 
@@ -114,6 +115,7 @@ export class DeezerProvider implements MusicProvider {
       externalId: String(raw.id),
       value: mapDeezerPlaylist(raw),
       tracks: (raw.tracks?.data ?? []).map((track) => this.toTrack(track)),
+      isPartial: raw.tracks?.next !== undefined,
     };
   }
 

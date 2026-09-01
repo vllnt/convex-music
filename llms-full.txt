@@ -37,7 +37,7 @@ const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalI
 - Sandboxed cache tables with a per-entry TTL — dedupe provider calls and ease rate limits.
 - Tracks, artists, and albums, cached by opaque provider id and cross-referenced by ISRC.
 - `getByIsrc` resolves the same recording across every provider you've cached.
-- `pruneExpired` is an idempotent sweep, safe to run on a schedule.
+- `pruneExpired` deletes an indexed 100-row batch and reschedules full batches until the backlog drains.
 - Stores only public catalog facts — no secrets or credentials.
 - `[planned]` Owns a durable music catalog (artists / tracks / playlists) populated from providers
   and read via API; your app keeps gameplay + editorial, referencing catalog rows by id / ISRC.
@@ -117,8 +117,8 @@ export const cacheTrack = internalMutation({
 | `get(ctx, key)` | query | Fetch one cached entry, or `null` if missing or expired. |
 | `getByIsrc(ctx, isrc)` | query | Every fresh cached track for an ISRC, across providers. |
 | `invalidate(ctx, key)` | mutation | Drop one cached entry; returns whether a row was deleted. |
-| `pruneExpired(ctx)` | mutation | Delete every expired entry; returns the count removed. |
-| `stats(ctx)` | query | Count of cached entries. |
+| `pruneExpired(ctx)` | mutation | Delete one bounded expired-entry batch, rescheduling until drained; returns this batch's count. |
+| `stats(ctx)` | query | Maintained count of cached entries (no table scan). |
 
 Full reference — signatures, value shapes, and error codes: [`docs/API.md`](docs/API.md).
 
@@ -190,6 +190,27 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Fixed
+
+- Dispatch registered sources only to compatible import APIs, including albums, and leave failed
+  imports due for retry instead of marking them imported.
+- Recover abandoned import requests so dead deduplication rows cannot block future work, prune
+  terminal request history after 30 days, and rotate provider token-cache keys with credentials.
+- Detect truncated provider album/playlist membership and merge newly observed tracks into existing
+  membership instead of destructively replacing it with a partial page or caller-limited import.
+- Reconcile the maintained cache counter for pre-upgrade rows in bounded batches, and heartbeat
+  running imports so abandoned-request recovery does not invalidate healthy traversals.
+
+### Changed
+
+- Make freshness maintenance query indexed `nextSyncAt` due rows so fresh rows cannot starve stale
+  detection, and make cache pruning/stats bounded via self-draining batches plus a maintained count.
+- Treat Convex `_generated` output as CLI-owned, exclude it from formatting, and expose a
+  dedicated codegen script.
+- Refresh all direct dependencies to their latest compatible releases for canary validation.
+- Require `convex@^1.45.0`, update `convex-test` to `^0.0.56`, and update
+  `@convex-dev/action-cache` to `^0.3.1`.
 
 ### Added
 
@@ -320,10 +341,15 @@ expires. Returns the entry id.
 
 Drop a single cached entry. Returns `true` if a row was deleted, `false` if the key was not cached.
 
+### `reconcileCacheStats(ctx): Promise<number>`
+
+Backfill up to 100 pre-upgrade cache rows into the maintained counter. A full batch reschedules
+another pass. The component runs this hourly; hosts may invoke it immediately after upgrading.
+
 ### `pruneExpired(ctx): Promise<number>`
 
-Delete every entry whose `expiresAt` is in the past. Idempotent and bounded to expired rows — safe
-to run on a schedule. Returns the number of rows removed.
+Delete up to 100 entries whose `expiresAt` is in the past using the expiry index. A full batch
+reschedules another pass until the backlog drains. Returns the number removed by this invocation.
 
 ## Queries
 
@@ -339,7 +365,7 @@ of one recording. Expired copies are excluded.
 
 ### `stats(ctx): Promise<{ total: number }>`
 
-Return the count of cached entries (fresh and expired).
+Return the maintained count of cached entries (fresh and expired) without scanning the cache table.
 
 ## Error codes
 
@@ -351,8 +377,10 @@ thrown by the cache core.
 
 - TTL is set per `put` via `ttlMs`; entries without a TTL are stored with a never-expires sentinel
   so the expiry index never sweeps them.
-- `get` / `getByIsrc` treat expired entries as misses at read time; `pruneExpired` reclaims their
-  storage. Call it from your own scheduled function (a cron). `[planned]` an in-component prune cron.
+- `get` / `getByIsrc` treat expired entries as misses at read time; the in-component hourly
+  `pruneExpired` cron reclaims their storage in bounded, self-draining batches.
+- The hourly `reconcileCacheStats` cron marks and counts pre-upgrade cache rows in bounded,
+  concurrency-safe batches, so the maintained total converges without an unbounded migration.
 
 ## React hooks `[planned]`
 
@@ -641,6 +669,7 @@ export type UpsertPlaylistInput = {
   url?: string;
   owner?: string;
   trackIds: string[];
+  membershipComplete?: boolean;
 };
 
 /** Arguments to upsert an album by source-provider identity. */
@@ -654,6 +683,7 @@ export type UpsertAlbumInput = {
   url?: string;
   trackCount?: number;
   trackIds: string[];
+  membershipComplete?: boolean;
 };
 
 /** Arguments to select eligible catalog rows for a daily picker. */
@@ -673,6 +703,12 @@ export interface MusicComponent {
   mutations: {
     put: FunctionReference<"mutation", "internal", PutInput, string>;
     invalidate: FunctionReference<"mutation", "internal", EntryKey, boolean>;
+    reconcileCacheStats: FunctionReference<
+      "mutation",
+      "internal",
+      Record<string, never>,
+      number
+    >;
     pruneExpired: FunctionReference<
       "mutation",
       "internal",
@@ -899,6 +935,11 @@ export class Music {
     return ctx.runMutation(this.component.mutations.invalidate, key);
   }
 
+  /** Backfill pre-upgrade cache rows into the maintained count. */
+  reconcileCacheStats(ctx: RunMutationCtx): Promise<number> {
+    return ctx.runMutation(this.component.mutations.reconcileCacheStats, {});
+  }
+
   /** Delete every expired entry. Idempotent; safe to run on a schedule. */
   pruneExpired(ctx: RunMutationCtx): Promise<number> {
     return ctx.runMutation(this.component.mutations.pruneExpired, {});
@@ -1111,11 +1152,13 @@ export type {
 
 ```ts
 import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 import {
   albumFields,
   artistFields,
   artistProviderLinkFields,
   cacheEntryFields,
+  cacheStatsFields,
   importRequestFields,
   playlistFields,
   providerConfigFields,
@@ -1140,10 +1183,16 @@ import {
  * editorial, referencing catalog rows by id / ISRC.
  */
 export default defineSchema({
-  cacheEntries: defineTable(cacheEntryFields)
+  cacheEntries: defineTable({
+    ...cacheEntryFields,
+    countedInStats: v.optional(v.boolean()),
+  })
     .index("by_lookup", ["kind", "provider", "externalId"])
+    .index("by_counted", ["countedInStats"])
     .index("by_isrc", ["kind", "isrc"])
     .index("by_expiry", ["expiresAt"]),
+
+  cacheStats: defineTable(cacheStatsFields).index("by_key", ["key"]),
 
   artists: defineTable(artistFields)
     .index("by_name_key", ["nameKey"])
@@ -1185,6 +1234,7 @@ export default defineSchema({
 
   importRequests: defineTable(importRequestFields)
     .index("by_status", ["status", "requestedAt"])
+    .index("by_status_updated", ["status", "updatedAt"])
     .index("by_dedupe_status", ["dedupeKey", "status"]),
 
   sources: defineTable(sourceFields)
@@ -1310,12 +1360,18 @@ export const repairStatus = v.union(
   v.literal("failed_repair"),
 );
 
+/** Maintained aggregate for the raw cache. */
+export const cacheStatsFields = {
+  key: v.literal("all"),
+  total: v.number(),
+};
+
 /** Sync-status columns shared by every catalog entity. */
 const syncFields = {
   syncStatus: v.optional(syncStatus),
   syncRetryCount: v.optional(v.number()),
   lastSyncError: v.optional(v.string()),
-  nextSyncAt: v.optional(v.number()),
+  nextSyncAt: v.number(),
   lastSyncedAt: v.optional(v.number()),
 };
 
@@ -1388,6 +1444,7 @@ export const playlistFields = {
   url: v.optional(v.string()),
   owner: v.optional(v.string()),
   trackIds: v.array(v.id("tracks")),
+  membershipComplete: v.optional(v.boolean()),
   snapshotVersion: v.optional(v.string()),
   updatedAt: v.number(),
   ...syncFields,
@@ -1409,6 +1466,7 @@ export const albumFields = {
   url: v.optional(v.string()),
   trackCount: v.optional(v.number()),
   trackIds: v.array(v.id("tracks")),
+  membershipComplete: v.optional(v.boolean()),
   updatedAt: v.number(),
   ...syncFields,
   ...repairFields,
@@ -1477,6 +1535,7 @@ export const providerSecrets = v.record(v.string(), v.string());
 export const providerConfigFields = {
   provider,
   secrets: providerSecrets,
+  revision: v.optional(v.number()),
 };
 
 /*
@@ -1619,11 +1678,34 @@ export const sourceDoc = v.object({
 
 ```ts
 import { v } from "convex/values";
+import { api } from "./_generated/api.js";
 import { mutation } from "./_generated/server.js";
 import type { Doc } from "./_generated/dataModel.js";
 import type { MutationCtx } from "./_generated/server.js";
 import { cacheValue, entityKind, provider } from "./validators.js";
 import { NEVER_EXPIRES } from "../shared.js";
+
+const CACHE_STATS_KEY = "all" as const;
+const PRUNE_BATCH_SIZE = 100;
+const STATS_BACKFILL_BATCH_SIZE = 100;
+
+async function adjustCacheTotal(ctx: MutationCtx, delta: number): Promise<void> {
+  if (delta === 0) return;
+  const stats = await ctx.db
+    .query("cacheStats")
+    .withIndex("by_key", (q) => q.eq("key", CACHE_STATS_KEY))
+    .unique();
+  if (stats === null) {
+    await ctx.db.insert("cacheStats", {
+      key: CACHE_STATS_KEY,
+      total: Math.max(0, delta),
+    });
+    return;
+  }
+  await ctx.db.patch("cacheStats", stats._id, {
+    total: Math.max(0, stats.total + delta),
+  });
+}
 
 async function findEntry(
   ctx: MutationCtx,
@@ -1672,10 +1754,21 @@ export const put = mutation({
       args.externalId,
     );
     if (existing !== null) {
-      await ctx.db.patch(existing._id, fields);
+      await ctx.db.patch("cacheEntries", existing._id, {
+        ...fields,
+        countedInStats: true,
+      });
+      if (existing.countedInStats !== true) {
+        await adjustCacheTotal(ctx, 1);
+      }
       return existing._id;
     }
-    return await ctx.db.insert("cacheEntries", fields);
+    const id = await ctx.db.insert("cacheEntries", {
+      ...fields,
+      countedInStats: true,
+    });
+    await adjustCacheTotal(ctx, 1);
+    return id;
   },
 });
 
@@ -1693,12 +1786,38 @@ export const invalidate = mutation({
     if (existing === null) {
       return false;
     }
-    await ctx.db.delete(existing._id);
+    await ctx.db.delete("cacheEntries", existing._id);
+    if (existing.countedInStats === true) {
+      await adjustCacheTotal(ctx, -1);
+    }
     return true;
   },
 });
 
-/** Delete every expired entry. Idempotent; safe to run on a schedule. */
+/** Count pre-upgrade cache rows in bounded, idempotent batches. */
+export const reconcileCacheStats = mutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const uncounted = await ctx.db
+      .query("cacheEntries")
+      .withIndex("by_counted", (q) => q.eq("countedInStats", undefined))
+      .take(STATS_BACKFILL_BATCH_SIZE);
+    for (const entry of uncounted) {
+      await ctx.db.patch("cacheEntries", entry._id, { countedInStats: true });
+    }
+    await adjustCacheTotal(ctx, uncounted.length);
+    if (uncounted.length === STATS_BACKFILL_BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, api.mutations.reconcileCacheStats, {});
+    }
+    return uncounted.length;
+  },
+});
+
+/**
+ * Delete one bounded batch of expired entries. A full batch immediately
+ * schedules another pass so a backlog drains without one oversized mutation.
+ */
 export const pruneExpired = mutation({
   args: {},
   returns: v.number(),
@@ -1707,9 +1826,16 @@ export const pruneExpired = mutation({
     const expired = await ctx.db
       .query("cacheEntries")
       .withIndex("by_expiry", (q) => q.lte("expiresAt", now))
-      .collect();
+      .take(PRUNE_BATCH_SIZE);
     for (const entry of expired) {
-      await ctx.db.delete(entry._id);
+      await ctx.db.delete("cacheEntries", entry._id);
+    }
+    await adjustCacheTotal(
+      ctx,
+      -expired.filter((entry) => entry.countedInStats === true).length,
+    );
+    if (expired.length === PRUNE_BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, api.mutations.pruneExpired, {});
     }
     return expired.length;
   },
@@ -1732,6 +1858,13 @@ function isFresh(entry: Doc<"cacheEntries">, now: number): boolean {
   return entry.expiresAt > now;
 }
 
+function toPublicEntry(
+  entry: Doc<"cacheEntries">,
+): Omit<Doc<"cacheEntries">, "countedInStats"> {
+  const { countedInStats: _countedInStats, ...publicEntry } = entry;
+  return publicEntry;
+}
+
 /** Fetch one cached entry by its provider key, or null if missing/expired. */
 export const get = query({
   args: { kind: entityKind, provider, externalId: v.string() },
@@ -1746,7 +1879,9 @@ export const get = query({
           .eq("externalId", args.externalId),
       )
       .unique();
-    return entry !== null && isFresh(entry, Date.now()) ? entry : null;
+    return entry !== null && isFresh(entry, Date.now())
+      ? toPublicEntry(entry)
+      : null;
   },
 });
 
@@ -1760,17 +1895,22 @@ export const getByIsrc = query({
       .query("cacheEntries")
       .withIndex("by_isrc", (q) => q.eq("kind", "track").eq("isrc", args.isrc))
       .collect();
-    return entries.filter((entry) => isFresh(entry, now));
+    return entries
+      .filter((entry) => isFresh(entry, now))
+      .map(toPublicEntry);
   },
 });
 
-/** Count of cached entries (fresh + expired). */
+/** Maintained count of cached entries (fresh + expired). */
 export const stats = query({
   args: {},
   returns: v.object({ total: v.number() }),
   handler: async (ctx) => {
-    const all = await ctx.db.query("cacheEntries").collect();
-    return { total: all.length };
+    const stats = await ctx.db
+      .query("cacheStats")
+      .withIndex("by_key", (q) => q.eq("key", "all"))
+      .unique();
+    return { total: stats?.total ?? 0 };
   },
 });
 

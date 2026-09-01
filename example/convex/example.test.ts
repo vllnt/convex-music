@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { api } from "./_generated/api.js";
 import schema from "./schema.js";
 import { register } from "../../src/test.js";
@@ -145,6 +145,37 @@ test("invalidate deletes an entry (true), and is a no-op on a missing key (false
       externalId: "nope",
     }),
   ).toBe(false);
+});
+
+test("empty cache maintenance is a bounded no-op", async () => {
+  const t = setup();
+  expect(await t.query(api.example.stats, {})).toEqual({ total: 0 });
+  expect(await t.mutation(api.example.reconcileCacheStats, {})).toBe(0);
+  expect(await t.mutation(api.example.pruneExpired, {})).toBe(0);
+});
+
+test("bounded prune reschedules until the expired backlog drains", async () => {
+  vi.useFakeTimers();
+  try {
+    const t = setup();
+    for (let index = 0; index < 101; index += 1) {
+      await t.mutation(api.example.put, {
+        kind: "artist",
+        provider: "wikidata",
+        externalId: `expired-${index}`,
+        value: artist(`Expired ${index}`),
+        ttlMs: -1,
+      });
+    }
+
+    expect(await t.mutation(api.example.pruneExpired, {})).toBe(100);
+    expect(await t.query(api.example.stats, {})).toEqual({ total: 1 });
+
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await t.query(api.example.stats, {})).toEqual({ total: 0 });
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("pruneExpired deletes only expired entries; stats counts what remains", async () => {

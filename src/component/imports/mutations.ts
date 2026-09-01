@@ -1,4 +1,5 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { api } from "../_generated/api.js";
 import type { Doc, Id } from "../_generated/dataModel.js";
 import {
   type MutationCtx,
@@ -16,6 +17,21 @@ import {
 } from "../validators.js";
 import { buildDedupeKey } from "./dedupe.js";
 import { ACTIVE_STATUSES, type ImportStatus, assertTransition } from "./state.js";
+
+const MAINTENANCE_BATCH = 100;
+const MAX_MAINTENANCE_BATCH = 500;
+const DEFAULT_ACTIVE_LEASE_MS = 10 * 60 * 1000;
+const DEFAULT_RUNNING_LEASE_MS = 30 * 60 * 1000;
+const DEFAULT_TERMINAL_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+function validateBatch(batch: number): void {
+  if (!Number.isFinite(batch) || !Number.isInteger(batch) || batch < 1 || batch > MAX_MAINTENANCE_BATCH) {
+    throw new ConvexError({
+      code: "INVALID_BATCH",
+      message: `batch must be an integer between 1 and ${MAX_MAINTENANCE_BATCH}`,
+    });
+  }
+}
 
 /** Find an in-flight request with this dedup key, or null. */
 async function findActiveByDedupe(
@@ -182,6 +198,103 @@ export const markCompleted = internalMutation({
       resultSummary: args.resultSummary,
     });
     return null;
+  },
+});
+
+/** Move abandoned active imports to terminal stale so future calls can create fresh work. */
+export const heartbeat = internalMutation({
+  args: { requestId: v.id("importRequests") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const request = await ctx.db.get("importRequests", args.requestId);
+    if (request === null || request.status !== "running") {
+      throw new ConvexError({
+        code: "IMPORT_LEASE_LOST",
+        message: "import request is no longer running",
+      });
+    }
+    await ctx.db.patch("importRequests", request._id, { updatedAt: Date.now() });
+    return null;
+  },
+});
+
+export const recoverAbandoned = mutation({
+  args: {
+    status: v.union(
+      v.literal("queued"),
+      v.literal("claimed"),
+      v.literal("running"),
+      v.literal("retry_waiting"),
+    ),
+    before: v.optional(v.number()),
+    batch: v.optional(v.number()),
+  },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const batch = args.batch ?? MAINTENANCE_BATCH;
+    validateBatch(batch);
+    const leaseMs =
+      args.status === "running" ? DEFAULT_RUNNING_LEASE_MS : DEFAULT_ACTIVE_LEASE_MS;
+    const before = args.before ?? Date.now() - leaseMs;
+    const abandoned = await ctx.db
+      .query("importRequests")
+      .withIndex("by_status_updated", (q) =>
+        q.eq("status", args.status).lt("updatedAt", before),
+      )
+      .take(batch);
+    const now = Date.now();
+    for (const request of abandoned) {
+      await ctx.db.patch("importRequests", request._id, {
+        status: "stale",
+        finishedAt: now,
+        updatedAt: now,
+        errorSummary: "abandoned import recovered by maintenance",
+      });
+    }
+    if (abandoned.length === batch) {
+      await ctx.scheduler.runAfter(0, api.imports.mutations.recoverAbandoned, {
+        status: args.status,
+        before,
+        batch,
+      });
+    }
+    return abandoned.length;
+  },
+});
+
+export const pruneTerminal = mutation({
+  args: {
+    status: v.union(
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("canceled"),
+      v.literal("stale"),
+    ),
+    before: v.optional(v.number()),
+    batch: v.optional(v.number()),
+  },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const batch = args.batch ?? MAINTENANCE_BATCH;
+    validateBatch(batch);
+    const before = args.before ?? Date.now() - DEFAULT_TERMINAL_RETENTION_MS;
+    const terminal = await ctx.db
+      .query("importRequests")
+      .withIndex("by_status_updated", (q) =>
+        q.eq("status", args.status).lt("updatedAt", before),
+      )
+      .take(batch);
+    for (const request of terminal) {
+      await ctx.db.delete("importRequests", request._id);
+    }
+    if (terminal.length === batch) {
+      await ctx.scheduler.runAfter(0, api.imports.mutations.pruneTerminal, {
+        status: args.status,
+        before,
+        batch,
+      });
+    }
+    return terminal.length;
   },
 });
 

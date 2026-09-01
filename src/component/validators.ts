@@ -109,12 +109,18 @@ export const repairStatus = v.union(
   v.literal("failed_repair"),
 );
 
+/** Maintained aggregate for the raw cache. */
+export const cacheStatsFields = {
+  key: v.literal("all"),
+  total: v.number(),
+};
+
 /** Sync-status columns shared by every catalog entity. */
 const syncFields = {
   syncStatus: v.optional(syncStatus),
   syncRetryCount: v.optional(v.number()),
   lastSyncError: v.optional(v.string()),
-  nextSyncAt: v.optional(v.number()),
+  nextSyncAt: v.number(),
   lastSyncedAt: v.optional(v.number()),
 };
 
@@ -187,6 +193,7 @@ export const playlistFields = {
   url: v.optional(v.string()),
   owner: v.optional(v.string()),
   trackIds: v.array(v.id("tracks")),
+  membershipComplete: v.optional(v.boolean()),
   snapshotVersion: v.optional(v.string()),
   updatedAt: v.number(),
   ...syncFields,
@@ -208,6 +215,7 @@ export const albumFields = {
   url: v.optional(v.string()),
   trackCount: v.optional(v.number()),
   trackIds: v.array(v.id("tracks")),
+  membershipComplete: v.optional(v.boolean()),
   updatedAt: v.number(),
   ...syncFields,
   ...repairFields,
@@ -276,6 +284,7 @@ export const providerSecrets = v.record(v.string(), v.string());
 export const providerConfigFields = {
   provider,
   secrets: providerSecrets,
+  revision: v.optional(v.number()),
 };
 
 /*

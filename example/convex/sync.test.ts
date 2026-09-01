@@ -36,7 +36,11 @@ test("markStale flips past-window synced rows to stale", async () => {
   // far in the future, both are past their window
   const future = Date.now() + YEAR_MS;
   expect(
-    await t.mutation(api.example.markStale, { kind: "artist", now: future }),
+    await t.mutation(api.example.markStale, {
+      kind: "artist",
+      limit: 2,
+      now: future,
+    }),
   ).toBe(2);
 
   // already stale -> nothing left synced
@@ -46,6 +50,31 @@ test("markStale flips past-window synced rows to stale", async () => {
 
   // default now (no synced artists remain anyway)
   expect(await t.mutation(api.example.markStale, { kind: "artist" })).toBe(0);
+});
+
+test("fresh rows beyond the batch cannot hide an indexed due row", async () => {
+  const t = setup();
+  for (let index = 0; index < 201; index += 1) {
+    await t.mutation(api.example.upsertArtist, {
+      provider: "spotify",
+      externalId: `fresh-${index}`,
+      value: { name: `Fresh ${index}`, genres: [], popularity: 1 },
+    });
+  }
+  await t.mutation(api.example.upsertArtist, {
+    provider: "spotify",
+    externalId: "due",
+    value: { name: "Due", genres: [], popularity: 100 },
+  });
+
+  expect(
+    await t.mutation(api.example.markStale, {
+      kind: "artist",
+      limit: 200,
+      now: Date.now() + 8 * 24 * 60 * 60 * 1000,
+    }),
+  ).toBe(1);
+  expect(await t.query(api.example.listStale, { kind: "artist" })).toHaveLength(1);
 });
 
 test("markStale handles the track kind", async () => {
@@ -58,10 +87,21 @@ test("markStale handles the track kind", async () => {
   expect(
     await t.mutation(api.example.markStale, {
       kind: "track",
+      limit: 1,
       now: Date.now() + YEAR_MS,
     }),
   ).toBe(1);
 });
+
+test.each([Number.NaN, 0, -1, 1.5, 501])(
+  "markStale rejects invalid limit %s",
+  async (limit) => {
+    const t = setup();
+    await expect(
+      t.mutation(api.example.markStale, { kind: "artist", limit }),
+    ).rejects.toThrow(/INVALID_LIMIT|integer between/);
+  },
+);
 
 test("listStale returns the rows markStale flagged (default limit)", async () => {
   const t = setup();
