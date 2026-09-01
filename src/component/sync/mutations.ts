@@ -1,10 +1,10 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { api } from "../_generated/api.js";
 import { type MutationCtx, mutation } from "../_generated/server.js";
 import { artistDoc, trackDoc } from "../validators.js";
-import { isStale } from "./lifecycle.js";
-
-/** Default rows scanned per markStale run. */
+/** Default due rows processed per markStale run. */
 const DEFAULT_LIMIT = 200;
+const MAX_LIMIT = 500;
 
 /**
  * Flip past-freshness-window catalog rows from `synced` to `stale` for a kind.
@@ -22,40 +22,58 @@ export const markStale = mutation({
   handler: async (ctx, args) => {
     const at = args.now ?? Date.now();
     const take = args.limit ?? DEFAULT_LIMIT;
+    if (!Number.isFinite(take) || !Number.isInteger(take) || take < 1 || take > MAX_LIMIT) {
+      throw new ConvexError({
+        code: "INVALID_LIMIT",
+        message: `limit must be an integer between 1 and ${MAX_LIMIT}`,
+      });
+    }
     if (args.kind === "artist") {
       const rows = await ctx.db
         .query("artists")
-        .withIndex("by_sync", (q) => q.eq("syncStatus", "synced"))
+        .withIndex("by_sync", (q) =>
+          q.eq("syncStatus", "synced").lte("nextSyncAt", at),
+        )
         .take(take);
-      const stale = rows.filter((row) =>
-        isStale(row.lastSyncedAt, row.popularity, at),
-      );
       await Promise.all(
-        stale.map((row) =>
+        rows.map((row) =>
           ctx.db.patch("artists", row._id, {
             syncStatus: "stale",
             updatedAt: at,
           }),
         ),
       );
-      return stale.length;
+      if (rows.length === take) {
+        await ctx.scheduler.runAfter(0, api.sync.mutations.markStale, {
+          kind: args.kind,
+          limit: take,
+          now: at,
+        });
+      }
+      return rows.length;
     }
     const rows = await ctx.db
       .query("tracks")
-      .withIndex("by_sync", (q) => q.eq("syncStatus", "synced"))
+      .withIndex("by_sync", (q) =>
+        q.eq("syncStatus", "synced").lte("nextSyncAt", at),
+      )
       .take(take);
-    const stale = rows.filter((row) =>
-      isStale(row.lastSyncedAt, row.popularity, at),
-    );
     await Promise.all(
-      stale.map((row) =>
+      rows.map((row) =>
         ctx.db.patch("tracks", row._id, {
           syncStatus: "stale",
           updatedAt: at,
         }),
       ),
     );
-    return stale.length;
+    if (rows.length === take) {
+      await ctx.scheduler.runAfter(0, api.sync.mutations.markStale, {
+        kind: args.kind,
+        limit: take,
+        now: at,
+      });
+    }
+    return rows.length;
   },
 });
 

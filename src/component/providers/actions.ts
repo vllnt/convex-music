@@ -48,7 +48,7 @@ function requireSecret(secrets: Record<string, string>, key: string): string {
 
 /** Fetch a Spotify client-credentials token (cached by action-cache). */
 export const spotifyTokenFetch = internalAction({
-  args: {},
+  args: { revision: v.number() },
   returns: v.string(),
   handler: async (ctx): Promise<string> => {
     const secrets = await loadSecrets(ctx, "spotify");
@@ -62,7 +62,7 @@ export const spotifyTokenFetch = internalAction({
 
 /** Sign an Apple Music developer token (cached by action-cache). */
 export const appleTokenSign = internalAction({
-  args: {},
+  args: { revision: v.number() },
   returns: v.string(),
   handler: async (ctx): Promise<string> => {
     const secrets = await loadSecrets(ctx, "apple");
@@ -105,8 +105,16 @@ export async function getProviderToken(
   prov: Provider,
 ): Promise<string> {
   const cacheCtx = ctx as unknown as TokenCacheCtx;
-  if (prov === "spotify") return await spotifyTokenCache.fetch(cacheCtx, {});
-  if (prov === "apple") return await appleTokenCache.fetch(cacheCtx, {});
+  const revision = await ctx.runQuery(internal.config.queries.getProviderRevision, {
+    provider: prov,
+  });
+  if (prov === "spotify") {
+    return await spotifyTokenCache.fetch(cacheCtx, { revision: revision ?? 0 });
+  }
+  if (prov === "apple") {
+    // v8 ignore next -- unconfigured Apple is rejected when the token action loads secrets
+    return await appleTokenCache.fetch(cacheCtx, { revision: revision ?? 0 });
+  }
   // No-auth providers (MusicBrainz / Wikidata / Deezer) carry their own headers
   // (e.g. User-Agent) instead of a bearer token.
   return "";

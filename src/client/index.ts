@@ -95,6 +95,7 @@ export type UpsertPlaylistInput = {
   url?: string;
   owner?: string;
   trackIds: string[];
+  membershipComplete?: boolean;
 };
 
 /** Arguments to upsert an album by source-provider identity. */
@@ -108,6 +109,7 @@ export type UpsertAlbumInput = {
   url?: string;
   trackCount?: number;
   trackIds: string[];
+  membershipComplete?: boolean;
 };
 
 /** Arguments to select eligible catalog rows for a daily picker. */
@@ -127,6 +129,12 @@ export interface MusicComponent {
   mutations: {
     put: FunctionReference<"mutation", "internal", PutInput, string>;
     invalidate: FunctionReference<"mutation", "internal", EntryKey, boolean>;
+    reconcileCacheStats: FunctionReference<
+      "mutation",
+      "internal",
+      Record<string, never>,
+      number
+    >;
     pruneExpired: FunctionReference<
       "mutation",
       "internal",
@@ -351,6 +359,11 @@ export class Music {
   /** Drop one cached entry. Returns whether a row was deleted. */
   invalidate(ctx: RunMutationCtx, key: EntryKey): Promise<boolean> {
     return ctx.runMutation(this.component.mutations.invalidate, key);
+  }
+
+  /** Backfill pre-upgrade cache rows into the maintained count. */
+  reconcileCacheStats(ctx: RunMutationCtx): Promise<number> {
+    return ctx.runMutation(this.component.mutations.reconcileCacheStats, {});
   }
 
   /** Delete every expired entry. Idempotent; safe to run on a schedule. */

@@ -31,6 +31,8 @@ export interface ProviderAlbum {
   externalId: string;
   value: NormalizedAlbum;
   tracks: ProviderTrack[];
+  /** True when provider pagination or a configured cap truncated membership. */
+  isPartial?: boolean;
 }
 
 /** Normalized playlist metadata (membership is carried separately). */
@@ -47,6 +49,8 @@ export interface ProviderPlaylist {
   externalId: string;
   value: NormalizedPlaylist;
   tracks: ProviderTrack[];
+  /** True when provider pagination or a configured cap truncated membership. */
+  isPartial?: boolean;
 }
 
 /** A single search hit, discriminated by entity kind. */

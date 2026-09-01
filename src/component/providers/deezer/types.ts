@@ -41,7 +41,7 @@ export interface DeezerAlbum {
   link?: string;
   nb_tracks?: number;
   artist?: DeezerArtistRef;
-  tracks?: { data: DeezerTrack[] };
+  tracks?: { data: DeezerTrack[]; next?: string };
 }
 
 export interface DeezerPlaylist {
@@ -51,7 +51,7 @@ export interface DeezerPlaylist {
   picture_xl?: string;
   link?: string;
   creator?: { name?: string };
-  tracks?: { data: DeezerTrack[] };
+  tracks?: { data: DeezerTrack[]; next?: string };
 }
 
 export interface DeezerList<T> {

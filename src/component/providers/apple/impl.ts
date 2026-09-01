@@ -117,6 +117,7 @@ export class AppleProvider implements MusicProvider {
       externalId: raw.id,
       value: mapAppleAlbum(raw),
       tracks: tracks.map((track) => this.toTrack(track)),
+      isPartial: raw.relationships?.tracks?.next !== undefined,
     };
   }
 
@@ -154,6 +155,7 @@ export class AppleProvider implements MusicProvider {
       externalId: raw.id,
       value: mapApplePlaylist(raw),
       tracks: tracks.map((track) => this.toTrack(track)),
+      isPartial: raw.relationships?.tracks?.next !== undefined,
     };
   }
 

@@ -80,10 +80,15 @@ expires. Returns the entry id.
 
 Drop a single cached entry. Returns `true` if a row was deleted, `false` if the key was not cached.
 
+### `reconcileCacheStats(ctx): Promise<number>`
+
+Backfill up to 100 pre-upgrade cache rows into the maintained counter. A full batch reschedules
+another pass. The component runs this hourly; hosts may invoke it immediately after upgrading.
+
 ### `pruneExpired(ctx): Promise<number>`
 
-Delete every entry whose `expiresAt` is in the past. Idempotent and bounded to expired rows — safe
-to run on a schedule. Returns the number of rows removed.
+Delete up to 100 entries whose `expiresAt` is in the past using the expiry index. A full batch
+reschedules another pass until the backlog drains. Returns the number removed by this invocation.
 
 ## Queries
 
@@ -99,7 +104,7 @@ of one recording. Expired copies are excluded.
 
 ### `stats(ctx): Promise<{ total: number }>`
 
-Return the count of cached entries (fresh and expired).
+Return the maintained count of cached entries (fresh and expired) without scanning the cache table.
 
 ## Error codes
 
@@ -111,8 +116,10 @@ thrown by the cache core.
 
 - TTL is set per `put` via `ttlMs`; entries without a TTL are stored with a never-expires sentinel
   so the expiry index never sweeps them.
-- `get` / `getByIsrc` treat expired entries as misses at read time; `pruneExpired` reclaims their
-  storage. Call it from your own scheduled function (a cron). `[planned]` an in-component prune cron.
+- `get` / `getByIsrc` treat expired entries as misses at read time; the in-component hourly
+  `pruneExpired` cron reclaims their storage in bounded, self-draining batches.
+- The hourly `reconcileCacheStats` cron marks and counts pre-upgrade cache rows in bounded,
+  concurrency-safe batches, so the maintained total converges without an unbounded migration.
 
 ## React hooks `[planned]`
 

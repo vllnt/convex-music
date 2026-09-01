@@ -12,6 +12,7 @@ import { api, components } from "../_generated/api.js";
 import type { Doc } from "../_generated/dataModel.js";
 import { type ActionCtx, action } from "../_generated/server.js";
 import type { Provider } from "../../shared.js";
+import type { ImportOutcome } from "../imports/actions.js";
 
 /**
  * Auto-import throughput budgets — token buckets decoupled from cron frequency,
@@ -30,31 +31,46 @@ function isDue(source: Doc<"sources">, now: number): boolean {
   return now - source.lastImportedAt > source.cadenceMs;
 }
 
-/** Dispatch a source to its import entry point. */
+/** Dispatch a supported source target to its matching import entry point. */
 async function importSource(
   ctx: ActionCtx,
   source: Doc<"sources">,
   prov: Provider,
-): Promise<void> {
+): Promise<ImportOutcome> {
   if (source.kind === "artist") {
-    await ctx.runAction(api.imports.actions.importArtist, {
-      provider: prov,
-      targetMode: source.by === "name" ? "name" : "providerId",
-      name: source.by === "name" ? source.value : undefined,
-      providerId: source.by === "name" ? undefined : source.value,
-      withTracks: source.withTracks,
-    });
-  } else if (source.kind === "track") {
-    await ctx.runAction(api.imports.actions.importTrack, {
+    if (source.by === "name") {
+      return await ctx.runAction(api.imports.actions.importArtist, {
+        provider: prov,
+        targetMode: "name",
+        name: source.value,
+        withTracks: source.withTracks,
+      });
+    }
+    if (source.by === "providerId") {
+      return await ctx.runAction(api.imports.actions.importArtist, {
+        provider: prov,
+        targetMode: "providerId",
+        providerId: source.value,
+        withTracks: source.withTracks,
+      });
+    }
+  } else if (source.kind === "track" && source.by === "providerId") {
+    return await ctx.runAction(api.imports.actions.importTrack, {
       provider: prov,
       providerId: source.value,
     });
-  } else {
-    await ctx.runAction(api.imports.actions.importPlaylist, {
+  } else if (source.kind === "playlist" && source.by === "providerId") {
+    return await ctx.runAction(api.imports.actions.importPlaylist, {
+      provider: prov,
+      providerId: source.value,
+    });
+  } else if (source.kind === "album" && source.by === "providerId") {
+    return await ctx.runAction(api.imports.actions.importAlbum, {
       provider: prov,
       providerId: source.value,
     });
   }
+  throw new Error(`unsupported source target: ${source.kind} by ${source.by}`);
 }
 
 /**
@@ -146,12 +162,14 @@ export const runAutoImport = action({
       // (decoupled from how often the cron fires).
       const { ok } = await rateLimiter.limit(ctx, "autoImport");
       if (!ok) break;
-      await importSource(ctx, source, source.provider);
-      await ctx.runMutation(api.sources.mutations.touchSource, {
-        sourceId: source._id,
-        now,
-      });
-      imported += 1;
+      const outcome = await importSource(ctx, source, source.provider);
+      if (outcome.status === "completed") {
+        await ctx.runMutation(api.sources.mutations.touchSource, {
+          sourceId: source._id,
+          now,
+        });
+        imported += 1;
+      }
     }
     return { imported, skipped };
   },

@@ -97,5 +97,5 @@ export interface SpotifyPlaylistResponse {
   images?: SpotifyImage[];
   external_urls?: SpotifyExternalUrls;
   owner?: { display_name?: string };
-  tracks?: { items: SpotifyPlaylistItem[] };
+  tracks?: { items: SpotifyPlaylistItem[]; total?: number; next?: string | null };
 }

@@ -12,6 +12,13 @@ import { api } from "./_generated/api.js";
 const crons = cronJobs();
 
 crons.interval(
+  "music:reconcile-cache-stats",
+  { hours: 1 },
+  api.mutations.reconcileCacheStats,
+  {},
+);
+
+crons.interval(
   "music:prune-expired-cache",
   { hours: 1 },
   api.mutations.pruneExpired,
@@ -48,5 +55,22 @@ crons.interval("music:recover-artists", { hours: 1 }, api.sync.mutations.recover
 crons.interval("music:recover-tracks", { hours: 1 }, api.sync.mutations.recoverStuckSyncs, {
   kind: "track",
 });
+
+for (const status of ["queued", "claimed", "running", "retry_waiting"] as const) {
+  crons.interval(
+    `music:recover-imports-${status}`,
+    { hours: 1 },
+    api.imports.mutations.recoverAbandoned,
+    { status },
+  );
+}
+for (const status of ["completed", "failed", "canceled", "stale"] as const) {
+  crons.interval(
+    `music:prune-imports-${status}`,
+    { hours: 24 },
+    api.imports.mutations.pruneTerminal,
+    { status },
+  );
+}
 
 export default crons;

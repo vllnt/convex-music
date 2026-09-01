@@ -78,6 +78,12 @@ export const invalidate = mutation({
   handler: (ctx, args) => music.invalidate(ctx, args),
 });
 
+export const reconcileCacheStats = mutation({
+  args: {},
+  returns: v.number(),
+  handler: (ctx) => music.reconcileCacheStats(ctx),
+});
+
 export const pruneExpired = mutation({
   args: {},
   returns: v.number(),
@@ -117,6 +123,7 @@ export const upsertPlaylist = mutation({
     url: v.optional(v.string()),
     owner: v.optional(v.string()),
     trackIds: v.array(v.string()),
+    membershipComplete: v.optional(v.boolean()),
   },
   returns: v.string(),
   handler: (ctx, args) => music.upsertPlaylist(ctx, args),
@@ -133,6 +140,7 @@ export const upsertAlbum = mutation({
     url: v.optional(v.string()),
     trackCount: v.optional(v.number()),
     trackIds: v.array(v.string()),
+    membershipComplete: v.optional(v.boolean()),
   },
   returns: v.string(),
   handler: (ctx, args) => music.upsertAlbum(ctx, args),
@@ -289,6 +297,38 @@ export const createImportRequest = mutation({
   }),
   handler: (ctx, args) =>
     ctx.runMutation(components.music.imports.mutations.createRequest, args),
+});
+
+export const recoverAbandonedImports = mutation({
+  args: {
+    status: v.union(
+      v.literal("queued"),
+      v.literal("claimed"),
+      v.literal("running"),
+      v.literal("retry_waiting"),
+    ),
+    before: v.optional(v.number()),
+    batch: v.optional(v.number()),
+  },
+  returns: v.number(),
+  handler: (ctx, args) =>
+    ctx.runMutation(components.music.imports.mutations.recoverAbandoned, args),
+});
+
+export const pruneTerminalImports = mutation({
+  args: {
+    status: v.union(
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("canceled"),
+      v.literal("stale"),
+    ),
+    before: v.optional(v.number()),
+    batch: v.optional(v.number()),
+  },
+  returns: v.number(),
+  handler: (ctx, args) =>
+    ctx.runMutation(components.music.imports.mutations.pruneTerminal, args),
 });
 
 export const getImportRequest = query({

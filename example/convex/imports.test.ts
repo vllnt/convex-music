@@ -63,6 +63,55 @@ test("a different target or withTracks does not dedup", async () => {
   expect(cReq.priority).toBe("high");
 });
 
+test("maintenance recovers abandoned imports and prunes terminal history", async () => {
+  const t = setup();
+  const first = await t.mutation(api.example.createImportRequest, artistByName);
+  const cutoff = Date.now() + 10_000;
+  expect(
+    await t.mutation(api.example.recoverAbandonedImports, {
+      status: "queued",
+      before: cutoff,
+      batch: 1,
+    }),
+  ).toBe(1);
+  expect(
+    (await t.query(api.example.getImportRequest, { requestId: first.requestId })).status,
+  ).toBe("stale");
+
+  const retry = await t.mutation(api.example.createImportRequest, artistByName);
+  expect(retry.deduped).toBe(false);
+  expect(retry.requestId).not.toBe(first.requestId);
+  expect(
+    await t.mutation(api.example.pruneTerminalImports, {
+      status: "stale",
+      before: cutoff,
+      batch: 1,
+    }),
+  ).toBe(1);
+  expect(
+    await t.query(api.example.getImportRequest, { requestId: first.requestId }),
+  ).toBeNull();
+  expect(
+    await t.mutation(api.example.recoverAbandonedImports, { status: "running" }),
+  ).toBe(0);
+  expect(
+    await t.mutation(api.example.pruneTerminalImports, { status: "completed" }),
+  ).toBe(0);
+});
+
+test.each([Number.NaN, 0, -1, 1.5, 501])(
+  "import maintenance rejects invalid batch %s",
+  async (batch) => {
+    const t = setup();
+    await expect(
+      t.mutation(api.example.recoverAbandonedImports, {
+        status: "running",
+        batch,
+      }),
+    ).rejects.toThrow(/INVALID_BATCH|integer between/);
+  },
+);
+
 test("listImportRequests returns queued requests newest-first", async () => {
   const t = setup();
   await t.mutation(api.example.createImportRequest, artistByName);

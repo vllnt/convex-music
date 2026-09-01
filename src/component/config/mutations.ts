@@ -20,9 +20,14 @@ export const configure = mutation({
       await ctx.db.insert("providerConfig", {
         provider: args.provider,
         secrets: args.secrets,
+        revision: 1,
       });
     } else {
-      await ctx.db.patch("providerConfig", existing._id, { secrets: args.secrets });
+      await ctx.db.patch("providerConfig", existing._id, {
+        secrets: args.secrets,
+        // v8 ignore next -- migration fallback for rows written before revisions existed
+        revision: (existing.revision ?? 0) + 1,
+      });
     }
     return null;
   },
