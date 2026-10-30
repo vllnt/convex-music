@@ -2,17 +2,19 @@
 
 > Provider-neutral, cached music catalog as a Convex component — Spotify, Apple Music, and more behind one API.
 
-`@vllnt/convex-music` is a publishable Convex component targeting `convex@^1.41.0`. It caches
+`@vllnt/convex-music` is a publishable Convex component targeting `convex@^1.45.0` on current main/canary. It caches
 normalized music facts — tracks, artists, and albums — in its own sandboxed tables, keyed by an
 opaque provider id and cross-referenced by ISRC, each entry with an optional TTL. One typed API
 spans every provider (Spotify and Apple Music today; Deezer, MusicBrainz, and Wikidata as adapters).
 The host owns auth; the component owns the factual catalog and the host keeps gameplay + editorial,
-referencing catalog rows by id / ISRC. `0.1.0` ships the raw cache core (`put`, `get`, `getByIsrc`,
-`invalidate`, `pruneExpired`, `stats`). The durable catalog (artists/tracks/albums/playlists),
+referencing catalog rows by id / ISRC. The raw cache API includes `put`, `get`, `getByIsrc`,
+`invalidate`, `pruneExpired`, and `stats`. The durable catalog (artists/tracks/albums/playlists),
 provider adapters, read-through fetch, the in-component import/sync engine, and an optional
 tree-shakeable `./react` hooks layer (`useArtist` / `useTrack` / `useArtistImage` / `useTrackPreview`
-/ `useSearchArtists` / `useSearchTracks`) are built on the working branch but not yet in a stable
-release; artist-image auto-sync and multi-catalog remain planned (see the README).
+/ `useSearchArtists` / `useSearchTracks`) are available on public main and npm `@canary`, while npm `latest` remains `0.1.0`;
+artist-image auto-sync and multi-catalog remain planned (see the README).
+`configure` persists provider credentials in the sandboxed `providerConfig` table;
+the host must keep credential setup authorized and never return secrets to clients.
 
 ## Docs
 
@@ -32,4 +34,3 @@ release; artist-image auto-sync and multi-catalog remain planned (see the README
 - [Security Policy](SECURITY.md): Vulnerability reporting policy
 - [Code of Conduct](CODE_OF_CONDUCT.md): Community participation guidelines
 - [License](LICENSE): MIT license
-- [Full source bundle](llms-full.txt): Aggregated README, changelog, API docs, and key source files
