@@ -26,6 +26,9 @@ All notable changes to this project are documented here. The format is based on
 - Refresh all direct dependencies to their latest compatible releases for canary validation.
 - Require `convex@^1.45.0`, update `convex-test` to `^0.0.56`, and update
   `@convex-dev/action-cache` to `^0.3.1`.
+- Refresh dependencies: update `@convex-dev/rate-limiter` to `^0.4.2` and the dev toolchain (including
+  `vitest` 5 and `jsdom` 30), and pin vulnerable or too-recent transitive packages through
+  `pnpm.overrides`.
 
 ### Added
 
