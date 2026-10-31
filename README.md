@@ -208,6 +208,23 @@ pnpm test            # vitest + convex-test + @edge-runtime/vm
 pnpm test:coverage   # 100% coverage gate
 ```
 
+### Testing your app
+
+`@vllnt/convex-music/test` exports `register(t, name = "music")` to mount the
+component (and its `action-cache` and `rate-limiter` children) in a
+`convex-test` instance. It needs `convex-test` and `vitest` (with Vite's
+`import.meta.glob`) in the consuming app:
+
+```ts
+/// <reference types="vite/client" />
+import { convexTest } from "convex-test";
+import { register } from "@vllnt/convex-music/test";
+import schema from "./schema";
+
+const t = convexTest(schema, import.meta.glob("./**/*.ts"));
+register(t);
+```
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues and pull requests welcome.
