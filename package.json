@@ -4,7 +4,7 @@
   "description": "Provider-neutral, cached music catalog as a Convex component — Spotify, Apple Music, and more behind one API",
   "license": "MIT",
   "type": "module",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.34.8",
   "files": [
     "dist",
     "src"
@@ -82,7 +82,14 @@
       "deepmerge-ts@<8.0.0": "^8.0.2",
       "source-map-js@<1.2.2": "^1.2.2",
       "zod@>=4.0.0 <4.6.6": "^4.6.6"
-    }
+    },
+    "minimumReleaseAge": 10080,
+    "minimumReleaseAgeExclude": [
+      "@vllnt/*"
+    ],
+    "ignoredBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",
