@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../_generated/server.js";
+import { assertCadence, assertNonEmpty } from "../guards.js";
 import { importEntityType, importTargetMode, provider } from "../validators.js";
 
 /** Register an import source the engine keeps synced. Enabled by default. */
@@ -15,6 +16,8 @@ export const addSource = mutation({
   },
   returns: v.id("sources"),
   handler: async (ctx, args) => {
+    assertNonEmpty(args.value, "value");
+    assertCadence(args.cadenceMs);
     const now = Date.now();
     return await ctx.db.insert("sources", {
       kind: args.kind,

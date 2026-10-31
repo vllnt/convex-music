@@ -20,6 +20,7 @@ export default defineConfig({
         "src/component/mutations.ts",
         "src/component/queries.ts",
         "src/component/validators.ts",
+        "src/component/guards.ts",
         "src/component/schema.ts",
         "src/component/providers/fetch.ts",
         "src/component/providers/apple/jwt.ts",

@@ -5,6 +5,7 @@ import type { Doc } from "./_generated/dataModel.js";
 import type { MutationCtx } from "./_generated/server.js";
 import { cacheValue, entityKind, provider } from "./validators.js";
 import { NEVER_EXPIRES } from "../shared.js";
+import { assertNonEmpty, assertTtl } from "./guards.js";
 
 const CACHE_STATS_KEY = "all" as const;
 const PRUNE_BATCH_SIZE = 100;
@@ -57,6 +58,8 @@ export const put = mutation({
   },
   returns: v.id("cacheEntries"),
   handler: async (ctx, args) => {
+    assertNonEmpty(args.externalId, "externalId");
+    assertTtl(args.ttlMs);
     const now = Date.now();
     const expiresAt = args.ttlMs === undefined ? NEVER_EXPIRES : now + args.ttlMs;
     const fields = {

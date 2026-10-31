@@ -161,9 +161,22 @@ returned request is not by itself proof that all provider data was imported.
 
 ## Error codes
 
-This surface favors return values over thrown errors: a missing or expired `get`
-returns `null`, `getByIsrc` returns `[]`, and `invalidate` on an unknown key
-returns `false`. No error codes are thrown by the cache core.
+Reads favor return values over thrown errors: a missing or expired `get` returns
+`null`, `getByIsrc` returns `[]`, and `invalidate` on an unknown key returns
+`false`. Invalid arguments throw a `ConvexError` whose data is `{ code, message }`:
+
+| Code                | Thrown by                                                                                                   | Meaning                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `INVALID_ARGUMENT`  | `put`, `upsertArtist`, `upsertTrack`, `upsertPlaylist`, `upsertAlbum`, `addSource`                           | A required identifier (`externalId`, `providerId`, `isrc`, artist `name`, source `value`) is empty. |
+| `INVALID_TTL`       | `put`                                                                                                       | `ttlMs` is not a finite number (`NaN`, `Infinity`).               |
+| `INVALID_LIMIT`     | `searchArtists`, `searchTracks`, `selectEligible`, `importPlaylist`, `importAlbum`, `runRefresh`, `runAutoImport`, `markStale`, `recoverStuckSyncs` | `limit` / `scanLimit` is not a positive integer (some also enforce a maximum). |
+| `INVALID_COUNT`     | `consumeBudget`                                                                                             | `count` is not a positive integer.                                |
+| `INVALID_CADENCE`   | `addSource`                                                                                                 | `cadenceMs` is not a positive finite number.                      |
+| `INVALID_BATCH`     | import maintenance (`recoverAbandoned`, `pruneTerminal`)                                                    | `batch` is not an integer within the allowed range.               |
+| `IMPORT_LEASE_LOST` | internal import heartbeat                                                                                   | The import request is no longer running.                          |
+
+The component cannot read `ctx.auth`: authorization and ownership checks are the
+host's job, enforced before it calls any write method.
 
 ## Cache / Maintenance
 
