@@ -10,6 +10,7 @@ import {
 } from "../validators.js";
 import { orderByDailyRotation, utcDateBucket } from "./browse_order.js";
 import { projectField } from "./field_source_policy.js";
+import { assertLimit } from "../guards.js";
 
 /** Single-source field policy: pick one provider's value (`from`) or the first
  * available in preference order (`prefer`). Applies to any per-provider field
@@ -166,22 +167,26 @@ export const getTrackPreview = query({
 export const searchArtists = query({
   args: { query: v.string(), limit: v.optional(v.number()) },
   returns: v.array(artistDoc),
-  handler: async (ctx, args) =>
-    await ctx.db
+  handler: async (ctx, args) => {
+    assertLimit(args.limit);
+    return await ctx.db
       .query("artists")
       .withSearchIndex("search_name", (q) => q.search("name", args.query))
-      .take(args.limit ?? DEFAULT_SEARCH_LIMIT),
+      .take(args.limit ?? DEFAULT_SEARCH_LIMIT);
+  },
 });
 
 /** Full-text search tracks by title. */
 export const searchTracks = query({
   args: { query: v.string(), limit: v.optional(v.number()) },
   returns: v.array(trackDoc),
-  handler: async (ctx, args) =>
-    await ctx.db
+  handler: async (ctx, args) => {
+    assertLimit(args.limit);
+    return await ctx.db
       .query("tracks")
       .withSearchIndex("search_title", (q) => q.search("title", args.query))
-      .take(args.limit ?? DEFAULT_SEARCH_LIMIT),
+      .take(args.limit ?? DEFAULT_SEARCH_LIMIT);
+  },
 });
 
 /**
@@ -207,6 +212,8 @@ export const selectEligible = query({
     ctx,
     args,
   ): Promise<Array<Doc<"artists"> | Doc<"tracks">>> => {
+    assertLimit(args.limit);
+    assertLimit(args.scanLimit, "scanLimit");
     const salt = args.salt ?? utcDateBucket(Date.now());
     const exclude = new Set(args.excludeIds ?? []);
     const scanLimit = args.scanLimit ?? DEFAULT_SCAN_LIMIT;

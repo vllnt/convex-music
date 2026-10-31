@@ -2,7 +2,7 @@
 
 > Provider-neutral, cached music catalog as a Convex component — Spotify, Apple Music, and more behind one API.
 
-`@vllnt/convex-music` is a publishable Convex component targeting `convex@^1.45.0` on current main/canary. It caches
+`@vllnt/convex-music` is a publishable Convex component targeting `convex@^1.45.0`. It caches
 normalized music facts — tracks, artists, and albums — in its own sandboxed tables, keyed by an
 opaque provider id and cross-referenced by ISRC, each entry with an optional TTL. One typed API
 spans every provider (Spotify and Apple Music today; Deezer, MusicBrainz, and Wikidata as adapters).
@@ -11,7 +11,7 @@ referencing catalog rows by id / ISRC. The raw cache API includes `put`, `get`, 
 `invalidate`, `pruneExpired`, and `stats`. The durable catalog (artists/tracks/albums/playlists),
 provider adapters, read-through fetch, the in-component import/sync engine, and an optional
 tree-shakeable `./react` hooks layer (`useArtist` / `useTrack` / `useArtistImage` / `useTrackPreview`
-/ `useSearchArtists` / `useSearchTracks`) are available on public main and npm `@canary`, while npm `latest` remains `0.1.0`;
+/ `useSearchArtists` / `useSearchTracks`) are available in the stable release;
 artist-image auto-sync and multi-catalog remain planned (see the README).
 `configure` persists provider credentials in the sandboxed `providerConfig` table;
 the host must keep credential setup authorized and never return secrets to clients.

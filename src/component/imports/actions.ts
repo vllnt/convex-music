@@ -27,6 +27,7 @@ import {
   provider,
 } from "../validators.js";
 import type { ImportStatus } from "./state.js";
+import { assertLimit } from "../guards.js";
 
 async function heartbeat(ctx: ActionCtx, requestId: Id<"importRequests">): Promise<void> {
   await ctx.runMutation(internal.imports.mutations.heartbeat, { requestId });
@@ -433,8 +434,9 @@ export const importPlaylist = action({
     priority: v.optional(importPriority),
   },
   returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (ctx, args): Promise<ImportOutcome> =>
-    runOrDedupe(
+  handler: async (ctx, args): Promise<ImportOutcome> => {
+    assertLimit(args.limit);
+    return runOrDedupe(
       ctx,
       {
         entityType: "playlist",
@@ -452,7 +454,8 @@ export const importPlaylist = action({
           providerId: args.providerId,
           limit: args.limit,
         }),
-    ),
+    );
+  },
 });
 
 /**
@@ -543,8 +546,9 @@ export const importAlbum = action({
     priority: v.optional(importPriority),
   },
   returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (ctx, args): Promise<ImportOutcome> =>
-    runOrDedupe(
+  handler: async (ctx, args): Promise<ImportOutcome> => {
+    assertLimit(args.limit);
+    return runOrDedupe(
       ctx,
       {
         entityType: "album",
@@ -562,5 +566,6 @@ export const importAlbum = action({
           providerId: args.providerId,
           limit: args.limit,
         }),
-    ),
+    );
+  },
 });

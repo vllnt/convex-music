@@ -66,10 +66,8 @@ const hit = await music.get(ctx, {
 npm install @vllnt/convex-music
 ```
 
-Current `main`/canary requires `convex@^1.45.0`. npm `latest` remains `0.1.0`;
-this README describes current source, not a promise that every API exists in
-that stable release. Use `npm install @vllnt/convex-music@canary` to follow the
-current implementation.
+Requires `convex@^1.45.0`. Use `npm install @vllnt/convex-music@canary` to try
+unreleased changes from `main`.
 
 ### Provider credentials
 
@@ -164,8 +162,7 @@ Full reference — signatures, value shapes, and error codes:
 
 ## React
 
-Available on current `main`/canary in the `./react` entry, over the implemented
-catalog queries. All hooks return `undefined` while loading, in addition to the
+Available in the `./react` entry, over the implemented catalog queries. All hooks return `undefined` while loading, in addition to the
 results below.
 
 Optional, tree-shakeable hooks over `convex/react`. The host re-exports its own
@@ -206,6 +203,23 @@ See [`SECURITY.md`](SECURITY.md) for vulnerability reporting.
 ```bash
 pnpm test            # vitest + convex-test + @edge-runtime/vm
 pnpm test:coverage   # 100% coverage gate
+```
+
+### Testing your app
+
+`@vllnt/convex-music/test` exports `register(t, name = "music")` to mount the
+component (and its `action-cache` and `rate-limiter` children) in a
+`convex-test` instance. It needs `convex-test` and `vitest` (with Vite's
+`import.meta.glob`) in the consuming app:
+
+```ts
+/// <reference types="vite/client" />
+import { convexTest } from "convex-test";
+import { register } from "@vllnt/convex-music/test";
+import schema from "./schema";
+
+const t = convexTest(schema, import.meta.glob("./**/*.ts"));
+register(t);
 ```
 
 ## Contributing

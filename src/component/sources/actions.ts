@@ -13,6 +13,7 @@ import type { Doc } from "../_generated/dataModel.js";
 import { type ActionCtx, action } from "../_generated/server.js";
 import type { Provider } from "../../shared.js";
 import type { ImportOutcome } from "../imports/actions.js";
+import { assertCount, assertLimit } from "../guards.js";
 
 /**
  * Auto-import throughput budgets — token buckets decoupled from cron frequency,
@@ -92,6 +93,7 @@ export const runRefresh = action({
   },
   returns: v.object({ refreshed: v.number() }),
   handler: async (ctx, args): Promise<{ refreshed: number }> => {
+    assertLimit(args.limit);
     const limit = args.limit ?? 10;
     let refreshed = 0;
     for (let i = 0; i < limit; i++) {
@@ -144,6 +146,7 @@ export const runAutoImport = action({
   args: { limit: v.optional(v.number()), now: v.optional(v.number()) },
   returns: v.object({ imported: v.number(), skipped: v.number() }),
   handler: async (ctx, args): Promise<{ imported: number; skipped: number }> => {
+    assertLimit(args.limit);
     const now = args.now ?? Date.now();
     const limit = args.limit ?? 10;
     const sources = await ctx.runQuery(api.sources.queries.listSources, {
@@ -187,6 +190,7 @@ export const consumeBudget = action({
   },
   returns: v.boolean(),
   handler: async (ctx, args): Promise<boolean> => {
+    assertCount(args.count);
     const { ok } = await rateLimiter.limit(ctx, args.budget, {
       count: args.count,
     });

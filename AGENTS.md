@@ -158,8 +158,7 @@ src/
 - **Scope.** Built: the raw cache core, the durable catalog (`catalog-store`), provider adapters
   (Apple V8 ES256 signer, Spotify, Deezer, MusicBrainz, Wikidata), read-through fetch, the
   `import-engine`, `sync-lifecycle`, and auto-import. Still planned: artist-image auto-sync and
-  multi-catalog (`catalog-store.6`) — see `ROADMAP.md`. Published versions stay `0.1.0`/canary until
-  the owner cuts a stable release. Agents MUST NOT implement planned surface without an explicit
+  multi-catalog (`catalog-store.6`) — see `ROADMAP.md`. Agents MUST NOT implement planned surface without an explicit
   instruction.
 
 ## Conventions

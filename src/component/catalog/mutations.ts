@@ -4,6 +4,7 @@ import { type MutationCtx, mutation } from "../_generated/server.js";
 import { artistValue, provider, trackValue } from "../validators.js";
 import type { Provider } from "../../shared.js";
 import { stalenessWindowMs } from "../sync/lifecycle.js";
+import { assertNonEmpty } from "../guards.js";
 import {
   type ArtistMergeState,
   type TrackMergeState,
@@ -131,6 +132,8 @@ export const upsertArtist = mutation({
   args: { provider, externalId: v.string(), value: artistValue },
   returns: v.id("artists"),
   handler: async (ctx, args): Promise<Id<"artists">> => {
+    assertNonEmpty(args.externalId, "externalId");
+    assertNonEmpty(args.value.name.trim(), "name");
     const now = Date.now();
     const nameKey = nameKeyOf(args.value.name);
     const byProviderId = await findArtistByProvider(
@@ -189,6 +192,8 @@ export const upsertTrack = mutation({
       throw new Error("upsertTrack requires the track to carry an ISRC");
     }
     const isrc = args.value.isrc;
+    assertNonEmpty(isrc, "isrc");
+    assertNonEmpty(args.externalId, "externalId");
     const now = Date.now();
     // ISRC-mismatch guard (catalog-store.1): if this provider id already maps to
     // a track with a DIFFERENT ISRC, the provider disagrees on identity — throw
@@ -259,6 +264,7 @@ export const upsertPlaylist = mutation({
   },
   returns: v.id("playlists"),
   handler: async (ctx, args): Promise<Id<"playlists">> => {
+    assertNonEmpty(args.providerId, "providerId");
     const now = Date.now();
     const existing = await ctx.db
       .query("playlists")
@@ -308,6 +314,7 @@ export const upsertAlbum = mutation({
   },
   returns: v.id("albums"),
   handler: async (ctx, args): Promise<Id<"albums">> => {
+    assertNonEmpty(args.providerId, "providerId");
     const now = Date.now();
     const existing = await ctx.db
       .query("albums")
