@@ -1,8 +1,6 @@
 # API Reference — @vllnt/convex-music
 
-**Compatibility (current main/canary):** `convex@^1.45.0`. npm `latest` is still
-`0.1.0`; check the installed release before using the catalog/import surface
-below.
+**Compatibility:** `convex@^1.45.0`.
 
 The `Music` client wraps the mounted component (`components.music`). Construct
 it once, then call from your host queries, mutations, and actions.

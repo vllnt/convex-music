@@ -1,6 +1,6 @@
 {
   "name": "@vllnt/convex-music",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Provider-neutral, cached music catalog as a Convex component — Spotify, Apple Music, and more behind one API",
   "license": "MIT",
   "type": "module",

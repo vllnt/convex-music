@@ -66,10 +66,8 @@ const hit = await music.get(ctx, {
 npm install @vllnt/convex-music
 ```
 
-Current `main`/canary requires `convex@^1.45.0`. npm `latest` remains `0.1.0`;
-this README describes current source, not a promise that every API exists in
-that stable release. Use `npm install @vllnt/convex-music@canary` to follow the
-current implementation.
+Requires `convex@^1.45.0`. Use `npm install @vllnt/convex-music@canary` to try
+unreleased changes from `main`.
 
 ### Provider credentials
 
@@ -164,8 +162,7 @@ Full reference — signatures, value shapes, and error codes:
 
 ## React
 
-Available on current `main`/canary in the `./react` entry, over the implemented
-catalog queries. All hooks return `undefined` while loading, in addition to the
+Available in the `./react` entry, over the implemented catalog queries. All hooks return `undefined` while loading, in addition to the
 results below.
 
 Optional, tree-shakeable hooks over `convex/react`. The host re-exports its own
