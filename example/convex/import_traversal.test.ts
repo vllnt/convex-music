@@ -602,38 +602,3 @@ test("an entry point attaches to an in-flight request instead of re-running", as
   expect(res.requestId).toBe(seeded.requestId);
   expect(res.status).toBe("queued"); // the active request's status, not re-run
 });
-
-test("driving a transition on a missing request is rejected", async () => {
-  const t = setup();
-  await expect(
-    t.action(api.example.runArtistImport, {
-      requestId: "000000000000999999importRequests",
-      provider: "spotify",
-      targetMode: "providerId",
-      name: "",
-      providerId: "a1",
-    }),
-  ).rejects.toThrow(/not found/);
-});
-
-test("re-driving a completed request is rejected by the transition guard", async () => {
-  const t = setup();
-  await configure(t);
-  stubFetch([TOKEN, ARTIST]);
-  const done = await t.action(api.example.importArtist, {
-    provider: "spotify",
-    targetMode: "providerId",
-    providerId: "a1",
-  });
-  expect(done.status).toBe("completed");
-  // a second drive of the same now-completed request: completed → claimed is illegal
-  await expect(
-    t.action(api.example.runArtistImport, {
-      requestId: done.requestId,
-      provider: "spotify",
-      targetMode: "providerId",
-      name: "",
-      providerId: "a1",
-    }),
-  ).rejects.toThrow(/Invalid import transition/);
-});

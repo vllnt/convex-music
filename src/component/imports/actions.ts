@@ -10,7 +10,11 @@ import type { FunctionArgs } from "convex/server";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api.js";
 import type { Id } from "../_generated/dataModel.js";
-import { type ActionCtx, action } from "../_generated/server.js";
+import {
+  type ActionCtx,
+  action,
+  internalAction,
+} from "../_generated/server.js";
 import type { Provider } from "../../shared.js";
 import {
   IMPORT_CONCURRENCY,
@@ -107,7 +111,7 @@ async function promoteTracks(
  * name-search), fetch + promote it into the catalog, and complete (or fail) the
  * request. Returns the terminal status.
  */
-export const runArtistImport = action({
+export const runArtistImport = internalAction({
   args: {
     requestId: v.id("importRequests"),
     provider,
@@ -240,7 +244,7 @@ export const importArtist = action({
         priority: args.priority,
       },
       (requestId) =>
-        ctx.runAction(api.imports.actions.runArtistImport, {
+        ctx.runAction(internal.imports.actions.runArtistImport, {
           requestId,
           provider: args.provider,
           targetMode: args.targetMode,
@@ -257,7 +261,7 @@ export const importArtist = action({
  * credited artists, and complete (or fail) the request. Returns the terminal
  * status.
  */
-export const runTrackImport = action({
+export const runTrackImport = internalAction({
   args: {
     requestId: v.id("importRequests"),
     provider,
@@ -341,7 +345,7 @@ export const importTrack = action({
         priority: args.priority,
       },
       (requestId) =>
-        ctx.runAction(api.imports.actions.runTrackImport, {
+        ctx.runAction(internal.imports.actions.runTrackImport, {
           requestId,
           provider: args.provider,
           providerId: args.providerId,
@@ -356,7 +360,7 @@ export const importTrack = action({
  * membership, and complete (or fail) the request. ISRC-less tracks are skipped
  * (they can't be unified).
  */
-export const runPlaylistImport = action({
+export const runPlaylistImport = internalAction({
   args: {
     requestId: v.id("importRequests"),
     provider,
@@ -448,7 +452,7 @@ export const importPlaylist = action({
         priority: args.priority,
       },
       (requestId) =>
-        ctx.runAction(api.imports.actions.runPlaylistImport, {
+        ctx.runAction(internal.imports.actions.runPlaylistImport, {
           requestId,
           provider: args.provider,
           providerId: args.providerId,
@@ -463,7 +467,7 @@ export const importPlaylist = action({
  * (with enrichment) + its credited artists, store the album row, and complete
  * (or fail) the request. Returns the terminal status.
  */
-export const runAlbumImport = action({
+export const runAlbumImport = internalAction({
   args: {
     requestId: v.id("importRequests"),
     provider,
@@ -560,7 +564,7 @@ export const importAlbum = action({
         priority: args.priority,
       },
       (requestId) =>
-        ctx.runAction(api.imports.actions.runAlbumImport, {
+        ctx.runAction(internal.imports.actions.runAlbumImport, {
           requestId,
           provider: args.provider,
           providerId: args.providerId,

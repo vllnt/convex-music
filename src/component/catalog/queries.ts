@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel.js";
-import { query } from "../_generated/server.js";
+import { internalQuery, query } from "../_generated/server.js";
 import {
   albumDoc,
   artistDoc,
@@ -78,7 +78,7 @@ export const getTrackByIsrc = query({
 });
 
 /** Resolve the unified artist a provider id maps to (via the reverse index). */
-export const getArtistByProvider = query({
+export const getArtistByProvider = internalQuery({
   args: { provider, providerId: v.string() },
   returns: v.union(v.null(), artistDoc),
   handler: async (ctx, args) => {
@@ -93,7 +93,7 @@ export const getArtistByProvider = query({
 });
 
 /** Resolve the unified track a provider id maps to (via the reverse index). */
-export const getTrackByProvider = query({
+export const getTrackByProvider = internalQuery({
   args: { provider, providerId: v.string() },
   returns: v.union(v.null(), trackDoc),
   handler: async (ctx, args) => {

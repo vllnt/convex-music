@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation } from "../_generated/server.js";
+import { internalMutation, mutation } from "../_generated/server.js";
 import { assertCadence, assertNonEmpty } from "../guards.js";
 import { importEntityType, importTargetMode, provider } from "../validators.js";
 
@@ -57,7 +57,7 @@ export const setSourceEnabled = mutation({
 });
 
 /** Stamp a source's `lastImportedAt` after the sweep imports it. */
-export const touchSource = mutation({
+export const touchSource = internalMutation({
   args: { sourceId: v.id("sources"), now: v.number() },
   returns: v.null(),
   handler: async (ctx, args) => {
