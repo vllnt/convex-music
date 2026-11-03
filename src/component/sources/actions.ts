@@ -8,7 +8,7 @@
 
 import { HOUR, RateLimiter } from "@convex-dev/rate-limiter";
 import { v } from "convex/values";
-import { api, components } from "../_generated/api.js";
+import { api, components, internal } from "../_generated/api.js";
 import type { Doc } from "../_generated/dataModel.js";
 import { type ActionCtx, action } from "../_generated/server.js";
 import type { Provider } from "../../shared.js";
@@ -104,7 +104,7 @@ export const runRefresh = action({
       // overlapping sweeps can't both refresh it. `null` => nothing left stale.
       // The re-import's upsert returns it to `synced`; `recoverStuckSyncs`
       // salvages a lease whose holder crashed.
-      const row = await ctx.runMutation(api.sync.mutations.claimNextStale, {
+      const row = await ctx.runMutation(internal.sync.mutations.claimNextStale, {
         kind: args.kind,
       });
       if (row === null) break;
@@ -167,7 +167,7 @@ export const runAutoImport = action({
       if (!ok) break;
       const outcome = await importSource(ctx, source, source.provider);
       if (outcome.status === "completed") {
-        await ctx.runMutation(api.sources.mutations.touchSource, {
+        await ctx.runMutation(internal.sources.mutations.touchSource, {
           sourceId: source._id,
           now,
         });

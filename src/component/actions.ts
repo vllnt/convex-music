@@ -7,7 +7,7 @@
  */
 
 import { v } from "convex/values";
-import { api } from "./_generated/api.js";
+import { api, internal } from "./_generated/api.js";
 import type { Doc } from "./_generated/dataModel.js";
 import { action } from "./_generated/server.js";
 import type { NormalizedArtist, NormalizedTrack } from "../client/types.js";
@@ -45,7 +45,7 @@ export const fetchArtist = action({
   handler: async (ctx, args): Promise<Doc<"artists"> | null> => {
     if (args.force !== true) {
       const existing = await ctx.runQuery(
-        api.catalog.queries.getArtistByProvider,
+        internal.catalog.queries.getArtistByProvider,
         { provider: args.provider, providerId: args.externalId },
       );
       if (existing !== null) return existing;
@@ -71,7 +71,7 @@ export const fetchTrack = action({
   handler: async (ctx, args): Promise<Doc<"tracks"> | null> => {
     if (args.force !== true) {
       const existing = await ctx.runQuery(
-        api.catalog.queries.getTrackByProvider,
+        internal.catalog.queries.getTrackByProvider,
         { provider: args.provider, providerId: args.externalId },
       );
       if (existing !== null) return existing;

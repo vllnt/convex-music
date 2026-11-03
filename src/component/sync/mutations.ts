@@ -1,6 +1,10 @@
 import { ConvexError, v } from "convex/values";
 import { api } from "../_generated/api.js";
-import { type MutationCtx, mutation } from "../_generated/server.js";
+import {
+  type MutationCtx,
+  internalMutation,
+  mutation,
+} from "../_generated/server.js";
 import { artistDoc, trackDoc } from "../validators.js";
 /** Default due rows processed per markStale run. */
 const DEFAULT_LIMIT = 200;
@@ -91,7 +95,7 @@ const DEFAULT_SYNC_LEASE_MS = 10 * 60 * 1000;
  * salvages a lease whose holder crashed. Replaces a blind patch-by-id, which had
  * no compare-and-set and could double-claim across action/mutation boundaries.
  */
-export const claimNextStale = mutation({
+export const claimNextStale = internalMutation({
   args: { kind: v.union(v.literal("artist"), v.literal("track")) },
   returns: v.union(v.null(), artistDoc, trackDoc),
   handler: async (ctx, args) => {

@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - Unreleased
+## [0.2.0] - Unreleased
 
 ### Fixed
 
@@ -17,6 +17,15 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- **Breaking:** eight worker functions that only the component itself calls are now
+  `internalQuery` / `internalMutation` / `internalAction`, so a host can no longer call them through
+  `components.music`: `catalog.queries.getArtistByProvider`, `catalog.queries.getTrackByProvider`,
+  `imports.actions.runArtistImport`, `imports.actions.runTrackImport`,
+  `imports.actions.runPlaylistImport`, `imports.actions.runAlbumImport`,
+  `sources.mutations.touchSource` and `sync.mutations.claimNextStale`. None is on the `Music` client or
+  in `docs/API.md`; use `importArtist` / `importTrack` / `importPlaylist` / `importAlbum` and
+  `fetchArtist` / `fetchTrack` instead. A breaking change in a `0.x` package ships as a minor, so this
+  release is `0.2.0`.
 - Unit-test files are no longer included in the published tarball.
 - Update `@convex-dev/rate-limiter` to `^0.4.2` and refresh the dev toolchain.
 - Document how to use the `/test` entry in a consuming app (needs `convex-test` and `vitest`).

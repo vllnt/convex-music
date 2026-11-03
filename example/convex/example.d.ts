@@ -636,17 +636,6 @@ export declare const importArtist: import("convex/server").RegisteredAction<"pub
     provider: "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
     targetMode: "name" | "providerId";
 }, Promise<import("../../src/client/index.js").ImportResult>>;
-export declare const runArtistImport: import("convex/server").RegisteredAction<"public", {
-    tracks?: "none" | "top" | "all" | undefined;
-    withTracks?: boolean | undefined;
-    name: string;
-    provider: "spotify" | "apple" | "musicbrainz" | "wikidata" | "deezer";
-    providerId: string;
-    targetMode: "name" | "providerId";
-    requestId: string;
-}, Promise<{
-    status: "queued" | "claimed" | "running" | "retry_waiting" | "completed" | "failed" | "canceled" | "stale";
-}>>;
 export declare const importTrack: import("convex/server").RegisteredAction<"public", {
     mode?: "import" | "refresh" | "reimport" | "repair" | undefined;
     priority?: "high" | "normal" | "low" | undefined;
