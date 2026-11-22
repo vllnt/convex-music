@@ -1,11 +1,3 @@
-/**
- * Apple Music developer token, signed with Web Crypto (ECDSA P-256 / ES256).
- * A Convex component runs in V8 — it cannot use `jsonwebtoken` (Node `crypto`),
- * so songtrivia's `jwt.sign(...)` is re-architected here on `crypto.subtle`:
- * PKCS8 key import → JWS assembly → base64url, zero-dependency. Web Crypto emits
- * the raw `r||s` signature JWS/ES256 expects, so no DER conversion is needed.
- */
-
 /** Inputs for an Apple Music developer token. */
 export interface AppleTokenInput {
   /** Apple Developer Team ID — the `iss` claim. */

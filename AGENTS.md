@@ -91,7 +91,7 @@ src/
   TTLs, filters, schedule, image policy), never WHAT. The host populates the catalog at runtime via
   the import primitives + a generic `sources` registry; its *curated, categorized* definitions
   (which playlists/artists, genre rules, game categories/attribution) stay host-side and reconcile
-  into the registry (like songtrivia's crons driving `PLAYLIST_DEFINITIONS`/`ArtistDefinition`). The
+  into the registry (for example a host cron over its own definition lists). The
   component owns the generic "keep these synced" input, never the curated/categorized list. Sources
   are given by natural identifier — artist **name**, playlist **url**, track **ISRC**, or provider id
   (`targetMode`: `name`|`url`|`isrc`|`providerId`). A small `initialSources` mount seed is supported
@@ -99,7 +99,7 @@ src/
   primitives. "Fill" is a declaration — import is async/external, so the engine reconciles toward the
   sources (no synchronous "filled at mount"); `listSources` + sync-status report what's populated.
 - **One component — no search/catalog split.** Search is *over the durable catalog*, and the catalog
-  has ≥3 consumers (songtrivia full, spotzic artists, heardzic/bandzic tracks). A standalone
+  has ≥3 consumers (full-catalog, artist-catalog, and track-preview hosts). A standalone
   `convex-music-search` would sever search from the catalog it queries for no consumer gain, so
   catalog + search + cache + import stay one component. (Revisit only if a real
   provider-search-without-catalog consumer appears — composition keeps it a clean later extraction.)
@@ -183,7 +183,7 @@ src/
 - Credential seam (BLOCKING — a component is sandboxed from the deployment's env vars, so it CANNOT
   read `process.env`; verified live). The **host** reads its own deployment env vars — Spotify
   `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`; Apple `APPLE_MUSIC_ISSUER` / `APPLE_MUSIC_KID` /
-  `APPLE_MUSIC_PRIVATE_KEY` (sourced from songtrivia's backend) — and calls
+  `APPLE_MUSIC_PRIVATE_KEY` — and calls
   `music.configure(ctx, provider, secrets)` once at setup. The component stores them in its sandboxed
   `providerConfig` table (`secrets` is a `Record<string,string>`: `clientId`/`clientSecret` for
   Spotify; `issuer`/`keyId`/`privateKeyPem` for Apple) and reads them only inside its own token
@@ -193,7 +193,7 @@ src/
   cannot re-validate component row ids (`v.id("artists")`), so the typed shape comes from the `Music`
   client return types, not a host-side `returns`.
 - Resilience: retry `429` **and** overload `5xx` (incl. `529` / `503`) — honor `Retry-After`, capped
-  backoff + jitter, per-request timeout, bounded concurrency. songtrivia retries only `429`; the
+  backoff + jitter, per-request timeout, bounded concurrency. Retrying only `429` is not enough; the
   component must also survive provider overload (`529`) so an import never hard-fails on it.
 - Automation (`auto-import`): **opt-in, off by default.** Two modes on one cursored, idempotent,
   per-mount cron — **import** (pull NEW sources) and **sync/refresh** (keep EXISTING rows current per

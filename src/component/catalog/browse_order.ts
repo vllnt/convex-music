@@ -1,10 +1,3 @@
-/**
- * Deterministic daily-rotation ordering (songtrivia's `browse_order`). An FNV-1a
- * hash over `dateBucket:id` gives a stable-within-a-UTC-day, rotates-at-midnight
- * order — stable-but-rotating browse with zero host state. Used by the
- * `selectEligible` daily-rotation mode.
- */
-
 const FNV_32_OFFSET = 0x811c9dc5;
 const FNV_32_PRIME = 0x01000193;
 

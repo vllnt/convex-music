@@ -1,11 +1,3 @@
-/**
- * Stable dedup key for an import request (songtrivia's `buildMusicImportDedupeKey`).
- * A pipe-joined, case-normalized key so a duplicate in-flight request collapses
- * onto the active one — but a `refresh` never dedups into an `import`, and a
- * `withTracks` import never collapses into a shallow one (both differ in the key).
- * Collapsing happens only against ACTIVE requests (see `state.ts`).
- */
-
 /** The request fields that define identity for dedup. */
 export interface DedupeKeyInput {
   entityType: string;

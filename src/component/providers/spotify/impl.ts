@@ -36,7 +36,6 @@ import type {
   SpotifyTrack,
 } from "./types.js";
 
-/** Tunable Spotify limits (songtrivia-derived defaults; all overridable). */
 export interface SpotifyConfig {
   /** Market for catalog availability + previews. */
   market: string;

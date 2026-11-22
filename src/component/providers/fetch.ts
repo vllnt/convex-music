@@ -1,12 +1,3 @@
-/**
- * Resilient provider HTTP. Wraps `fetch` with a per-request timeout and retries
- * on rate-limit (429) **and** overload 5xx (500/502/503/504/529) — honoring
- * `Retry-After`, capped exponential backoff, and jitter. songtrivia retries only
- * 429; a Spotify/Apple `529`/`503` must never hard-fail an import, so the
- * component also retries transient overload. Every knob is config; the timer and
- * RNG are injectable so the retry loop is deterministic under test.
- */
-
 /** Status codes worth retrying: rate-limit + transient overload. */
 const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([
   429, 500, 502, 503, 504, 529,
@@ -24,7 +15,6 @@ export interface RetryConfig {
   timeoutMs: number;
 }
 
-/** songtrivia-derived defaults (all overridable via mount policy). */
 export const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxAttempts: 6,
   maxWaitMs: 60_000,
@@ -160,15 +150,6 @@ export async function fetchJson<T>(
   }
 }
 
-/**
- * Run async tasks with bounded concurrency, preserving input order. Mirrors
- * songtrivia's album-fetch semaphore (default fan-out 5) so a large traversal
- * never opens unbounded provider connections.
- *
- * @param items - inputs to map.
- * @param limit - max in-flight tasks (must be > 0).
- * @param task - async mapper.
- */
 export async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,

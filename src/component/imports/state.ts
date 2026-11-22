@@ -1,10 +1,3 @@
-/**
- * The import control-plane state machine (songtrivia's 8-state `music_imports`,
- * generalized). A component-owned control-plane over the `importRequests` table —
- * NOT `@convex-dev/workflow`; the bounded traversal runs inline. Pure transition +
- * retry logic; the mutations enforce it on the request rows via `assertTransition`.
- */
-
 /** The lifecycle states of an import request. */
 export const IMPORT_STATUS = {
   queued: "queued",
