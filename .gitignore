@@ -54,3 +54,4 @@ example/convex/*.test.d.ts.map
 
 # AGENTS.md is the only agent instruction surface
 .claude/
+.privacy-denylist.local
