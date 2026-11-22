@@ -1,11 +1,3 @@
-/**
- * The sync + repair lifecycle logic for catalog rows (songtrivia's sync-status /
- * repair machines, generalized). Pure transition + scheduling logic; the
- * mutations + crons enforce it on the rows. Two machines:
- * - sync-status: `pending → running → synced | failed → stale` (freshness).
- * - repair-status: `clean → needs_repair → repairing → clean | failed_repair`.
- */
-
 /** Freshness-sync states of a catalog row. */
 export type SyncStatus =
   | "pending"
@@ -89,7 +81,6 @@ export function shouldSyncRetry(retryCount: number): boolean {
   return retryCount < MAX_SYNC_RETRIES;
 }
 
-/** Staleness windows by popularity tier (songtrivia defaults). */
 export const STALENESS_MS = {
   high: 7 * 24 * 60 * 60 * 1000,
   medium: 30 * 24 * 60 * 60 * 1000,

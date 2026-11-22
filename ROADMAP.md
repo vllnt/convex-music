@@ -1,7 +1,7 @@
 # ROADMAP — @vllnt/convex-music
 
 A provider-neutral music **catalog** Convex component: it owns a durable music database
-(artists / tracks / playlists, modeled on songtrivia's proven shape but generic) **plus** a
+(artists / tracks / playlists, with a generic, provider-neutral shape) **plus** a
 provider-fetch cache, and runs the import/sync/repair engine over its own tables. This roadmap
 tracks **this component's** plan only (the hub `ROADMAP.md` tracks fleet creation/programs).
 Convention: phases are immutable kebab-case outcome slugs; tasks have stable `slug.N` ids; history
@@ -13,10 +13,10 @@ is never deleted — mark status, don't remove.
 
 | App | Needs | Mode |
 |-----|-------|------|
-| songtrivia | full catalog + import; search **over the catalog**; getTrack/Artist/Album/Playlist; ISRC | live, reference consumer |
-| spotzic | artist catalog + artist search; daily **artist** selection | catalog (artists) + editorial host-side |
-| heardzic | track search (also via artist→tracks) + `previewUrl`; daily **track** selection | catalog (tracks) |
-| bandzic | track search + `previewUrl`/clip; daily **track** selection | catalog (tracks) |
+| Full-catalog host | full catalog + import; search **over the catalog**; getTrack/Artist/Album/Playlist; ISRC | live, reference consumer |
+| Artist-catalog host | artist catalog + artist search; daily **artist** selection | catalog (artists) + editorial host-side |
+| Track-preview host | track search (also via artist→tracks) + `previewUrl`; daily **track** selection | catalog (tracks) |
+| Clip host | track search + `previewUrl`/clip; daily **track** selection | catalog (tracks) |
 
 `harmonies` and `wordzic` are NOT consumers (word games — no catalog data).
 
@@ -40,8 +40,8 @@ so search and catalog are one component — they are NOT split into `convex-musi
   **per provider is wrong**: the field-source policy ("preview from Apple, image from Spotify, 3 of 4")
   needs one entity holding all providers to project across — per-provider data lives in the provenance,
   not in separate catalogs. Identity resolution (ISRC / MBID+name / id) is the merge step
-  (`catalog-store.4`). Matches all four games (songtrivia ISRC tracks + `providers[]`; spotzic
-  artist facts aggregated across Spotify+MusicBrainz+Wikidata; heardzic/bandzic track previews).
+  (`catalog-store.4`). Matches the main host patterns (ISRC tracks + `providers[]`;
+  artist facts aggregated across Spotify+MusicBrainz+Wikidata; track previews).
 - **Tier-0 boundary — what stays host-side.** To remain a horizontal music-catalog component (not a
   game-specific store), the host keeps: gameplay (puzzles, guesses, stats), **editorial overrides +
   `sourceRefs` + the frozen gameplay snapshot**, and game **categories / attribution / genre→category
@@ -56,7 +56,7 @@ so search and catalog are one component — they are NOT split into `convex-musi
   import primitives + a generic `sources` registry (`import-engine.5`). The host's *curated,
   categorized* definitions — which playlists/artists, genre-enforcement rules, game categories /
   attribution — stay host-side (domain) and reconcile into the registry (e.g. a host cron over its
-  own definition lists, exactly as songtrivia's crons drive `PLAYLIST_DEFINITIONS`/`ArtistDefinition`).
+  own definition lists, the same way a host cron would drive those lists).
   The component owns the *generic* "keep these synced" input, never the curated/categorized list.
   Seed/source entries are given by natural identifier — artist **name**, playlist **link/url**,
   track **ISRC**, or provider id (the `targetMode` set: `name`|`url`|`isrc`|`providerId`). A small
@@ -66,7 +66,7 @@ so search and catalog are one component — they are NOT split into `convex-musi
   engine *reconciles toward* the declared sources (`listSources` + sync-status report what's actually
   populated) — there is no synchronous "filled at mount" guarantee.
 - **One component, no search/catalog split.** Search is *over the durable catalog*, and the catalog
-  has ≥3 consumers (songtrivia full, spotzic artists, heardzic/bandzic tracks). Splitting search into
+  has ≥3 consumers (full-catalog, artist-catalog, and track-preview hosts). Splitting search into
   a sibling `convex-music-search` would sever it from the catalog it queries with no consumer benefit
   (no one wants provider-search without the catalog). Catalog + search + cache + import stay one
   component. (A standalone search component is only revisited if a real provider-search-without-catalog
@@ -140,8 +140,8 @@ so search and catalog are one component — they are NOT split into `convex-musi
     semantics); idempotency provides the exactly-once execution seam underneath it.
   The only deliberate NON-composition: the per-HTTP-request resilient fetch (429/Retry-After/backoff)
   is inline, NOT `@convex-dev/action-retrier` — action-retrier retries whole *actions*, a different
-  layer than per-request rate-limit handling (songtrivia is inline here too).
-- **Resilient against provider overload (429 + 5xx/529).** songtrivia handles only `429`; the
+  layer than per-request rate-limit handling (inline retries belong at this layer too).
+- **Resilient against provider overload (429 + 5xx/529).** Retrying only `429` is not enough; the
   component must also retry overload `5xx` (incl. `529`, `503`) with `Retry-After` + capped backoff +
   jitter + per-request timeout + bounded concurrency, so a Spotify/Apple `529` never hard-fails an
   import. (See `read-through-fetch.4`.)
@@ -182,15 +182,15 @@ The raw provider-fetch cache substrate: TTL'd entries, keyed lookups, ISRC cross
 
 ## catalog-store — `in-progress`
 
-The durable music database — generic, modeled on songtrivia's `music_*` shape.
+The durable music database — generic `artists` / `tracks` / `playlists` shape.
 
-- `catalog-store.1` `done` — durable `artists` / `tracks` / `playlists` tables as **one unified canonical entity per real-world identity** (track by **ISRC**, artist by **resolved id — MBID preferred, name fallback**, album by id/(artist+title+year)) — NOT one row per provider. Each entity carries a per-provider **`providers[]` provenance** (each provider's id + its field values), enabling the field-source policy. Artist↔track + playlist↔track relations; raw provider genres/popularity (no game taxonomy). Plus a denormalized **provider-id reverse index** (a `*_providers` junction with `by_provider_providerId`) — Convex can't index inside arrays, so `resolveByIsrc` / `importArtist({ by:"providerId" })` would full-scan without it (songtrivia keeps exactly this, `junctions/schemas.ts`). Keep the **ISRC-mismatch guard** (a provider disagreeing on a unified track's ISRC throws — not silent last-write-wins, `tracks/track.ts:108`).
+- `catalog-store.1` `done` — durable `artists` / `tracks` / `playlists` tables as **one unified canonical entity per real-world identity** (track by **ISRC**, artist by **resolved id — MBID preferred, name fallback**, album by id/(artist+title+year)) — NOT one row per provider. Each entity carries a per-provider **`providers[]` provenance** (each provider's id + its field values), enabling the field-source policy. Artist↔track + playlist↔track relations; raw provider genres/popularity (no game taxonomy). Plus a denormalized **provider-id reverse index** (a `*_providers` junction with `by_provider_providerId`) — Convex can't index inside arrays, so `resolveByIsrc` / `importArtist({ by:"providerId" })` would full-scan without it (keep this junction; Convex cannot index inside arrays). Keep the **ISRC-mismatch guard** (a provider disagreeing on a unified track's ISRC throws — not silent last-write-wins, `tracks/track.ts:108`).
 - `catalog-store.2` `in-progress` — read/search API over the catalog (`getArtist`/`getTrack`/`getPlaylist`, `searchArtists`/`searchTracks`, `getTrackByIsrc`) + reactive queries for hosts; every read/search accepts a per-call **field-source policy** override (kinds, fields, per-field provider source — see `field-source-policy`).
-- `catalog-store.3` `done` — cache↔catalog table design: decide whether `cacheEntries` persists as a short-lived raw-response dedup layer behind the catalog, or freshness folds into catalog rows via sync-status (songtrivia's single-table model). Document the chosen seam.
+- `catalog-store.3` `done` — cache↔catalog table design: decide whether `cacheEntries` persists as a short-lived raw-response dedup layer behind the catalog, or freshness folds into catalog rows via sync-status (a single-table model). Document the chosen seam.
 - `catalog-store.4` `done` — **identity resolution + merge**: unify a provider's normalized facts into the canonical entity — tracks by ISRC (with a fallback when a provider omits ISRC), artists by MBID then name (configurable strategy), albums by id/(artist+title+year) — upserting that provider's slice into the entity's `providers[]` (idempotent; no duplicate canonical rows). This is the layer-1-raw → layer-2-unified promotion.
-- `catalog-store.5` `done` — `selectEligible({ kind, filter, weight?, excludeIds?, limit })` — generic random/weighted/filtered selection over the catalog (host passes `excludeIds` of recently-used subjects). The selection *primitive* for daily-game pickers; the daily-puzzle assignment (freeze, no-repeat, schedule) stays in the host/daily-game layer. Offers a **deterministic daily-rotation** ordering mode (date-bucketed FNV hash, stable within a UTC day, rotates daily — songtrivia's `browse_order.ts`) for stable-but-rotating browse with no host state.
+- `catalog-store.5` `done` — `selectEligible({ kind, filter, weight?, excludeIds?, limit })` — generic random/weighted/filtered selection over the catalog (host passes `excludeIds` of recently-used subjects). The selection *primitive* for daily-game pickers; the daily-puzzle assignment (freeze, no-repeat, schedule) stays in the host/daily-game layer. Offers a **deterministic daily-rotation** ordering mode (date-bucketed FNV hash, stable within a UTC day, rotates daily) for stable-but-rotating browse with no host state.
 - `catalog-store.6` `planned` — **multi-catalog scope**: an opaque `catalog` ref on every table (cache, catalog, sources, sync rows) + **scoped indexes** (`by_catalog_*`) + a `catalogs` config table (mount-seeded `catalogs: {…}` AND runtime `createCatalog`/`listCatalogs`), each catalog holding its own kinds/providers/field-source policy/retention. **Default catalog** so single-catalog usage is zero-config. BLOCKING: every catalog read carries the `catalog` id — a non-scoped read must never silently span catalogs. Crons iterate catalogs (per-catalog prune/sync), idempotent. Client: `music.catalog("artists").search(…)` / per-call `catalog`. (Owner decision; **build deferred** — named mounts serve until a single deployment needs N runtime catalogs.)
-- `catalog-store.7` `done` — **playlist membership diff**: store playlist membership with order + a provider snapshot/version; on re-import, detect **removals + reorders** — songtrivia is union-only (never removes dropped tracks, no order; `playlists/track_sync.ts`). Membership is a diff, not an append.
+- `catalog-store.7` `done` — **playlist membership diff**: store playlist membership with order + a provider snapshot/version; on re-import, detect **removals + reorders** — a union-only approach never removes dropped tracks and stores no order. Membership is a diff, not an append.
 
 ## provider-adapters — `done`
 
@@ -198,7 +198,7 @@ One normalize adapter per provider, behind a single interface. No host coupling.
 
 - `provider-adapters.1` `done` — the `MusicProvider` adapter **interface** (search/getTrack/getArtist/getAlbum/getPlaylist/topTracks/artistAlbums/searchByIsrc/getSeveralTracks) + provider-tagged normalized entities over the client normalized schema as the single contract (`src/component/providers/types.ts`). Each adapter is a folder: `client` (auth/fetch) · `types` (RAW response schema, private) · `mappers` (raw→normalized) · `impl`.
 - `provider-adapters.2` `done` — Spotify adapter (client-credentials OAuth token exchange; all 9 methods; bounded-concurrency artist albums; chunked `getSeveralTracks` ISRC enrichment). Token caching via `@convex-dev/action-cache` lands with the action layer (`read-through-fetch`).
-- `provider-adapters.3` `done` — Apple Music adapter, **full V8 re-architecture**: ES256 developer-token signer on Web Crypto `subtle.sign` (ECDSA P-256, PKCS8 import + JWS assembly + base64url, zero-dep — `apple/jwt.ts`), replacing songtrivia's `jsonwebtoken`. All 9 methods; Apple inlines album/playlist tracks via `include=tracks`. 100% covered with a real local sign+verify round-trip.
+- `provider-adapters.3` `done` — Apple Music adapter, **full V8 re-architecture**: ES256 developer-token signer on Web Crypto `subtle.sign` (ECDSA P-256, PKCS8 import + JWS assembly + base64url, zero-dep — `apple/jwt.ts`), replacing a Node `jsonwebtoken` signer. All 9 methods; Apple inlines album/playlist tracks via `include=tracks`. 100% covered with a real local sign+verify round-trip.
 - `provider-adapters.4` `done` — MusicBrainz adapter (nationality/country, gender, `members` solo/group, debut/begin-date).
 - `provider-adapters.5` `done` — Wikidata adapter (overlap + gap-fill for artist facts).
 - `provider-adapters.6` `done` — Deezer adapter.
@@ -211,7 +211,7 @@ Fetch-on-miss verbs that fill the cache + catalog and return normalized facts. C
 - `read-through-fetch.1` `done` — `search({ provider?, query, types, policy? })` (track + artist); accepts a per-call **field-source policy** override (see `field-source-policy`).
 - `read-through-fetch.2` `in-progress` — `getTrack` / `getArtist` / `getAlbum` (cache-through → catalog).
 - `read-through-fetch.3` `done` — `resolveByIsrc` cross-provider track resolution. Powers "playlist from provider A, track data from provider B": e.g. import an **Apple Music** playlist (Apple gives membership/order + per-track ISRC) and return each track's data from **Spotify** (resolve each ISRC → unified track → project track fields `from: "spotify"`). The playlist entity stays the source provider's; track members are resolved cross-provider by ISRC.
-- `read-through-fetch.4` `in-progress` — **resilient provider calls**: DONE — `src/component/providers/fetch.ts` retries `429` **AND overload `5xx` (500/502/503/504/529)** (songtrivia retried only 429), honoring `Retry-After`, capped exponential backoff + jitter (60s cap, bounded attempts), per-request timeout, and a bounded-concurrency map. Remaining: compose `@convex-dev/rate-limiter` for the provider-API rate budget + optional per-provider circuit-breaker at the action layer.
+- `read-through-fetch.4` `in-progress` — **resilient provider calls**: DONE — `src/component/providers/fetch.ts` retries `429` **AND overload `5xx` (500/502/503/504/529)** (not only 429), honoring `Retry-After`, capped exponential backoff + jitter (60s cap, bounded attempts), per-request timeout, and a bounded-concurrency map. Remaining: compose `@convex-dev/rate-limiter` for the provider-API rate budget + optional per-provider circuit-breaker at the action layer.
 - `read-through-fetch.5` `planned` — live vs cached popularity option (`live: true` bypass / short TTL).
 - `read-through-fetch.6` `planned` — mount-policy config: enabled providers + **preference order**, secret env-var names, market/locale, per-entity TTLs, rate limits, batch sizes, ISRC resolution strategy, prefetch budget, import filters-as-config (sensible zero-config defaults). The "managed by policy from init" surface.
 - `read-through-fetch.7` `done` — host wiring + credentials. **Seam RESOLVED (verified live): a Convex component is sandboxed from the deployment's env vars — it CANNOT read `process.env`.** So NOT "component reads env"; instead the **host** reads its own deployment env vars (Spotify `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`; Apple `APPLE_MUSIC_ISSUER`/`APPLE_MUSIC_KID`/`APPLE_MUSIC_PRIVATE_KEY`) and calls `music.configure(ctx, provider, secrets)` once; the component stores them in its sandboxed `providerConfig` table and reads them only inside its token actions (token/JWT cached via `@convex-dev/action-cache`). Validated end-to-end on `vllnt:convex-music` dev against **real Spotify and real Apple Music** (the V8 ES256 JWT is accepted by Apple's API). Also discovered live: **host wrappers returning component docs must use a loose return validator** — a host cannot re-validate component row ids (`v.id("artists")`); the typed shape comes from the `Music` client return types. Provider enable/preference is the mount policy's `providers` list + the per-import select; no env-based gating.
@@ -235,13 +235,13 @@ artist-image policy to every field.
 
 Policy-driven import of provider data into the component's catalog (writes its OWN tables).
 
-- `import-engine.1` `done` — import entry points by natural identifier (the `targetMode` set `name`|`url`|`isrc`|`providerId`|`entityId`): `importArtist({ by:"name"|"providerId" })`, `importPlaylist({ url })`, `importTrack({ isrc })`, and `reimport({ entityId })` (re-import/repair an already-resolved catalog row by id — songtrivia's 5th `targetMode`). Host-triggered; provider auto-detect from a url/id. Each accepts a per-call **`ImportOptions`** (see `import-engine.7`).
+- `import-engine.1` `done` — import entry points by natural identifier (the `targetMode` set `name`|`url`|`isrc`|`providerId`|`entityId`): `importArtist({ by:"name"|"providerId" })`, `importPlaylist({ url })`, `importTrack({ isrc })`, and `reimport({ entityId })` (re-import/repair an already-resolved catalog row by id — a fifth `targetMode`). Host-triggered; provider auto-detect from a url/id. Each accepts a per-call **`ImportOptions`** (see `import-engine.7`).
 - `import-engine.2` `in-progress` — traversal: playlist → tracks → artists; promote normalized provider facts into the catalog tables (dedup by ISRC/provider id).
-- `import-engine.3` `in-progress` — orchestration via `@convex-dev/workflow` + `workpool` (batch concurrency, step retries); config-driven import filters (title/quality — adopt songtrivia's generic word-boundary title heuristics, `filters/title.ts`), never game-specific rules. **Partial-failure tolerance**: traversal uses `Promise.allSettled` so one failed album/track fetch doesn't abort the import; surface an `isPartial` flag + truncation cap (songtrivia `MAX_ALBUMS_PER_ARTIST=30`, semaphore 5, `spotify/impl.ts:243`).
-- `import-engine.4` `done` — import **control-plane state machine** (not just a ledger): request status `queued→claimed→running→{retry_waiting↺}→completed|failed|canceled|stale` with validated transitions + a phase/event ledger + a **manual-recovery surface** (`canRepair`/`canRetry`/`retryMode`) + provider-contribution & queue summaries — component-owned, modeling songtrivia's 8-state `music_imports` control plane (`imports/schemas.ts:51`). Per-request retry budget **2 × [15s, 60s]** → `stale`.
-- `import-engine.5` `done` — generic **`sources` registry**: runtime host-managed CRUD (`addSource`/`removeSource`/`listSources`) of `{ kind, by: "name"|"url"|"isrc"|"providerId", value, providers?, cadence? }` the engine keeps synced; typed (no `v.any()`). Optional `initialSources` mount seed (small/static, zero-config bootstrap). This is the generic "what to keep imported" input — the host's *curated, categorized* definitions (which playlists/artists, genre rules, game categories) stay host-side and reconcile INTO this registry (e.g. a host cron over its own `PLAYLIST_DEFINITIONS`-style lists, like songtrivia).
-- `import-engine.6` `done` — **import-request dedup**, backed by **`@vllnt/convex-idempotency`** (compose, don't hand-roll the dedup store): a stable pipe-joined key over (`entityType`, `mode`/requestType, `targetMode`, `providerScope`, `provider`, `providerId`, `entityId`, name→lowercased, isrc→UPPERCASED, `url`, `withTracks`) collapsing **only against ACTIVE requests** (`queued|claimed|running|retry_waiting`) — so a `refresh` doesn't dedup into an `import` and a `withTracks` import doesn't collapse into a shallow one (matches songtrivia `buildMusicImportDedupeKey`, `imports/actions.ts:48`, incl. case-normalization). The 8-state control-plane table (`import-engine.4`) stays component-owned for the active-only + `withTracks` semantics; `@vllnt/convex-idempotency` provides the exactly-once execution seam keyed by the dedupe key.
-- `import-engine.7` `done` — typed **`ImportOptions`** per call (no `v.any()`): **provider select** `providers?: Provider[]` (only these) OR `excludeProviders?: Provider[]` (default = catalog set) — what to FETCH this import; **traversal/depth** — artist `tracks?: false | { mode: "top"|"all"|"viaAlbums", limit?, importArtists?: bool }` + `albums?: false | { limit? }`, playlist `tracks?: { limit?, importArtists?: bool }`, track `withArtists?: bool` + `withAlbum?: bool`; **`mode`** `import|refresh|reimport|repair`; **`priority`** `high|normal|low`; **`catalog`** scope. Generalizes songtrivia's import request (provider scope `spotify|apple|any` → N-provider select; `withTracks` → traversal; `requestType`/`priority`). Conservative defaults (artist = artist only; playlist = its tracks, not their artists; track = just the track). Traversal `limit`s bound the workflow fan-out. **Ship first:** `withTracks`-equivalent + `mode` (songtrivia's proven surface); **defer** `viaAlbums` + album-limit traversal until a consumer needs it.
+- `import-engine.3` `in-progress` — orchestration via `@convex-dev/workflow` + `workpool` (batch concurrency, step retries); config-driven import filters (title/quality — adopt generic word-boundary title heuristics, `filters/title.ts`), never game-specific rules. **Partial-failure tolerance**: traversal uses `Promise.allSettled` so one failed album/track fetch doesn't abort the import; surface an `isPartial` flag + truncation cap (`MAX_ALBUMS_PER_ARTIST=30`, semaphore 5).
+- `import-engine.4` `done` — import **control-plane state machine** (not just a ledger): request status `queued→claimed→running→{retry_waiting↺}→completed|failed|canceled|stale` with validated transitions + a phase/event ledger + a **manual-recovery surface** (`canRepair`/`canRetry`/`retryMode`) + provider-contribution & queue summaries — component-owned, modeling an 8-state import-request control plane. Per-request retry budget **2 × [15s, 60s]** → `stale`.
+- `import-engine.5` `done` — generic **`sources` registry**: runtime host-managed CRUD (`addSource`/`removeSource`/`listSources`) of `{ kind, by: "name"|"url"|"isrc"|"providerId", value, providers?, cadence? }` the engine keeps synced; typed (no `v.any()`). Optional `initialSources` mount seed (small/static, zero-config bootstrap). This is the generic "what to keep imported" input — the host's *curated, categorized* definitions (which playlists/artists, genre rules, game categories) stay host-side and reconcile INTO this registry (e.g. a host cron over its own definition lists).
+- `import-engine.6` `done` — **import-request dedup**, backed by **`@vllnt/convex-idempotency`** (compose, don't hand-roll the dedup store): a stable pipe-joined key over (`entityType`, `mode`/requestType, `targetMode`, `providerScope`, `provider`, `providerId`, `entityId`, name→lowercased, isrc→UPPERCASED, `url`, `withTracks`) collapsing **only against ACTIVE requests** (`queued|claimed|running|retry_waiting`) — so a `refresh` doesn't dedup into an `import` and a `withTracks` import doesn't collapse into a shallow one (including case-normalization). The 8-state control-plane table (`import-engine.4`) stays component-owned for the active-only + `withTracks` semantics; `@vllnt/convex-idempotency` provides the exactly-once execution seam keyed by the dedupe key.
+- `import-engine.7` `done` — typed **`ImportOptions`** per call (no `v.any()`): **provider select** `providers?: Provider[]` (only these) OR `excludeProviders?: Provider[]` (default = catalog set) — what to FETCH this import; **traversal/depth** — artist `tracks?: false | { mode: "top"|"all"|"viaAlbums", limit?, importArtists?: bool }` + `albums?: false | { limit? }`, playlist `tracks?: { limit?, importArtists?: bool }`, track `withArtists?: bool` + `withAlbum?: bool`; **`mode`** `import|refresh|reimport|repair`; **`priority`** `high|normal|low`; **`catalog`** scope. Generalizes a typical import request (provider scope `spotify|apple|any` → N-provider select; `withTracks` → traversal; `requestType`/`priority`). Conservative defaults (artist = artist only; playlist = its tracks, not their artists; track = just the track). Traversal `limit`s bound the workflow fan-out. **Ship first:** `withTracks`-equivalent + `mode`; **defer** `viaAlbums` + album-limit traversal until a consumer needs it.
 - `import-engine.8` `planned` — **default import options** layered: per-catalog `defaultImport` at mount + per-`sources`-entry options (so cron re-imports honor them) + per-call override (deep-merge, per-call wins).
 
 ## sync-lifecycle — `in-progress`
@@ -253,8 +253,8 @@ Keep the catalog fresh; recover failures. Operates on the component's own catalo
 - `sync-lifecycle.3` `planned` — budgeted, cursored batch-repair (find unsynced/failed/stale → re-sync), idempotent + per-mount.
 - `sync-lifecycle.4` `in-progress` — maintenance crons (find-unsynced, retry-failed) — mount-safe, idempotent.
 - `sync-lifecycle.5` `done` — concurrency-safe batch claims: acquire/release a lease (claim token + lease TTL) so parallel sync workers don't double-process; scavenge expired claims; ISRC chunking + dedup guardrails (mirrors `tracks/claims.ts` + `track_sync_guardrails.ts`).
-- `sync-lifecycle.6` `planned` — repair-status state machine (`clean → needs_repair → repairing → failed_repair`, validated transitions) + atomic repair claim — the GENERIC repair infra. The specific *what* to repair (e.g. genre links, junctions) is host-domain; the component owns the state machine + claim + budgeted runner, not the domain repair rules. Adopt songtrivia's repair constants (`MAX_REPAIR_ATTEMPTS=3`, in-progress reset `15min`, error cap 256).
-- `sync-lifecycle.7` `done` — **recovery from abandonment**: (a) **stuck-pending/running watchdog** — rows whose workflow died (no update for `≈5min`) reset to `failed`; (b) **stale-salvage** — periodic capped recovery of `stale` rows (songtrivia: weekly, `7d` threshold, `MAX_SALVAGE_ATTEMPTS=3`) rather than leaving `stale` terminal.
+- `sync-lifecycle.6` `planned` — repair-status state machine (`clean → needs_repair → repairing → failed_repair`, validated transitions) + atomic repair claim — the GENERIC repair infra. The specific *what* to repair (e.g. genre links, junctions) is host-domain; the component owns the state machine + claim + budgeted runner, not the domain repair rules. Adopt these repair constants (`MAX_REPAIR_ATTEMPTS=3`, in-progress reset `15min`, error cap 256).
+- `sync-lifecycle.7` `done` — **recovery from abandonment**: (a) **stuck-pending/running watchdog** — rows whose workflow died (no update for `≈5min`) reset to `failed`; (b) **stale-salvage** — periodic capped recovery of `stale` rows (weekly, `7d` threshold, `MAX_SALVAGE_ATTEMPTS=3`) rather than leaving `stale` terminal.
 
 ## auto-import — `in-progress`
 
@@ -266,7 +266,7 @@ drives it.
 
 - `auto-import.1` `in-progress` — per-catalog `autoImport` config: `enabled` (default false), `schedule` (`{ cron }` | `{ everyMs }`), `select` (`unsynced-first` | `stale-oldest` | `priority`), `maxConcurrent` (workpool bound). Typed, zero-config default = disabled.
 - `auto-import.2` `done` — **throughput budget** decoupled from cron: a `@convex-dev/rate-limiter` token bucket per `(catalog, kind)` — `rate: { artist: { count: 2, per: "1h" }, track: { count: 20, per: "1h" } }` ("2 artists/hour"). The bucket is the authoritative cap regardless of cron frequency, survives restarts. **Distinct from the provider-API rate** (`read-through-fetch.4`, 429/529): this paces *entity throughput*, that protects the *provider HTTP API*.
-- `auto-import.3` `in-progress` — the sweep cron: per-mount, idempotent, **cursored** (resume across runs, reuse songtrivia's `runBudgetedBatchedJob` pattern) — picks unsynced sources + stale catalog rows within the rate budget, enqueues imports via workpool honoring each source's `ImportOptions`. Backpressure: budget exhausted → no-op until the window refills (no unbounded queue).
+- `auto-import.3` `in-progress` — the sweep cron: per-mount, idempotent, **cursored** (resume across runs, reuse a cursored `runBudgetedBatchedJob` pattern) — picks unsynced sources + stale catalog rows within the rate budget, enqueues imports via workpool honoring each source's `ImportOptions`. Backpressure: budget exhausted → no-op until the window refills (no unbounded queue).
 - `auto-import.4` `done` — separate budgets/priority for **new import vs refresh** (optional): new-source imports take priority over stale-row refreshes; oldest-first within each.
 - `auto-import.5` `in-progress` — **freshness / refresh config** (the "keep data up to date" policy): per-catalog (per-kind, optionally per-field) staleness window — `refresh: { artist: { staleAfter: "7d" }, track: { staleAfter: "30d" }, fields?: { popularity: { staleAfter: "1d" } }, rate?: {…} }` — drives the sync-status `synced → stale` transition; the sweep re-syncs past-window entities within a **refresh budget** distinct from the new-import budget (`auto-import.2`). Per-field windows honor live-vs-synced popularity (volatile fields refresh faster than static facts like genres/debut/ISRC).
 
@@ -286,18 +286,18 @@ Configurable artist profile-image resolution across providers + scheduled refres
 
 ## consumer-migration — `planned`
 
-Land each real consumer on the component; songtrivia is the reference.
+Land each real consumer on the component; a full-catalog host is the reference.
 
-- `consumer-migration.1` `planned` — migrate songtrivia onto the component: its `music/providers/*`, import engine, sync-status lifecycle, and `lib/music_sync` repair move INTO the component (catalog-owned); songtrivia keeps gameplay + editorial overrides + game categories/attribution, reading the catalog via the component API by id/ISRC.
-- `consumer-migration.2` `planned` — spotzic reads artist facts from the catalog; host owns editorial merge + frozen snapshot.
-- `consumer-migration.3` `planned` — heardzic ops track import + `getTrack` (audio source/licensing host-side).
-- `consumer-migration.4` `planned` — bandzic ops track import + clip handling (host-side audio).
+- `consumer-migration.1` `planned` — migrate a full-catalog host onto the component: provider adapters, import engine, sync-status lifecycle, and repair move INTO the component (catalog-owned); the host keeps gameplay + editorial overrides + categories/attribution, reading the catalog via the component API by id/ISRC.
+- `consumer-migration.2` `planned` — an artist-catalog host reads artist facts from the catalog; the host owns editorial merge + frozen snapshot.
+- `consumer-migration.3` `planned` — a track-preview host ops track import + `getTrack` (audio source/licensing host-side).
+- `consumer-migration.4` `planned` — a clip host ops track import + clip handling (host-side audio).
 
 ## reference-defaults — `planned`
 
-Concrete constants to **adopt from songtrivia as config defaults** (don't re-derive; all configurable).
+Concrete constants to **adopt as config defaults** (don't re-derive; all configurable).
 
-| Concern | Default (songtrivia) |
+| Concern | Default |
 | --- | --- |
 | Provider call | timeout 15s (token 5s) · retry 6 attempts · 60s cap · 250ms jitter · `Retry-After` fallback 5s |
 | Spotify token | `action-cache` 55-min TTL · inner 3 tries (250ms/500ms/1s) |

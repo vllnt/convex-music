@@ -84,13 +84,6 @@ export const cacheEntryDoc = v.object({
   ...cacheEntryFields,
 });
 
-/*
- * ── Durable catalog ─────────────────────────────────────────────────────────
- * The unified music database: one canonical entity per real-world identity
- * (track by ISRC, artist by resolved name), each carrying per-provider
- * `providers[]` provenance the field-source policy projects across. Generalized
- * from songtrivia's `music_*` tables; no game taxonomy.
- */
 
 /** Lifecycle of a catalog row's freshness sync. */
 export const syncStatus = v.union(
@@ -287,12 +280,6 @@ export const providerConfigFields = {
   revision: v.optional(v.number()),
 };
 
-/*
- * ── Import control plane ────────────────────────────────────────────────────
- * The component-owned 8-state import-request machine (songtrivia's
- * `music_imports`, generalized) over the `importRequests` table — NOT
- * `@convex-dev/workflow`; the bounded traversal runs inline.
- */
 
 /** What an import targets. */
 export const importEntityType = v.union(

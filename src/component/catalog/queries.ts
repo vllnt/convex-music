@@ -135,12 +135,6 @@ export const getArtistImage = query({
   },
 });
 
-/**
- * Project a track's preview URL per a field-source policy, resolved by a
- * provider id (via the reverse index). The track-preview analog of
- * `getArtistImage` — heardzic/bandzic pick their preferred provider's clip.
- * `null` when the provider id is unknown or no chosen provider has a preview.
- */
 export const getTrackPreview = query({
   args: { provider, providerId: v.string(), policy: v.optional(fieldSourcePolicy) },
   returns: v.union(v.null(), v.string()),
