@@ -1,4 +1,6 @@
 import { v } from "convex/values";
+import { api } from "../_generated/api.js";
+import type { Doc } from "../_generated/dataModel.js";
 import { internalMutation, mutation } from "../_generated/server.js";
 import { assertCadence, assertNonEmpty } from "../guards.js";
 import { importEntityType, importTargetMode, provider } from "../validators.js";
@@ -66,5 +68,28 @@ export const touchSource = internalMutation({
       updatedAt: args.now,
     });
     return null;
+  },
+});
+
+export function isDue(source: Doc<"sources">, now: number): boolean {
+  if (source.lastImportedAt === undefined) return true;
+  if (source.cadenceMs === undefined) return false;
+  return now - source.lastImportedAt > source.cadenceMs;
+}
+
+export const kickAutoImport = internalMutation({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const now = Date.now();
+    const sources = await ctx.db
+      .query("sources")
+      .withIndex("by_enabled", (q) => q.eq("enabled", true))
+      .take(100);
+    if (!sources.some((source) => isDue(source, now))) {
+      return false;
+    }
+    await ctx.scheduler.runAfter(0, api.sources.actions.runAutoImport, {});
+    return true;
   },
 });

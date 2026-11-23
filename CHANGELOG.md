@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Import entry points run their traversal in the same action instead of a nested
+  `ctx.runAction` (-1 action invocation per import, and per auto-import / refresh source), and
+  name-targeted artist imports search through the adapter directly (-1 more action).
+- Import requests move `queued -> claimed -> running` in one internal mutation (-1 mutation call
+  per import).
+- Imported tracks are upserted in batches of up to 50 per mutation instead of one mutation per
+  track (an artist `tracks: "all"` import of 120 tracks: 3 mutation calls instead of 120). A
+  failing track no longer blocks the rest of its batch; the import still reports the first error.
+- The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
+  enabled source is due, so an idle deployment runs no action.
+
 ## [0.2.0] - Unreleased
 
 ### Fixed

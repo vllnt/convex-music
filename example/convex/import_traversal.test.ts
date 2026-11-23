@@ -602,3 +602,73 @@ test("an entry point attaches to an in-flight request instead of re-running", as
   expect(res.requestId).toBe(seeded.requestId);
   expect(res.status).toBe("queued"); // the active request's status, not re-run
 });
+
+test("importArtist tracks:'all' promotes more tracks than one upsert batch holds", async () => {
+  const t = setup();
+  await configure(t);
+  const items = Array.from({ length: 120 }, (_, i) => ({
+    id: `bt${String(i)}`,
+    name: `Batch ${String(i)}`,
+    artists: [{ id: "a1", name: "Daft Punk" }],
+    external_ids: { isrc: `GBBAT${String(i).padStart(7, "0")}` },
+  }));
+  stubFetch([
+    TOKEN,
+    ARTIST,
+    {
+      match: /\/v1\/artists\/a1\/albums/,
+      body: { items: [{ id: "al9", name: "Big" }], total: 1 },
+    },
+    {
+      match: /\/v1\/albums\/al9/,
+      body: { id: "al9", name: "Big", artists: [{ id: "a1", name: "Daft Punk" }], tracks: { items } },
+    },
+  ]);
+  const result = await t.action(api.example.importArtist, {
+    provider: "spotify",
+    targetMode: "providerId",
+    providerId: "a1",
+    tracks: "all",
+  });
+  const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  expect(request.resultSummary).toContain("+120 tracks");
+  for (const index of [0, 49, 50, 119]) {
+    const row = await t.query(api.example.getTrackByIsrc, {
+      isrc: `GBBAT${String(index).padStart(7, "0")}`,
+    });
+    expect(row.title).toBe(`Batch ${String(index)}`);
+  }
+});
+
+test("a track that fails to upsert marks tracks partial while the rest are promoted", async () => {
+  const t = setup();
+  await configure(t);
+  await t.mutation(api.example.upsertTrack, {
+    provider: "spotify",
+    externalId: "t1",
+    value: { title: "Old", artists: [], genres: [], isrc: "FR0000000001" },
+  });
+  stubFetch([
+    TOKEN,
+    ARTIST,
+    {
+      match: /\/v1\/artists\/a1\/top-tracks/,
+      body: {
+        tracks: [
+          { id: "t1", name: "Moved", artists: [{ id: "a1", name: "Justice" }], external_ids: { isrc: "FR0000000002" } },
+          { id: "t3", name: "Fine", artists: [{ id: "a1", name: "Justice" }], external_ids: { isrc: "FR0000000003" } },
+        ],
+      },
+    },
+  ]);
+  const result = await t.action(api.example.importArtist, {
+    provider: "spotify",
+    targetMode: "providerId",
+    providerId: "a1",
+    withTracks: true,
+  });
+  expect(result.status).toBe("completed");
+  const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  expect(request.resultSummary).toMatch(/tracks partial: Error: .*changed ISRC/);
+  expect((await t.query(api.example.getTrackByIsrc, { isrc: "FR0000000003" })).title).toBe("Fine");
+});

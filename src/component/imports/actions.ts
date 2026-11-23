@@ -7,7 +7,7 @@
  */
 
 import type { FunctionArgs } from "convex/server";
-import { v } from "convex/values";
+import { type ObjectType, v } from "convex/values";
 import { api, internal } from "../_generated/api.js";
 import type { Id } from "../_generated/dataModel.js";
 import {
@@ -19,6 +19,7 @@ import type { Provider } from "../../shared.js";
 import {
   IMPORT_CONCURRENCY,
   upsertCreditedArtists,
+  upsertTracksBatched,
 } from "../catalog/promote.js";
 import { adapterFor } from "../providers/actions.js";
 import { mapWithConcurrency } from "../providers/fetch.js";
@@ -87,23 +88,16 @@ async function promoteTracks(
           )
         ).filter((track) => track.value.isrc !== undefined)
       : [];
-  return await mapWithConcurrency(
+  const withArtists = await mapWithConcurrency(
     [...promotable, ...enriched],
     IMPORT_CONCURRENCY,
-    async (track) => {
-      const artistIds = await upsertCreditedArtists(
-        ctx,
-        prov,
-        track.value.artists,
-      );
-      return await ctx.runMutation(api.catalog.mutations.upsertTrack, {
-        provider: prov,
-        externalId: track.externalId,
-        value: track.value,
-        artistIds,
-      });
-    },
+    async (track) => ({
+      externalId: track.externalId,
+      value: track.value,
+      artistIds: await upsertCreditedArtists(ctx, prov, track.value.artists),
+    }),
   );
+  return await upsertTracksBatched(ctx, prov, withArtists);
 }
 
 /**
@@ -111,104 +105,107 @@ async function promoteTracks(
  * name-search), fetch + promote it into the catalog, and complete (or fail) the
  * request. Returns the terminal status.
  */
-export const runArtistImport = internalAction({
-  args: {
-    requestId: v.id("importRequests"),
-    provider,
-    targetMode: artistTargetMode,
-    name: v.string(),
-    providerId: v.string(),
-    withTracks: v.optional(v.boolean()),
-    tracks: v.optional(artistTracksMode),
-  },
-  returns: v.object({ status: importStatus }),
-  handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
-    await ctx.runMutation(internal.imports.mutations.markClaimed, {
-      requestId: args.requestId,
-    });
-    await ctx.runMutation(internal.imports.mutations.markRunning, {
-      requestId: args.requestId,
-    });
-    try {
-      let externalId = args.providerId;
-      if (args.targetMode === "name") {
-        const hits = await ctx.runAction(api.actions.search, {
-          provider: args.provider,
-          query: args.name,
-          type: "artist",
-        });
-        const first = hits[0];
-        if (first === undefined) {
-          throw new Error(`no artist found for "${args.name}"`);
-        }
-        externalId = first.externalId;
+const runArtistImportArgs = {
+  requestId: v.id("importRequests"),
+  provider,
+  targetMode: artistTargetMode,
+  name: v.string(),
+  providerId: v.string(),
+  withTracks: v.optional(v.boolean()),
+  tracks: v.optional(artistTracksMode),
+};
+
+async function runArtistImportFlow(
+  ctx: ActionCtx,
+  args: ObjectType<typeof runArtistImportArgs>,
+): Promise<{ status: "completed" | "failed" }> {
+  await ctx.runMutation(internal.imports.mutations.markStarted, {
+    requestId: args.requestId,
+  });
+  try {
+    let externalId = args.providerId;
+    let searchAdapter: MusicProvider | undefined;
+    if (args.targetMode === "name") {
+      searchAdapter = await adapterFor(ctx, args.provider);
+      const hits = await searchAdapter.search(args.name, "artist");
+      const first = hits[0];
+      if (first === undefined) {
+        throw new Error(`no artist found for "${args.name}"`);
       }
-      if (externalId === "") {
-        throw new Error("import by providerId requires a providerId");
-      }
-      const adapter = await adapterFor(ctx, args.provider);
-      const result = await adapter.getArtist(externalId);
-      await heartbeat(ctx, args.requestId);
-      const artistId = await ctx.runMutation(
-        api.catalog.mutations.upsertArtist,
-        {
-          provider: args.provider,
-          externalId: result.externalId,
-          value: result.value,
-        },
-      );
-      let trackCount = 0;
-      let tracksError: string | undefined;
-      // `tracks` is the typed depth; `withTracks: true` stays a back-compat alias
-      // for `top`. none = artist only, top = top tracks, all = via albums.
-      const tracksMode =
-        args.tracks ?? (args.withTracks === true ? "top" : "none");
-      if (tracksMode !== "none") {
-        // Partial-failure tolerance: a failed tracks sub-step (e.g. a provider
-        // 403 on top-tracks, or a facts-only provider rejecting albums) must NOT
-        // fail the whole artist import — the artist is already promoted; record
-        // the error (not silently swallow it) and complete partial.
-        try {
-          const fetched =
-            tracksMode === "all"
-              ? (await adapter.getArtistAlbums(externalId)).albums.flatMap(
-                  (album) => album.tracks,
-                )
-              : await adapter.getArtistTopTracks(externalId);
-          await heartbeat(ctx, args.requestId);
-          const promotable = fetched.filter(
-            (track) => track.value.isrc !== undefined,
-          );
-          await mapWithConcurrency(promotable, IMPORT_CONCURRENCY, (track) =>
-            ctx.runMutation(api.catalog.mutations.upsertTrack, {
-              provider: args.provider,
-              externalId: track.externalId,
-              value: track.value,
-              artistIds: [artistId],
-            }),
-          );
-          trackCount = promotable.length;
-        } catch (err) {
-          tracksError = String(err);
-        }
-      }
-      await ctx.runMutation(internal.imports.mutations.markCompleted, {
-        requestId: args.requestId,
-        resolvedArtistId: artistId,
-        resultSummary: `imported artist ${result.value.name} (+${trackCount} tracks${
-          tracksError !== undefined ? `, tracks partial: ${tracksError}` : ""
-        })`,
-      });
-      return { status: "completed" };
-    } catch (err) {
-      await ctx.runMutation(internal.imports.mutations.markFailed, {
-        requestId: args.requestId,
-        status: "failed",
-        errorSummary: String(err),
-      });
-      return { status: "failed" };
+      externalId = first.data.externalId;
     }
-  },
+    if (externalId === "") {
+      throw new Error("import by providerId requires a providerId");
+    }
+    const adapter = searchAdapter ?? (await adapterFor(ctx, args.provider));
+    const result = await adapter.getArtist(externalId);
+    await heartbeat(ctx, args.requestId);
+    const artistId = await ctx.runMutation(
+      api.catalog.mutations.upsertArtist,
+      {
+        provider: args.provider,
+        externalId: result.externalId,
+        value: result.value,
+      },
+    );
+    let trackCount = 0;
+    let tracksError: string | undefined;
+    // `tracks` is the typed depth; `withTracks: true` stays a back-compat alias
+    // for `top`. none = artist only, top = top tracks, all = via albums.
+    const tracksMode =
+      args.tracks ?? (args.withTracks === true ? "top" : "none");
+    if (tracksMode !== "none") {
+      // Partial-failure tolerance: a failed tracks sub-step (e.g. a provider
+      // 403 on top-tracks, or a facts-only provider rejecting albums) must NOT
+      // fail the whole artist import — the artist is already promoted; record
+      // the error (not silently swallow it) and complete partial.
+      try {
+        const fetched =
+          tracksMode === "all"
+            ? (await adapter.getArtistAlbums(externalId)).albums.flatMap(
+                (album) => album.tracks,
+              )
+            : await adapter.getArtistTopTracks(externalId);
+        await heartbeat(ctx, args.requestId);
+        const promotable = fetched.filter(
+          (track) => track.value.isrc !== undefined,
+        );
+        await upsertTracksBatched(
+          ctx,
+          args.provider,
+          promotable.map((track) => ({
+            externalId: track.externalId,
+            value: track.value,
+            artistIds: [artistId],
+          })),
+        );
+        trackCount = promotable.length;
+      } catch (err) {
+        tracksError = String(err);
+      }
+    }
+    await ctx.runMutation(internal.imports.mutations.markCompleted, {
+      requestId: args.requestId,
+      resolvedArtistId: artistId,
+      resultSummary: `imported artist ${result.value.name} (+${trackCount} tracks${
+        tracksError !== undefined ? `, tracks partial: ${tracksError}` : ""
+      })`,
+    });
+    return { status: "completed" };
+  } catch (err) {
+    await ctx.runMutation(internal.imports.mutations.markFailed, {
+      requestId: args.requestId,
+      status: "failed",
+      errorSummary: String(err),
+    });
+    return { status: "failed" };
+  }
+}
+
+export const runArtistImport = internalAction({
+  args: runArtistImportArgs,
+  returns: v.object({ status: importStatus }),
+  handler: runArtistImportFlow,
 });
 
 /**
@@ -216,44 +213,52 @@ export const runArtistImport = internalAction({
  * a dedup-aware control-plane request, runs the traversal, and returns the
  * request id + terminal status.
  */
-export const importArtist = action({
-  args: {
-    provider,
-    targetMode: artistTargetMode,
-    name: v.optional(v.string()),
-    providerId: v.optional(v.string()),
-    withTracks: v.optional(v.boolean()),
-    tracks: v.optional(artistTracksMode),
-    mode: v.optional(importMode),
-    priority: v.optional(importPriority),
-  },
-  returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (ctx, args): Promise<ImportOutcome> =>
-    runOrDedupe(
-      ctx,
-      {
-        entityType: "artist",
-        requestType: args.mode ?? "import",
-        targetMode: args.targetMode,
-        providerScope: args.provider,
+const importArtistArgs = {
+  provider,
+  targetMode: artistTargetMode,
+  name: v.optional(v.string()),
+  providerId: v.optional(v.string()),
+  withTracks: v.optional(v.boolean()),
+  tracks: v.optional(artistTracksMode),
+  mode: v.optional(importMode),
+  priority: v.optional(importPriority),
+};
+
+export async function importArtistFlow(
+  ctx: ActionCtx,
+  args: ObjectType<typeof importArtistArgs>,
+): Promise<ImportOutcome> {
+  return runOrDedupe(
+    ctx,
+    {
+      entityType: "artist",
+      requestType: args.mode ?? "import",
+      targetMode: args.targetMode,
+      providerScope: args.provider,
+      provider: args.provider,
+      providerId: args.providerId,
+      name: args.name,
+      withTracks: args.withTracks,
+      tracks: args.tracks,
+      priority: args.priority,
+    },
+    (requestId) =>
+      runArtistImportFlow(ctx, {
+        requestId,
         provider: args.provider,
-        providerId: args.providerId,
-        name: args.name,
+        targetMode: args.targetMode,
+        name: args.name ?? "",
+        providerId: args.providerId ?? "",
         withTracks: args.withTracks,
         tracks: args.tracks,
-        priority: args.priority,
-      },
-      (requestId) =>
-        ctx.runAction(internal.imports.actions.runArtistImport, {
-          requestId,
-          provider: args.provider,
-          targetMode: args.targetMode,
-          name: args.name ?? "",
-          providerId: args.providerId ?? "",
-          withTracks: args.withTracks,
-          tracks: args.tracks,
-        }),
-    ),
+      }),
+  );
+}
+
+export const importArtist = action({
+  args: importArtistArgs,
+  returns: v.object({ requestId: v.string(), status: importStatus }),
+  handler: importArtistFlow,
 });
 
 /**
@@ -261,97 +266,109 @@ export const importArtist = action({
  * credited artists, and complete (or fail) the request. Returns the terminal
  * status.
  */
-export const runTrackImport = internalAction({
-  args: {
-    requestId: v.id("importRequests"),
-    provider,
-    providerId: v.string(),
-    withAlbum: v.optional(v.boolean()),
-  },
-  returns: v.object({ status: importStatus }),
-  handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
-    await ctx.runMutation(internal.imports.mutations.markClaimed, {
-      requestId: args.requestId,
-    });
-    await ctx.runMutation(internal.imports.mutations.markRunning, {
-      requestId: args.requestId,
-    });
-    try {
-      if (args.providerId === "") {
-        throw new Error("track import requires a providerId");
-      }
-      const adapter = await adapterFor(ctx, args.provider);
-      const result = await adapter.getTrack(args.providerId);
-      await heartbeat(ctx, args.requestId);
-      const artistIds = await upsertCreditedArtists(
-        ctx,
-        args.provider,
-        result.value.artists,
-      );
-      const trackId = await ctx.runMutation(api.catalog.mutations.upsertTrack, {
-        provider: args.provider,
-        externalId: result.externalId,
-        value: result.value,
-        artistIds,
-      });
-      // Optionally pull the track's album too (its own nested import request).
-      if (args.withAlbum === true && result.value.albumId !== undefined) {
-        await ctx.runAction(api.imports.actions.importAlbum, {
-          provider: args.provider,
-          providerId: result.value.albumId,
-        });
-      }
-      await ctx.runMutation(internal.imports.mutations.markCompleted, {
-        requestId: args.requestId,
-        resolvedTrackId: trackId,
-        resultSummary: `imported track ${result.value.title}`,
-      });
-      return { status: "completed" };
-    } catch (err) {
-      await ctx.runMutation(internal.imports.mutations.markFailed, {
-        requestId: args.requestId,
-        status: "failed",
-        errorSummary: String(err),
-      });
-      return { status: "failed" };
+const runTrackImportArgs = {
+  requestId: v.id("importRequests"),
+  provider,
+  providerId: v.string(),
+  withAlbum: v.optional(v.boolean()),
+};
+
+async function runTrackImportFlow(
+  ctx: ActionCtx,
+  args: ObjectType<typeof runTrackImportArgs>,
+): Promise<{ status: "completed" | "failed" }> {
+  await ctx.runMutation(internal.imports.mutations.markStarted, {
+    requestId: args.requestId,
+  });
+  try {
+    if (args.providerId === "") {
+      throw new Error("track import requires a providerId");
     }
-  },
+    const adapter = await adapterFor(ctx, args.provider);
+    const result = await adapter.getTrack(args.providerId);
+    await heartbeat(ctx, args.requestId);
+    const artistIds = await upsertCreditedArtists(
+      ctx,
+      args.provider,
+      result.value.artists,
+    );
+    const trackId = await ctx.runMutation(api.catalog.mutations.upsertTrack, {
+      provider: args.provider,
+      externalId: result.externalId,
+      value: result.value,
+      artistIds,
+    });
+    // Optionally pull the track's album too (its own nested import request).
+    if (args.withAlbum === true && result.value.albumId !== undefined) {
+      await importAlbumFlow(ctx, {
+        provider: args.provider,
+        providerId: result.value.albumId,
+      });
+    }
+    await ctx.runMutation(internal.imports.mutations.markCompleted, {
+      requestId: args.requestId,
+      resolvedTrackId: trackId,
+      resultSummary: `imported track ${result.value.title}`,
+    });
+    return { status: "completed" };
+  } catch (err) {
+    await ctx.runMutation(internal.imports.mutations.markFailed, {
+      requestId: args.requestId,
+      status: "failed",
+      errorSummary: String(err),
+    });
+    return { status: "failed" };
+  }
+}
+
+export const runTrackImport = internalAction({
+  args: runTrackImportArgs,
+  returns: v.object({ status: importStatus }),
+  handler: runTrackImportFlow,
 });
 
 /**
  * Import a track by provider id, promoting it + its credited artists into the
  * catalog. Returns the request id + terminal status.
  */
-export const importTrack = action({
-  args: {
-    provider,
-    providerId: v.string(),
-    withAlbum: v.optional(v.boolean()),
-    mode: v.optional(importMode),
-    priority: v.optional(importPriority),
-  },
-  returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (ctx, args): Promise<ImportOutcome> =>
-    runOrDedupe(
-      ctx,
-      {
-        entityType: "track",
-        requestType: args.mode ?? "import",
-        targetMode: "providerId",
-        providerScope: args.provider,
+const importTrackArgs = {
+  provider,
+  providerId: v.string(),
+  withAlbum: v.optional(v.boolean()),
+  mode: v.optional(importMode),
+  priority: v.optional(importPriority),
+};
+
+export async function importTrackFlow(
+  ctx: ActionCtx,
+  args: ObjectType<typeof importTrackArgs>,
+): Promise<ImportOutcome> {
+  return runOrDedupe(
+    ctx,
+    {
+      entityType: "track",
+      requestType: args.mode ?? "import",
+      targetMode: "providerId",
+      providerScope: args.provider,
+      provider: args.provider,
+      providerId: args.providerId,
+      withAlbum: args.withAlbum,
+      priority: args.priority,
+    },
+    (requestId) =>
+      runTrackImportFlow(ctx, {
+        requestId,
         provider: args.provider,
         providerId: args.providerId,
         withAlbum: args.withAlbum,
-        priority: args.priority,
-      },
-      (requestId) =>
-        ctx.runAction(internal.imports.actions.runTrackImport, {
-          requestId,
-          provider: args.provider,
-          providerId: args.providerId,
-          withAlbum: args.withAlbum,
-        }),
-    ),
+      }),
+  );
+}
+
+export const importTrack = action({
+  args: importTrackArgs,
+  returns: v.object({ requestId: v.string(), status: importStatus }),
+  handler: importTrackFlow,
 });
 
 /**
@@ -360,106 +377,117 @@ export const importTrack = action({
  * membership, and complete (or fail) the request. ISRC-less tracks are skipped
  * (they can't be unified).
  */
-export const runPlaylistImport = internalAction({
-  args: {
-    requestId: v.id("importRequests"),
-    provider,
-    providerId: v.string(),
-    limit: v.optional(v.number()),
-  },
-  returns: v.object({ status: importStatus }),
-  handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
-    await ctx.runMutation(internal.imports.mutations.markClaimed, {
-      requestId: args.requestId,
-    });
-    await ctx.runMutation(internal.imports.mutations.markRunning, {
-      requestId: args.requestId,
-    });
-    try {
-      if (args.providerId === "") {
-        throw new Error("playlist import requires a providerId");
-      }
-      const adapter = await adapterFor(ctx, args.provider);
-      const playlist = await adapter.getPlaylist(args.providerId);
-      await heartbeat(ctx, args.requestId);
-      // Optional cap on how many of the playlist's tracks to import.
-      const tracks =
-        args.limit === undefined
-          ? playlist.tracks
-          : playlist.tracks.slice(0, args.limit);
-      const trackIds = await promoteTracks(
-        ctx,
-        args.provider,
-        adapter,
-        tracks,
-      );
-      await heartbeat(ctx, args.requestId);
-      const playlistId = await ctx.runMutation(
-        api.catalog.mutations.upsertPlaylist,
-        {
-          provider: args.provider,
-          providerId: playlist.externalId,
-          title: playlist.value.title,
-          description: playlist.value.description,
-          coverUrl: playlist.value.coverUrl,
-          url: playlist.value.url,
-          owner: playlist.value.owner,
-          trackIds,
-          membershipComplete: args.limit === undefined && playlist.isPartial !== true,
-        },
-      );
-      await ctx.runMutation(internal.imports.mutations.markCompleted, {
-        requestId: args.requestId,
-        resolvedPlaylistId: playlistId,
-        resultSummary: `imported playlist ${playlist.value.title} (${trackIds.length} tracks)`,
-      });
-      return { status: "completed" };
-    } catch (err) {
-      await ctx.runMutation(internal.imports.mutations.markFailed, {
-        requestId: args.requestId,
-        status: "failed",
-        errorSummary: String(err),
-      });
-      return { status: "failed" };
+const runPlaylistImportArgs = {
+  requestId: v.id("importRequests"),
+  provider,
+  providerId: v.string(),
+  limit: v.optional(v.number()),
+};
+
+async function runPlaylistImportFlow(
+  ctx: ActionCtx,
+  args: ObjectType<typeof runPlaylistImportArgs>,
+): Promise<{ status: "completed" | "failed" }> {
+  await ctx.runMutation(internal.imports.mutations.markStarted, {
+    requestId: args.requestId,
+  });
+  try {
+    if (args.providerId === "") {
+      throw new Error("playlist import requires a providerId");
     }
-  },
+    const adapter = await adapterFor(ctx, args.provider);
+    const playlist = await adapter.getPlaylist(args.providerId);
+    await heartbeat(ctx, args.requestId);
+    // Optional cap on how many of the playlist's tracks to import.
+    const tracks =
+      args.limit === undefined
+        ? playlist.tracks
+        : playlist.tracks.slice(0, args.limit);
+    const trackIds = await promoteTracks(
+      ctx,
+      args.provider,
+      adapter,
+      tracks,
+    );
+    await heartbeat(ctx, args.requestId);
+    const playlistId = await ctx.runMutation(
+      api.catalog.mutations.upsertPlaylist,
+      {
+        provider: args.provider,
+        providerId: playlist.externalId,
+        title: playlist.value.title,
+        description: playlist.value.description,
+        coverUrl: playlist.value.coverUrl,
+        url: playlist.value.url,
+        owner: playlist.value.owner,
+        trackIds,
+        membershipComplete: args.limit === undefined && playlist.isPartial !== true,
+      },
+    );
+    await ctx.runMutation(internal.imports.mutations.markCompleted, {
+      requestId: args.requestId,
+      resolvedPlaylistId: playlistId,
+      resultSummary: `imported playlist ${playlist.value.title} (${trackIds.length} tracks)`,
+    });
+    return { status: "completed" };
+  } catch (err) {
+    await ctx.runMutation(internal.imports.mutations.markFailed, {
+      requestId: args.requestId,
+      status: "failed",
+      errorSummary: String(err),
+    });
+    return { status: "failed" };
+  }
+}
+
+export const runPlaylistImport = internalAction({
+  args: runPlaylistImportArgs,
+  returns: v.object({ status: importStatus }),
+  handler: runPlaylistImportFlow,
 });
 
 /**
  * Import a playlist by provider id, promoting its tracks + storing membership.
  * Returns the request id + terminal status.
  */
-export const importPlaylist = action({
-  args: {
-    provider,
-    providerId: v.string(),
-    limit: v.optional(v.number()),
-    mode: v.optional(importMode),
-    priority: v.optional(importPriority),
-  },
-  returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (ctx, args): Promise<ImportOutcome> => {
-    assertLimit(args.limit);
-    return runOrDedupe(
-      ctx,
-      {
-        entityType: "playlist",
-        requestType: args.mode ?? "import",
-        targetMode: "providerId",
-        providerScope: args.provider,
+const importPlaylistArgs = {
+  provider,
+  providerId: v.string(),
+  limit: v.optional(v.number()),
+  mode: v.optional(importMode),
+  priority: v.optional(importPriority),
+};
+
+export async function importPlaylistFlow(
+  ctx: ActionCtx,
+  args: ObjectType<typeof importPlaylistArgs>,
+): Promise<ImportOutcome> {
+  assertLimit(args.limit);
+  return runOrDedupe(
+    ctx,
+    {
+      entityType: "playlist",
+      requestType: args.mode ?? "import",
+      targetMode: "providerId",
+      providerScope: args.provider,
+      provider: args.provider,
+      providerId: args.providerId,
+      priority: args.priority,
+    },
+    (requestId) =>
+      runPlaylistImportFlow(ctx, {
+        requestId,
         provider: args.provider,
         providerId: args.providerId,
-        priority: args.priority,
-      },
-      (requestId) =>
-        ctx.runAction(internal.imports.actions.runPlaylistImport, {
-          requestId,
-          provider: args.provider,
-          providerId: args.providerId,
-          limit: args.limit,
-        }),
-    );
-  },
+        limit: args.limit,
+      }),
+  );
+}
+
+export const importPlaylist = action({
+  args: importPlaylistArgs,
+  returns: v.object({ requestId: v.string(), status: importStatus }),
+  handler: importPlaylistFlow,
 });
 
 /**
@@ -467,109 +495,120 @@ export const importPlaylist = action({
  * (with enrichment) + its credited artists, store the album row, and complete
  * (or fail) the request. Returns the terminal status.
  */
-export const runAlbumImport = internalAction({
-  args: {
-    requestId: v.id("importRequests"),
-    provider,
-    providerId: v.string(),
-    limit: v.optional(v.number()),
-  },
-  returns: v.object({ status: importStatus }),
-  handler: async (ctx, args): Promise<{ status: "completed" | "failed" }> => {
-    await ctx.runMutation(internal.imports.mutations.markClaimed, {
-      requestId: args.requestId,
-    });
-    await ctx.runMutation(internal.imports.mutations.markRunning, {
-      requestId: args.requestId,
-    });
-    try {
-      if (args.providerId === "") {
-        throw new Error("album import requires a providerId");
-      }
-      const adapter = await adapterFor(ctx, args.provider);
-      const album = await adapter.getAlbum(args.providerId);
-      await heartbeat(ctx, args.requestId);
-      const tracks =
-        args.limit === undefined
-          ? album.tracks
-          : album.tracks.slice(0, args.limit);
-      const trackIds = await promoteTracks(
-        ctx,
-        args.provider,
-        adapter,
-        tracks,
-      );
-      await heartbeat(ctx, args.requestId);
-      const albumArtistIds = await upsertCreditedArtists(
-        ctx,
-        args.provider,
-        album.value.artists,
-      );
-      const albumId = await ctx.runMutation(
-        api.catalog.mutations.upsertAlbum,
-        {
-          provider: args.provider,
-          providerId: album.externalId,
-          title: album.value.title,
-          artistIds: albumArtistIds,
-          releaseDate: album.value.releaseDate,
-          coverUrl: album.value.coverUrl,
-          url: album.value.url,
-          trackCount: album.value.trackCount,
-          trackIds,
-          membershipComplete: args.limit === undefined && album.isPartial !== true,
-        },
-      );
-      await ctx.runMutation(internal.imports.mutations.markCompleted, {
-        requestId: args.requestId,
-        resolvedAlbumId: albumId,
-        resultSummary: `imported album ${album.value.title} (${trackIds.length} tracks)`,
-      });
-      return { status: "completed" };
-    } catch (err) {
-      await ctx.runMutation(internal.imports.mutations.markFailed, {
-        requestId: args.requestId,
-        status: "failed",
-        errorSummary: String(err),
-      });
-      return { status: "failed" };
+const runAlbumImportArgs = {
+  requestId: v.id("importRequests"),
+  provider,
+  providerId: v.string(),
+  limit: v.optional(v.number()),
+};
+
+async function runAlbumImportFlow(
+  ctx: ActionCtx,
+  args: ObjectType<typeof runAlbumImportArgs>,
+): Promise<{ status: "completed" | "failed" }> {
+  await ctx.runMutation(internal.imports.mutations.markStarted, {
+    requestId: args.requestId,
+  });
+  try {
+    if (args.providerId === "") {
+      throw new Error("album import requires a providerId");
     }
-  },
+    const adapter = await adapterFor(ctx, args.provider);
+    const album = await adapter.getAlbum(args.providerId);
+    await heartbeat(ctx, args.requestId);
+    const tracks =
+      args.limit === undefined
+        ? album.tracks
+        : album.tracks.slice(0, args.limit);
+    const trackIds = await promoteTracks(
+      ctx,
+      args.provider,
+      adapter,
+      tracks,
+    );
+    await heartbeat(ctx, args.requestId);
+    const albumArtistIds = await upsertCreditedArtists(
+      ctx,
+      args.provider,
+      album.value.artists,
+    );
+    const albumId = await ctx.runMutation(
+      api.catalog.mutations.upsertAlbum,
+      {
+        provider: args.provider,
+        providerId: album.externalId,
+        title: album.value.title,
+        artistIds: albumArtistIds,
+        releaseDate: album.value.releaseDate,
+        coverUrl: album.value.coverUrl,
+        url: album.value.url,
+        trackCount: album.value.trackCount,
+        trackIds,
+        membershipComplete: args.limit === undefined && album.isPartial !== true,
+      },
+    );
+    await ctx.runMutation(internal.imports.mutations.markCompleted, {
+      requestId: args.requestId,
+      resolvedAlbumId: albumId,
+      resultSummary: `imported album ${album.value.title} (${trackIds.length} tracks)`,
+    });
+    return { status: "completed" };
+  } catch (err) {
+    await ctx.runMutation(internal.imports.mutations.markFailed, {
+      requestId: args.requestId,
+      status: "failed",
+      errorSummary: String(err),
+    });
+    return { status: "failed" };
+  }
+}
+
+export const runAlbumImport = internalAction({
+  args: runAlbumImportArgs,
+  returns: v.object({ status: importStatus }),
+  handler: runAlbumImportFlow,
 });
 
 /**
  * Import an album by provider id, promoting its tracks + artists + storing the
  * album row. Returns the request id + terminal status.
  */
-export const importAlbum = action({
-  args: {
-    provider,
-    providerId: v.string(),
-    limit: v.optional(v.number()),
-    mode: v.optional(importMode),
-    priority: v.optional(importPriority),
-  },
-  returns: v.object({ requestId: v.string(), status: importStatus }),
-  handler: async (ctx, args): Promise<ImportOutcome> => {
-    assertLimit(args.limit);
-    return runOrDedupe(
-      ctx,
-      {
-        entityType: "album",
-        requestType: args.mode ?? "import",
-        targetMode: "providerId",
-        providerScope: args.provider,
+const importAlbumArgs = {
+  provider,
+  providerId: v.string(),
+  limit: v.optional(v.number()),
+  mode: v.optional(importMode),
+  priority: v.optional(importPriority),
+};
+
+export async function importAlbumFlow(
+  ctx: ActionCtx,
+  args: ObjectType<typeof importAlbumArgs>,
+): Promise<ImportOutcome> {
+  assertLimit(args.limit);
+  return runOrDedupe(
+    ctx,
+    {
+      entityType: "album",
+      requestType: args.mode ?? "import",
+      targetMode: "providerId",
+      providerScope: args.provider,
+      provider: args.provider,
+      providerId: args.providerId,
+      priority: args.priority,
+    },
+    (requestId) =>
+      runAlbumImportFlow(ctx, {
+        requestId,
         provider: args.provider,
         providerId: args.providerId,
-        priority: args.priority,
-      },
-      (requestId) =>
-        ctx.runAction(internal.imports.actions.runAlbumImport, {
-          requestId,
-          provider: args.provider,
-          providerId: args.providerId,
-          limit: args.limit,
-        }),
-    );
-  },
+        limit: args.limit,
+      }),
+  );
+}
+
+export const importAlbum = action({
+  args: importAlbumArgs,
+  returns: v.object({ requestId: v.string(), status: importStatus }),
+  handler: importAlbumFlow,
 });
