@@ -1,5 +1,5 @@
 import { cronJobs } from "convex/server";
-import { api } from "./_generated/api.js";
+import { api, internal } from "./_generated/api.js";
 
 /**
  * Component-internal scheduled maintenance. Mount-safe (each `app.use` mount runs
@@ -36,7 +36,7 @@ crons.interval("music:mark-stale-tracks", { hours: 24 }, api.sync.mutations.mark
 
 // Auto-import sweep: pull due enabled sources. Opt-in — no-op without sources, so
 // a fresh mount never auto-hammers providers.
-crons.interval("music:auto-import", { hours: 1 }, api.sources.actions.runAutoImport, {});
+crons.interval("music:auto-import", { hours: 1 }, internal.sources.mutations.kickAutoImport, {});
 
 // Refresh sweep: re-sync rows the mark-stale sweep flagged. Per-kind, opt-in
 // (no stale rows → no-op).

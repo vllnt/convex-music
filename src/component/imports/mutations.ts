@@ -165,6 +165,18 @@ export const markClaimed = internalMutation({
   },
 });
 
+export const markStarted = internalMutation({
+  args: { requestId: v.id("importRequests") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await applyTransition(ctx, args.requestId, "claimed");
+    await applyTransition(ctx, args.requestId, "running", {
+      startedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
 /** claimed → running. */
 export const markRunning = internalMutation({
   args: { requestId: v.id("importRequests") },

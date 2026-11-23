@@ -1,6 +1,6 @@
-import { v } from "convex/values";
+import { type ObjectType, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel.js";
-import { type MutationCtx, mutation } from "../_generated/server.js";
+import { type MutationCtx, internalMutation, mutation } from "../_generated/server.js";
 import { artistValue, provider, trackValue } from "../validators.js";
 import type { Provider } from "../../shared.js";
 import { stalenessWindowMs } from "../sync/lifecycle.js";
@@ -179,70 +179,111 @@ export const upsertArtist = mutation({
  * across providers). `artistIds` are the resolved catalog artist ids to relate.
  * Throws if the track has no ISRC (the identity guard). Returns the track id.
  */
+const upsertTrackArgs = {
+  provider,
+  externalId: v.string(),
+  value: trackValue,
+  artistIds: v.optional(v.array(v.id("artists"))),
+};
+
+async function upsertTrackRecord(
+  ctx: MutationCtx,
+  args: ObjectType<typeof upsertTrackArgs>,
+): Promise<Id<"tracks">> {
+  if (args.value.isrc === undefined) {
+    throw new Error("upsertTrack requires the track to carry an ISRC");
+  }
+  const isrc = args.value.isrc;
+  assertNonEmpty(isrc, "isrc");
+  assertNonEmpty(args.externalId, "externalId");
+  const now = Date.now();
+  // ISRC-mismatch guard (catalog-store.1): if this provider id already maps to
+  // a track with a DIFFERENT ISRC, the provider disagrees on identity — throw
+  // rather than silently re-point the link (which would orphan provenance).
+  const priorLink = await findTrackByProvider(
+    ctx,
+    args.provider,
+    args.externalId,
+  );
+  const priorTrack = priorLink ? await ctx.db.get("tracks", priorLink) : null;
+  if (priorTrack && priorTrack.isrc !== isrc) {
+    throw new Error(
+      `provider ${args.provider} id ${args.externalId} changed ISRC ` +
+        `${priorTrack.isrc} -> ${isrc}; refusing to silently re-link`,
+    );
+  }
+  const existing = await ctx.db
+    .query("tracks")
+    .withIndex("by_isrc", (q) => q.eq("isrc", isrc))
+    .unique();
+  const merged = mergeTrack(
+    existing ? trackMergeState(existing) : null,
+    args.provider,
+    args.externalId,
+    args.value,
+  );
+  const artistIds = unionIds(
+    existing?.artistIds ?? [],
+    args.artistIds ?? [],
+  );
+  const fields = {
+    isrc,
+    title: args.value.title,
+    artistIds,
+    ...merged,
+    updatedAt: now,
+    syncStatus: "synced" as const,
+    lastSyncedAt: now,
+    nextSyncAt: now + stalenessWindowMs(merged.popularity),
+  };
+  let trackId: Id<"tracks">;
+  if (existing) {
+    await ctx.db.patch("tracks", existing._id, fields);
+    trackId = existing._id;
+  } else {
+    trackId = await ctx.db.insert("tracks", fields);
+  }
+  await linkTrackProvider(ctx, trackId, args.provider, args.externalId);
+  return trackId;
+}
+
 export const upsertTrack = mutation({
+  args: upsertTrackArgs,
+  returns: v.id("tracks"),
+  handler: upsertTrackRecord,
+});
+
+export const UPSERT_TRACKS_BATCH = 50;
+
+export const upsertTracks = internalMutation({
   args: {
     provider,
-    externalId: v.string(),
-    value: trackValue,
-    artistIds: v.optional(v.array(v.id("artists"))),
+    tracks: v.array(
+      v.object({
+        externalId: v.string(),
+        value: trackValue,
+        artistIds: v.optional(v.array(v.id("artists"))),
+      }),
+    ),
   },
-  returns: v.id("tracks"),
-  handler: async (ctx, args): Promise<Id<"tracks">> => {
-    if (args.value.isrc === undefined) {
-      throw new Error("upsertTrack requires the track to carry an ISRC");
+  returns: v.array(
+    v.union(v.object({ trackId: v.id("tracks") }), v.object({ error: v.string() })),
+  ),
+  handler: async (ctx, args) => {
+    if (args.tracks.length > UPSERT_TRACKS_BATCH) {
+      throw new Error(`upsertTracks accepts at most ${String(UPSERT_TRACKS_BATCH)} tracks`);
     }
-    const isrc = args.value.isrc;
-    assertNonEmpty(isrc, "isrc");
-    assertNonEmpty(args.externalId, "externalId");
-    const now = Date.now();
-    // ISRC-mismatch guard (catalog-store.1): if this provider id already maps to
-    // a track with a DIFFERENT ISRC, the provider disagrees on identity — throw
-    // rather than silently re-point the link (which would orphan provenance).
-    const priorLink = await findTrackByProvider(
-      ctx,
-      args.provider,
-      args.externalId,
-    );
-    const priorTrack = priorLink ? await ctx.db.get("tracks", priorLink) : null;
-    if (priorTrack && priorTrack.isrc !== isrc) {
-      throw new Error(
-        `provider ${args.provider} id ${args.externalId} changed ISRC ` +
-          `${priorTrack.isrc} -> ${isrc}; refusing to silently re-link`,
-      );
+    const results: Array<{ trackId: Id<"tracks"> } | { error: string }> = [];
+    for (const track of args.tracks) {
+      try {
+        results.push({
+          trackId: await upsertTrackRecord(ctx, { provider: args.provider, ...track }),
+        });
+      } catch (err) {
+        results.push({ error: String(err).replace(/^Error: /, "") });
+      }
     }
-    const existing = await ctx.db
-      .query("tracks")
-      .withIndex("by_isrc", (q) => q.eq("isrc", isrc))
-      .unique();
-    const merged = mergeTrack(
-      existing ? trackMergeState(existing) : null,
-      args.provider,
-      args.externalId,
-      args.value,
-    );
-    const artistIds = unionIds(
-      existing?.artistIds ?? [],
-      args.artistIds ?? [],
-    );
-    const fields = {
-      isrc,
-      title: args.value.title,
-      artistIds,
-      ...merged,
-      updatedAt: now,
-      syncStatus: "synced" as const,
-      lastSyncedAt: now,
-      nextSyncAt: now + stalenessWindowMs(merged.popularity),
-    };
-    let trackId: Id<"tracks">;
-    if (existing) {
-      await ctx.db.patch("tracks", existing._id, fields);
-      trackId = existing._id;
-    } else {
-      trackId = await ctx.db.insert("tracks", fields);
-    }
-    await linkTrackProvider(ctx, trackId, args.provider, args.externalId);
-    return trackId;
+    return results;
   },
 });
 

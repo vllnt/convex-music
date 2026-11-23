@@ -12,8 +12,15 @@ import { api, components, internal } from "../_generated/api.js";
 import type { Doc } from "../_generated/dataModel.js";
 import { type ActionCtx, action } from "../_generated/server.js";
 import type { Provider } from "../../shared.js";
-import type { ImportOutcome } from "../imports/actions.js";
+import {
+  type ImportOutcome,
+  importAlbumFlow,
+  importArtistFlow,
+  importPlaylistFlow,
+  importTrackFlow,
+} from "../imports/actions.js";
 import { assertCount, assertLimit } from "../guards.js";
+import { isDue } from "./mutations.js";
 
 /**
  * Auto-import throughput budgets — token buckets decoupled from cron frequency,
@@ -25,13 +32,6 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
   refresh: { kind: "token bucket", rate: AUTO_IMPORT_RATE_PER_HOUR, period: HOUR },
 });
 
-/** Whether a source is due: never imported, or past its cadence (one-shot if no cadence). */
-function isDue(source: Doc<"sources">, now: number): boolean {
-  if (source.lastImportedAt === undefined) return true;
-  if (source.cadenceMs === undefined) return false;
-  return now - source.lastImportedAt > source.cadenceMs;
-}
-
 /** Dispatch a supported source target to its matching import entry point. */
 async function importSource(
   ctx: ActionCtx,
@@ -40,7 +40,7 @@ async function importSource(
 ): Promise<ImportOutcome> {
   if (source.kind === "artist") {
     if (source.by === "name") {
-      return await ctx.runAction(api.imports.actions.importArtist, {
+      return await importArtistFlow(ctx, {
         provider: prov,
         targetMode: "name",
         name: source.value,
@@ -48,7 +48,7 @@ async function importSource(
       });
     }
     if (source.by === "providerId") {
-      return await ctx.runAction(api.imports.actions.importArtist, {
+      return await importArtistFlow(ctx, {
         provider: prov,
         targetMode: "providerId",
         providerId: source.value,
@@ -56,17 +56,17 @@ async function importSource(
       });
     }
   } else if (source.kind === "track" && source.by === "providerId") {
-    return await ctx.runAction(api.imports.actions.importTrack, {
+    return await importTrackFlow(ctx, {
       provider: prov,
       providerId: source.value,
     });
   } else if (source.kind === "playlist" && source.by === "providerId") {
-    return await ctx.runAction(api.imports.actions.importPlaylist, {
+    return await importPlaylistFlow(ctx, {
       provider: prov,
       providerId: source.value,
     });
   } else if (source.kind === "album" && source.by === "providerId") {
-    return await ctx.runAction(api.imports.actions.importAlbum, {
+    return await importAlbumFlow(ctx, {
       provider: prov,
       providerId: source.value,
     });
@@ -113,7 +113,7 @@ export const runRefresh = action({
       if (args.kind === "artist") {
         await Promise.all(
           providers.map((prov) =>
-            ctx.runAction(api.imports.actions.importArtist, {
+            importArtistFlow(ctx, {
               provider: prov.provider,
               targetMode: "providerId",
               providerId: prov.providerId,
@@ -124,7 +124,7 @@ export const runRefresh = action({
       } else {
         await Promise.all(
           providers.map((prov) =>
-            ctx.runAction(api.imports.actions.importTrack, {
+            importTrackFlow(ctx, {
               provider: prov.provider,
               providerId: prov.providerId,
               mode: "refresh",
