@@ -14,11 +14,6 @@ All notable changes to this project are documented here. The format is based on
 - `docs/API.md` documents the entry points and the public component functions that have no
   `Music` client method.
 
-### Fixed
-
-- `docs/API.md`: `NormalizedTrack` lists `genres`, `popularity` and `albumId`, and
-  `recoverStuckSyncs` is no longer listed as throwing `INVALID_LIMIT`.
-
 ### Changed
 
 - Every push to `main` that changes the package or its shipped docs publishes a `canary` build;
@@ -33,6 +28,12 @@ All notable changes to this project are documented here. The format is based on
   failing track no longer blocks the rest of its batch; the import still reports the first error.
 - The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
   enabled source is due, so an idle deployment runs no action.
+
+### Fixed
+
+- Docs drift: `NormalizedTrack` lists `genres`, `popularity` and `albumId`; `recoverStuckSyncs` is no
+  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports; the
+  README track example includes the required `genres`.
 
 ## [0.2.0] - Unreleased
 

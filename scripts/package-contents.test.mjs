@@ -26,9 +26,11 @@ const FORBIDDEN = [
 ];
 
 /** Markdown files whose relative links must resolve inside the tarball. */
-const LINKED = ["llms.txt", "docs/API.md"];
+const LINKED = ["llms.txt", "docs/API.md", "README.md"];
 
-const REPO_BLOB = "https://github.com/vllnt/convex-music/blob/";
+/** Repository URLs whose path (after the ref) names a repo file. */
+const REPO_FILE_URL =
+  /^https:\/\/(?:github\.com\/vllnt\/convex-music\/(?:blob|tree|raw)|raw\.githubusercontent\.com\/vllnt\/convex-music)\/[^/]+\/(.+)$/;
 
 /** @returns {Set<string>} the paths `npm pack` would publish (dist only when built). */
 function packedFiles() {
@@ -69,10 +71,13 @@ test.each(LINKED)("relative links in %s resolve inside the tarball", (file) => {
   expect(unresolved).toEqual([]);
 });
 
-test.each(LINKED)("%s links shipped files relatively, not on GitHub", (file) => {
-  const remote = linkTargets(file)
-    .filter((target) => target.startsWith(REPO_BLOB))
-    .map((target) => target.slice(REPO_BLOB.length).replace(/^[^/]+\//, ""))
-    .filter((target) => packed.has(target.split("#")[0]));
-  expect(remote).toEqual([]);
-});
+test.each(LINKED)(
+  "%s links shipped files relatively, not on GitHub",
+  (file) => {
+    const remote = linkTargets(file)
+      .map((target) => REPO_FILE_URL.exec(target)?.[1])
+      .filter((target) => target !== undefined)
+      .filter((target) => packed.has(target.split("#")[0]));
+    expect(remote).toEqual([]);
+  },
+);

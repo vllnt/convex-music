@@ -200,9 +200,11 @@ own authorized host functions with `ctx.runQuery` / `ctx.runMutation` /
 | `imports.queries.listRequests`                                      | `{ status, limit? }`                                                | Import requests                      |
 | `sync.queries.listStale`                                            | `{ kind, limit? }`                                                  | Stale artist or track rows           |
 
-`addSource` `kind` is `"artist" | "track" | "playlist" | "album"`; `by` is
-`"name" | "url" | "isrc" | "providerId"`. The maintenance and automation
-functions `sync.mutations.markStale` / `recoverStuckSyncs`,
+`addSource` `kind` is `"artist" | "track" | "playlist" | "album"`; `by` accepts
+`"name" | "url" | "isrc" | "providerId" | "entityId"`, but the sweep only
+imports artists by `name` or `providerId` and tracks, playlists and albums by
+`providerId`; other combinations fail at import time. The maintenance and
+automation functions `sync.mutations.markStale` / `recoverStuckSyncs`,
 `sources.actions.runRefresh` / `runAutoImport` / `consumeBudget` and
 `imports.mutations.createRequest` / `recoverAbandoned` / `pruneTerminal` are
 also public; the component's own crons run the sweeps. Their argument validators
@@ -224,6 +226,9 @@ Reads favor return values over thrown errors: a missing or expired `get` returns
 | `INVALID_CADENCE`   | `addSource`                                                                                                                    | `cadenceMs` is not a positive finite number.                                                        |
 | `INVALID_BATCH`     | import maintenance (`recoverAbandoned`, `pruneTerminal`)                                                                       | `batch` is not an integer within the allowed range.                                                 |
 | `IMPORT_LEASE_LOST` | internal import heartbeat                                                                                                      | The import request is no longer running.                                                            |
+
+`upsertTrack` with no `value.isrc` throws a plain `Error` (not a `ConvexError`):
+catalog tracks are keyed by ISRC.
 
 The component cannot read `ctx.auth`: authorization and ownership checks are the
 host's job, enforced before it calls any write method.
