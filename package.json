@@ -8,8 +8,12 @@
   "files": [
     "dist",
     "src",
+    "docs/API.md",
+    "CHANGELOG.md",
+    "llms.txt",
     "!src/**/*.test.ts",
-    "!src/**/*.spec.*"],
+    "!src/**/*.spec.*"
+  ],
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -101,7 +105,7 @@
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
   },
-  "homepage": "https://github.com/vllnt/convex-music#readme",
+  "homepage": "https://oss.vllnt.com/packages/convex-music",
   "bugs": {
     "url": "https://github.com/vllnt/convex-music/issues"
   },

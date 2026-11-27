@@ -69,6 +69,12 @@ npm install @vllnt/convex-music
 Requires `convex@^1.45.0`. Use `npm install @vllnt/convex-music@canary` to try
 unreleased changes from `main`.
 
+### For coding agents
+
+The docs are bundled in the package at `node_modules/@vllnt/convex-music/docs/`,
+with `CHANGELOG.md`, `llms.txt`, and the TypeScript sources in `src/`. They
+match the installed version. Read them before writing code against this package.
+
 ### Provider credentials
 
 The host reads
@@ -222,6 +228,16 @@ const t = convexTest(schema, import.meta.glob("./**/*.ts"));
 register(t);
 ```
 
+## Related packages
+
+- [`@convex-dev/action-cache`](https://www.npmjs.com/package/@convex-dev/action-cache):
+  caches the result of any action by its arguments. This component mounts it to
+  cache provider tokens; use it on its own to cache arbitrary action results
+  rather than a normalized music catalog.
+- [`@convex-dev/rate-limiter`](https://www.npmjs.com/package/@convex-dev/rate-limiter):
+  token-bucket and fixed-window rate limits. This component mounts it for
+  auto-import budgets; use it directly to rate-limit your own functions.
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues and pull requests welcome.
@@ -231,11 +247,12 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues and pull requests welcome.
 Built by [bntvllnt](https://github.com/bntvllnt) ·
 [bntvllnt.com](https://bntvllnt.com) · [X @bntvllnt](https://x.com/bntvllnt)
 
-Part of the [@vllnt](https://github.com/vllnt) Convex component fleet —
-[vllnt.com](https://vllnt.com)
-
 If this is useful, [sponsor the work](https://github.com/sponsors/bntvllnt).
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+Part of vllnt oss: https://oss.vllnt.com
