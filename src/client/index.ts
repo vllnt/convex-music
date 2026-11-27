@@ -327,10 +327,11 @@ interface RunActionCtx {
  * Consumer-facing client for `@vllnt/convex-music`. Construct with the mounted
  * component ref, then call from host queries/mutations/actions.
  *
- * `0.1.0` is the raw provider-fetch cache; the durable music catalog
- * (artists/tracks/playlists) the component will own is planned (see ROADMAP).
- * The host owns auth and gates write methods behind its own mutations, and keeps
- * gameplay + editorial, referencing catalog rows by id / ISRC.
+ * Covers the raw provider cache, the durable catalog (artists / tracks /
+ * playlists / albums), read-through fetch, provider search, credentials and
+ * imports. The host owns auth and gates write methods behind its own
+ * mutations, and keeps gameplay + editorial, referencing catalog rows by id /
+ * ISRC.
  *
  * @example
  * ```ts
@@ -366,7 +367,10 @@ export class Music {
     return ctx.runMutation(this.component.mutations.reconcileCacheStats, {});
   }
 
-  /** Delete every expired entry. Idempotent; safe to run on a schedule. */
+  /**
+   * Delete one batch of up to 100 expired entries; a full batch reschedules
+   * another pass. Idempotent; safe to run on a schedule.
+   */
   pruneExpired(ctx: RunMutationCtx): Promise<number> {
     return ctx.runMutation(this.component.mutations.pruneExpired, {});
   }

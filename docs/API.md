@@ -10,6 +10,26 @@ import { Music } from "@vllnt/convex-music";
 const music = new Music(components.music);
 ```
 
+## Entry points
+
+- `@vllnt/convex-music`: `Music` and `MusicComponent`; input types `FetchInput`,
+  `SearchInput`, `ImportArtistInput`, `ImportTrackInput`, `ImportPlaylistInput`,
+  `ImportAlbumInput`, `ImportResult`, `UpsertArtistInput`, `UpsertTrackInput`,
+  `UpsertPlaylistInput`, `UpsertAlbumInput`, `SelectEligibleInput`; value types
+  `ArtistRef`, `CacheEntry`, `CacheValue`, `CatalogAlbum`, `CatalogArtist`,
+  `CatalogPlaylist`, `CatalogTrack`, `EntryKey`, `NormalizedAlbum`,
+  `NormalizedArtist`, `NormalizedTrack`, `PutInput`, `SearchHit`.
+- `@vllnt/convex-music/react`: the [hooks](#react-hooks); types
+  `FieldSourcePolicy`, `ArtistRef` (a query-ref type, not the root `ArtistRef`),
+  `TrackRef`, `ProjectionRef`, `SearchRef`, `CatalogArtist`, `CatalogTrack`,
+  `Provider`.
+- `@vllnt/convex-music/convex.config`: the component definition to pass to
+  `app.use`.
+- `@vllnt/convex-music/test`: `register(t, name = "music")` mounts the component
+  and its `action-cache` and `rate-limiter` children in a `convex-test`
+  instance.
+- `@vllnt/convex-music/_generated/component`: the `ComponentApi` type.
+
 ## Types
 
 ```ts
@@ -24,10 +44,13 @@ type NormalizedTrack = {
   title: string;
   artists: ArtistRef[];
   isrc?: string;
+  genres: string[]; // Apple supplies them; [] otherwise
+  popularity?: number; // 0–100, Spotify
   durationMs?: number;
   previewUrl?: string;
   coverUrl?: string;
   url?: string;
+  albumId?: string; // album provider id, used by importTrack({ withAlbum })
 };
 
 type NormalizedArtist = {
@@ -68,6 +91,9 @@ type CacheEntry = EntryKey & {
 Provider-sourced fields are optional because they vary by provider — e.g.
 `popularity` comes from Spotify, while `country` / `gender` / `members` /
 `debutYear` come from MusicBrainz or Wikidata.
+
+`Provider` and `EntityKind` are shown for reference: the root entry does not
+export them (`Provider` is exported from `./react`).
 
 ## Mutations
 
@@ -157,21 +183,52 @@ All four import methods require an action context and return
 request lifecycle, not a durable, resumable workflow. Inspect returned status; a
 returned request is not by itself proof that all provider data was imported.
 
+## Component functions without a client method
+
+The mounted component also exposes these public functions. Call them from your
+own authorized host functions with `ctx.runQuery` / `ctx.runMutation` /
+`ctx.runAction` on `components.music.<path>`:
+
+| Path                                                                | Args                                                                | Returns                              |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------ |
+| `catalog.queries.getArtistImage`, `catalog.queries.getTrackPreview` | `{ provider, providerId, policy? }`                                 | `string \| null` (used by the hooks) |
+| `sources.mutations.addSource`                                       | `{ kind, by, value, provider?, withTracks?, cadenceMs?, enabled? }` | Source id                            |
+| `sources.mutations.removeSource`                                    | `{ sourceId }`                                                      | `null`                               |
+| `sources.mutations.setSourceEnabled`                                | `{ sourceId, enabled }`                                             | `null`                               |
+| `sources.queries.listSources`                                       | `{ enabledOnly?, limit? }`                                          | Source rows                          |
+| `imports.queries.getRequest`                                        | `{ requestId }`                                                     | Import request or `null`             |
+| `imports.queries.listRequests`                                      | `{ status, limit? }`                                                | Import requests                      |
+| `sync.queries.listStale`                                            | `{ kind, limit? }`                                                  | Stale artist or track rows           |
+
+`addSource` `kind` is `"artist" | "track" | "playlist" | "album"`; `by` accepts
+`"name" | "url" | "isrc" | "providerId" | "entityId"`, but the sweep only
+imports artists by `name` or `providerId` and tracks, playlists and albums by
+`providerId`; other combinations fail at import time. The maintenance and
+automation functions `sync.mutations.markStale` / `recoverStuckSyncs`,
+`sources.actions.runRefresh` / `runAutoImport` / `consumeBudget` and
+`imports.mutations.createRequest` / `recoverAbandoned` / `pruneTerminal` are
+also public; the component's own crons run the sweeps. Their argument validators
+are in `src/component/`, which ships in the package.
+
 ## Error codes
 
 Reads favor return values over thrown errors: a missing or expired `get` returns
 `null`, `getByIsrc` returns `[]`, and `invalidate` on an unknown key returns
-`false`. Invalid arguments throw a `ConvexError` whose data is `{ code, message }`:
+`false`. Invalid arguments throw a `ConvexError` whose data is
+`{ code, message }`:
 
-| Code                | Thrown by                                                                                                   | Meaning                                                           |
-| ------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `INVALID_ARGUMENT`  | `put`, `upsertArtist`, `upsertTrack`, `upsertPlaylist`, `upsertAlbum`, `addSource`                           | A required identifier (`externalId`, `providerId`, `isrc`, artist `name`, source `value`) is empty. |
-| `INVALID_TTL`       | `put`                                                                                                       | `ttlMs` is not a finite number (`NaN`, `Infinity`).               |
-| `INVALID_LIMIT`     | `searchArtists`, `searchTracks`, `selectEligible`, `importPlaylist`, `importAlbum`, `runRefresh`, `runAutoImport`, `markStale`, `recoverStuckSyncs` | `limit` / `scanLimit` is not a positive integer (some also enforce a maximum). |
-| `INVALID_COUNT`     | `consumeBudget`                                                                                             | `count` is not a positive integer.                                |
-| `INVALID_CADENCE`   | `addSource`                                                                                                 | `cadenceMs` is not a positive finite number.                      |
-| `INVALID_BATCH`     | import maintenance (`recoverAbandoned`, `pruneTerminal`)                                                    | `batch` is not an integer within the allowed range.               |
-| `IMPORT_LEASE_LOST` | internal import heartbeat                                                                                   | The import request is no longer running.                          |
+| Code                | Thrown by                                                                                                                      | Meaning                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `INVALID_ARGUMENT`  | `put`, `upsertArtist`, `upsertTrack`, `upsertPlaylist`, `upsertAlbum`, `addSource`                                             | A required identifier (`externalId`, `providerId`, `isrc`, artist `name`, source `value`) is empty. |
+| `INVALID_TTL`       | `put`                                                                                                                          | `ttlMs` is not a finite number (`NaN`, `Infinity`).                                                 |
+| `INVALID_LIMIT`     | `searchArtists`, `searchTracks`, `selectEligible`, `importPlaylist`, `importAlbum`, `runRefresh`, `runAutoImport`, `markStale` | `limit` / `scanLimit` is not a positive integer (some also enforce a maximum).                      |
+| `INVALID_COUNT`     | `consumeBudget`                                                                                                                | `count` is not a positive integer.                                                                  |
+| `INVALID_CADENCE`   | `addSource`                                                                                                                    | `cadenceMs` is not a positive finite number.                                                        |
+| `INVALID_BATCH`     | import maintenance (`recoverAbandoned`, `pruneTerminal`)                                                                       | `batch` is not an integer within the allowed range.                                                 |
+| `IMPORT_LEASE_LOST` | internal import heartbeat                                                                                                      | The import request is no longer running.                                                            |
+
+`upsertTrack` with no `value.isrc` throws a plain `Error` (not a `ConvexError`):
+catalog tracks are keyed by ISRC.
 
 The component cannot read `ctx.auth`: authorization and ownership checks are the
 host's job, enforced before it calls any write method.

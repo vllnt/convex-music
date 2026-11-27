@@ -5,32 +5,45 @@
 `@vllnt/convex-music` is a publishable Convex component targeting `convex@^1.45.0`. It caches
 normalized music facts — tracks, artists, and albums — in its own sandboxed tables, keyed by an
 opaque provider id and cross-referenced by ISRC, each entry with an optional TTL. One typed API
-spans every provider (Spotify and Apple Music today; Deezer, MusicBrainz, and Wikidata as adapters).
+spans every provider (Spotify, Apple Music, Deezer, MusicBrainz, and Wikidata adapters).
 The host owns auth; the component owns the factual catalog and the host keeps gameplay + editorial,
 referencing catalog rows by id / ISRC. The raw cache API includes `put`, `get`, `getByIsrc`,
 `invalidate`, `pruneExpired`, and `stats`. The durable catalog (artists/tracks/albums/playlists),
 provider adapters, read-through fetch, the in-component import/sync engine, and an optional
 tree-shakeable `./react` hooks layer (`useArtist` / `useTrack` / `useArtistImage` / `useTrackPreview`
-/ `useSearchArtists` / `useSearchTracks`) are available in the stable release;
+/ `useSearchArtists` / `useSearchTracks`) are implemented;
 artist-image auto-sync and multi-catalog remain planned (see the README).
 `configure` persists provider credentials in the sandboxed `providerConfig` table;
 the host must keep credential setup authorized and never return secrets to clients.
 
+## For coding agents
+
+The docs are bundled in the npm package at `node_modules/@vllnt/convex-music/docs/`, next to
+`CHANGELOG.md`, this `llms.txt`, and the TypeScript sources in `src/`. They match the installed
+version. Read them before writing code against this package.
+
 ## Docs
 
-- [README](README.md): Overview, installation, usage, API summary
-- [API Reference](docs/API.md): Client methods, value shapes, TTL/cache semantics
-- [Changelog](CHANGELOG.md): Version history and release notes
-- [Contributing](CONTRIBUTING.md): Development setup, validation commands, release workflow
+- [README](./README.md): Overview, installation, usage, API summary
+- [API Reference](./docs/API.md): Entry points, client methods, value shapes, TTL/cache semantics, error codes
+- [Changelog](./CHANGELOG.md): Version history and release notes
+- [Client source](./src/client/index.ts): The `Music` class and its input types
+- [Contributing](https://github.com/vllnt/convex-music/blob/main/CONTRIBUTING.md): Development setup, validation commands, release workflow (repository only)
 
 ## Examples
 
-- [Example component wrapper](example/convex/example.ts): Host-app wrapper functions
-- [Example tests](example/convex/example.test.ts): End-to-end usage coverage with `convex-test`
+Not in the npm package; these link to the repository.
+
+- [Example component wrapper](https://github.com/vllnt/convex-music/blob/main/example/convex/example.ts): Host-app wrapper functions
+- [Example tests](https://github.com/vllnt/convex-music/blob/main/example/convex/example.test.ts): End-to-end usage coverage with `convex-test`
+
+## Ecosystem
+
+- [vllnt oss](https://oss.vllnt.com/llms.txt): Index of every `@vllnt` package
 
 ## Optional
 
-- [AGENTS](AGENTS.md): Canonical agent instructions for this repository
-- [Security Policy](SECURITY.md): Vulnerability reporting policy
-- [Code of Conduct](CODE_OF_CONDUCT.md): Community participation guidelines
-- [License](LICENSE): MIT license
+- [AGENTS](https://github.com/vllnt/convex-music/blob/main/AGENTS.md): Agent instructions for contributors to this repository
+- [Security Policy](https://github.com/vllnt/convex-music/blob/main/SECURITY.md): Vulnerability reporting policy
+- [Code of Conduct](https://github.com/vllnt/convex-music/blob/main/CODE_OF_CONDUCT.md): Community participation guidelines
+- [License](./LICENSE): MIT license

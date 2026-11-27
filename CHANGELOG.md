@@ -6,8 +6,18 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- The npm package now ships `docs/API.md`, `CHANGELOG.md` and `llms.txt`, so the docs in
+  `node_modules/@vllnt/convex-music/` match the installed version. `llms.txt` links the bundled
+  files with relative paths, and a test fails when a required file is missing from the tarball.
+- `docs/API.md` documents the entry points and the public component functions that have no
+  `Music` client method.
+
 ### Changed
 
+- Every push to `main` that changes the package or its shipped docs publishes a `canary` build;
+  it no longer depends on a repository variable.
 - Import entry points run their traversal in the same action instead of a nested
   `ctx.runAction` (-1 action invocation per import, and per auto-import / refresh source), and
   name-targeted artist imports search through the adapter directly (-1 more action).
@@ -18,6 +28,12 @@ All notable changes to this project are documented here. The format is based on
   failing track no longer blocks the rest of its batch; the import still reports the first error.
 - The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
   enabled source is due, so an idle deployment runs no action.
+
+### Fixed
+
+- Docs drift: `NormalizedTrack` lists `genres`, `popularity` and `albumId`; `recoverStuckSyncs` is no
+  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports; the
+  README track example includes the required `genres`.
 
 ## [0.2.0] - Unreleased
 

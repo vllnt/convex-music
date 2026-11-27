@@ -32,8 +32,8 @@ const hit = await music.get(ctx, {
 
 ## Features
 
-- One typed API across providers — Spotify and Apple Music today; Deezer,
-  MusicBrainz, and Wikidata as drop-in adapters.
+- One typed API across providers — Spotify, Apple Music, Deezer, MusicBrainz,
+  and Wikidata adapters.
 - Sandboxed cache tables with a per-entry TTL — dedupe provider calls and ease
   rate limits.
 - Tracks, artists, and albums, cached by opaque provider id and cross-referenced
@@ -68,6 +68,12 @@ npm install @vllnt/convex-music
 
 Requires `convex@^1.45.0`. Use `npm install @vllnt/convex-music@canary` to try
 unreleased changes from `main`.
+
+### For coding agents
+
+The docs are bundled in the package at `node_modules/@vllnt/convex-music/docs/`,
+with `CHANGELOG.md`, `llms.txt`, and the TypeScript sources in `src/`. They
+match the installed version. Read them before writing code against this package.
 
 ### Provider credentials
 
@@ -123,6 +129,7 @@ const trackValue = v.object({
   artists: v.array(
     v.object({ name: v.string(), externalId: v.optional(v.string()) }),
   ),
+  genres: v.array(v.string()),
 });
 
 export const cacheTrack = internalMutation({
@@ -150,10 +157,15 @@ export const cacheTrack = internalMutation({
 | `invalidate(ctx, key)`                                                        | mutation | Drop one cached entry; returns whether a row was deleted.                                       |
 | `pruneExpired(ctx)`                                                           | mutation | Delete one bounded expired-entry batch, rescheduling until drained; returns this batch's count. |
 | `stats(ctx)`                                                                  | query    | Maintained count of cached entries (no table scan).                                             |
+| `reconcileCacheStats(ctx)`                                                    | mutation | Backfill pre-upgrade cache rows into the maintained count.                                      |
+| `upsertArtist` / `upsertTrack` / `upsertPlaylist` / `upsertAlbum(ctx, input)` | mutation | Write one provider's facts into the durable catalog; returns the catalog id.                    |
 | `getArtist` / `getTrack` / `getPlaylist` / `getAlbum(ctx, id)`                | query    | Read a durable catalog entity.                                                                  |
+| `getTrackByIsrc(ctx, isrc)` / `getAlbumByProvider(ctx, provider, id)`         | query    | Resolve a catalog track by ISRC or an album by provider id.                                     |
 | `searchArtists` / `searchTracks(ctx, query, limit?)`                          | query    | Search the local catalog.                                                                       |
+| `selectEligible(ctx, input)`                                                  | query    | Stable-rotation pick of artist or track rows for a daily selector.                              |
 | `fetchArtist` / `fetchTrack(ctx, input)`                                      | action   | Read-through provider fetch and catalog promotion.                                              |
 | `search(ctx, input)`                                                          | action   | Provider discovery without catalog promotion.                                                   |
+| `resolveByIsrc(ctx, isrc, provider)`                                          | action   | Catalog track by ISRC, else provider lookup and promotion.                                      |
 | `importArtist` / `importTrack` / `importPlaylist` / `importAlbum(ctx, input)` | action   | Import traversal with request status.                                                           |
 | `configure(ctx, provider, secrets)`                                           | mutation | Persist provider credentials (trusted setup only).                                              |
 
@@ -162,8 +174,8 @@ Full reference — signatures, value shapes, and error codes:
 
 ## React
 
-Available in the `./react` entry, over the implemented catalog queries. All hooks return `undefined` while loading, in addition to the
-results below.
+Available in the `./react` entry, over the implemented catalog queries. All
+hooks return `undefined` while loading, in addition to the results below.
 
 Optional, tree-shakeable hooks over `convex/react`. The host re-exports its own
 catalog query refs and passes them in — the component never owns the host's
@@ -196,7 +208,8 @@ const tracks = useSearchTracks(api.music.searchTracks, query, 20);
   tokens to browser clients.
 - The host gates every write method behind its own authorized functions.
 
-See [`SECURITY.md`](SECURITY.md) for vulnerability reporting.
+See [`SECURITY.md`](https://github.com/vllnt/convex-music/blob/main/SECURITY.md)
+for vulnerability reporting.
 
 ## Testing
 
@@ -222,20 +235,33 @@ const t = convexTest(schema, import.meta.glob("./**/*.ts"));
 register(t);
 ```
 
+## Related packages
+
+- [`@convex-dev/action-cache`](https://www.npmjs.com/package/@convex-dev/action-cache):
+  caches the result of any action by its arguments. This component mounts it to
+  cache provider tokens; use it on its own to cache arbitrary action results
+  rather than a normalized music catalog.
+- [`@convex-dev/rate-limiter`](https://www.npmjs.com/package/@convex-dev/rate-limiter):
+  token-bucket and fixed-window rate limits. This component mounts it for
+  auto-import budgets; use it directly to rate-limit your own functions.
+
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md). Issues and pull requests welcome.
+See
+[`CONTRIBUTING.md`](https://github.com/vllnt/convex-music/blob/main/CONTRIBUTING.md).
+Issues and pull requests welcome.
 
 ## Author
 
 Built by [bntvllnt](https://github.com/bntvllnt) ·
 [bntvllnt.com](https://bntvllnt.com) · [X @bntvllnt](https://x.com/bntvllnt)
 
-Part of the [@vllnt](https://github.com/vllnt) Convex component fleet —
-[vllnt.com](https://vllnt.com)
-
 If this is useful, [sponsor the work](https://github.com/sponsors/bntvllnt).
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+Part of vllnt oss: https://oss.vllnt.com
