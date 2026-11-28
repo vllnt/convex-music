@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest, type TestConvex } from "convex-test";
-import { afterEach, beforeAll, expect, test, vi } from "vitest";
+import { afterEach, assert, beforeAll, expect, test, vi } from "vitest";
 import type { GenericSchema, SchemaDefinition } from "convex/server";
 import { api } from "./_generated/api.js";
 import schema from "./schema.js";
@@ -251,6 +251,7 @@ test("resolveByIsrc: catalog hit returns without searching", async () => {
     isrc: "GBDUW0000059",
     provider: "spotify",
   });
+  assert(track);
   expect(track.title).toBe("Cached");
 });
 
@@ -279,6 +280,7 @@ test("resolveByIsrc: cross-provider miss searches + promotes", async () => {
     isrc: "USNEW0000001",
     provider: "spotify",
   });
+  assert(track);
   expect(track.title).toBe("Resolved");
 });
 
@@ -317,6 +319,7 @@ test("fetchArtist via MusicBrainz (no-auth) merges artist facts", async () => {
     provider: "musicbrainz",
     externalId: "mb1",
   });
+  assert(artist);
   expect(artist.country).toBe("FR");
   expect(artist.members).toBe("group");
   expect(artist.debutYear).toBe(1993);

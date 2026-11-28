@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test, vi } from "vitest";
+import { assert, expect, test, vi } from "vitest";
 import { api } from "./_generated/api.js";
 import schema from "./schema.js";
 import { register } from "../../src/test.js";
@@ -32,8 +32,8 @@ test("put inserts a track with a TTL; get returns it while fresh (happy path)", 
     provider: "spotify",
     externalId: "t1",
   });
-  expect(hit).not.toBeNull();
-  expect(hit.value.title).toBe("Song One");
+  assert(hit);
+  expect(hit.value).toMatchObject({ title: "Song One" });
   expect(hit.expiresAt).toBeGreaterThan(Date.now());
 });
 
@@ -50,8 +50,8 @@ test("put without a TTL never expires; get returns it", async () => {
     provider: "musicbrainz",
     externalId: "a1",
   });
-  expect(hit).not.toBeNull();
-  expect(hit.value.name).toBe("Daft Punk");
+  assert(hit);
+  expect(hit.value).toMatchObject({ name: "Daft Punk" });
   expect(hit.expiresAt).toBe(Number.MAX_SAFE_INTEGER);
 });
 
@@ -62,7 +62,8 @@ test("put is an upsert: same key keeps the id and refreshes the value", async ()
   const id2 = await t.mutation(api.example.put, { ...key, value: track("v2") });
   expect(id2).toBe(id1);
   const hit = await t.query(api.example.get, key);
-  expect(hit.value.title).toBe("v2");
+  assert(hit);
+  expect(hit.value).toMatchObject({ title: "v2" });
 });
 
 test("get on an unknown key returns null", async () => {

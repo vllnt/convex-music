@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { assert, expect, test } from "vitest";
 import { api } from "./_generated/api.js";
 import schema from "./schema.js";
 import { register } from "../../src/test.js";
@@ -35,7 +35,7 @@ test("upsertArtist inserts, then getArtist returns the unified row (synced)", as
     value: artist({ popularity: 80, imageUrl: "https://sp/img" }),
   });
   const got = await t.query(api.example.getArtist, { id });
-  expect(got).not.toBeNull();
+  assert(got);
   expect(got.name).toBe("Daft Punk");
   expect(got.popularity).toBe(80);
   expect(got.providers).toHaveLength(1);
@@ -56,6 +56,7 @@ test("upsertArtist merges a second provider by name (union genres, max popularit
   });
   expect(id2).toBe(id);
   const got = await t.query(api.example.getArtist, { id });
+  assert(got);
   expect(got.genres.sort()).toEqual(["electronic", "house"]);
   expect(got.popularity).toBe(90);
   expect(got.providers).toHaveLength(2);
@@ -76,8 +77,9 @@ test("upsertArtist re-links when the same provider reports a new external id", a
   });
   expect(id2).toBe(id);
   const got = await t.query(api.example.getArtist, { id });
+  assert(got);
   expect(got.providers).toHaveLength(1);
-  expect(got.providers[0].providerId).toBe("new");
+  expect(got.providers[0]?.providerId).toBe("new");
 });
 
 test("upsertArtist is a no-op re-link for the identical provider id", async () => {
@@ -94,6 +96,7 @@ test("upsertArtist is a no-op re-link for the identical provider id", async () =
   });
   expect(again).toBe(id);
   const got = await t.query(api.example.getArtist, { id });
+  assert(got);
   expect(got.providers).toHaveLength(1);
   expect(got.popularity).toBe(55);
 });
@@ -135,10 +138,12 @@ test("upsertTrack inserts + merges by ISRC, unioning artistIds + max duration", 
   });
   expect(id2).toBe(id);
   const got = await t.query(api.example.getTrackByIsrc, { isrc: "GBDUW0000059" });
+  assert(got);
   expect(got.durationMs).toBe(320_000);
   expect(got.providers).toHaveLength(2);
   expect(got.artistIds.sort()).toEqual([artistId, artistId2].sort());
   const byId = await t.query(api.example.getTrack, { id });
+  assert(byId);
   expect(byId._id).toBe(id);
 });
 
@@ -152,6 +157,7 @@ test("upsertTrack re-links a provider's new external id for the same ISRC", asyn
   const got1 = await t.query(api.example.getTrackByIsrc, {
     isrc: "GBDUW0000059",
   });
+  assert(got1);
   await t.mutation(api.example.upsertTrack, {
     provider: "spotify",
     externalId: "new",
@@ -160,9 +166,10 @@ test("upsertTrack re-links a provider's new external id for the same ISRC", asyn
   const got2 = await t.query(api.example.getTrackByIsrc, {
     isrc: "GBDUW0000059",
   });
+  assert(got2);
   expect(got2._id).toBe(got1._id);
   expect(got2.providers).toHaveLength(1);
-  expect(got2.providers[0].providerId).toBe("new");
+  expect(got2.providers[0]?.providerId).toBe("new");
 });
 
 test("upsertTrack rejects a provider id that changes its ISRC (mismatch guard)", async () => {
@@ -197,6 +204,7 @@ test("upsertPlaylist inserts + updates by source-provider identity", async () =>
     trackIds: [trackId],
   });
   const got = await t.query(api.example.getPlaylist, { id });
+  assert(got);
   expect(got.title).toBe("Top Hits");
   expect(got.trackIds).toEqual([trackId]);
   const id2 = await t.mutation(api.example.upsertPlaylist, {
@@ -207,6 +215,7 @@ test("upsertPlaylist inserts + updates by source-provider identity", async () =>
   });
   expect(id2).toBe(id);
   const got2 = await t.query(api.example.getPlaylist, { id });
+  assert(got2);
   expect(got2.title).toBe("Top Hits 2024");
   expect(got2.trackIds).toEqual([]);
 
@@ -218,6 +227,7 @@ test("upsertPlaylist inserts + updates by source-provider identity", async () =>
     membershipComplete: false,
   });
   const preserved = await t.query(api.example.getPlaylist, { id });
+  assert(preserved);
   expect(preserved.trackIds).toEqual([trackId]);
   expect(preserved.membershipComplete).toBe(false);
 
@@ -236,6 +246,7 @@ test("upsertPlaylist inserts + updates by source-provider identity", async () =>
     membershipComplete: false,
   });
   const stillPartial = await t.query(api.example.getPlaylist, { id: partialId });
+  assert(stillPartial);
   expect(stillPartial.trackIds).toEqual([trackId]);
   expect(stillPartial.membershipComplete).toBe(false);
 });
@@ -252,6 +263,7 @@ test("upsertPlaylist membership is a replace — removals + reorders, not a unio
     ),
   );
   const [a, b, c] = ids;
+  assert(a && b && c);
   await t.mutation(api.example.upsertPlaylist, {
     provider: "spotify",
     providerId: "pl2",
@@ -266,6 +278,7 @@ test("upsertPlaylist membership is a replace — removals + reorders, not a unio
     trackIds: [c, a],
   });
   const got = await t.query(api.example.getPlaylist, { id });
+  assert(got);
   expect(got.trackIds).toEqual([c, a]);
 });
 
@@ -290,7 +303,7 @@ test("upsertAlbum inserts + updates by source-provider identity", async () => {
     trackCount: 14,
     trackIds: [trackId],
   });
-  expect((await t.query(api.example.getAlbum, { id })).trackIds).toEqual([trackId]);
+  expect((await t.query(api.example.getAlbum, { id }))?.trackIds).toEqual([trackId]);
 
   // re-link by provider identity (patch, not a new row)
   const id2 = await t.mutation(api.example.upsertAlbum, {
@@ -306,6 +319,7 @@ test("upsertAlbum inserts + updates by source-provider identity", async () => {
     provider: "spotify",
     providerId: "al1",
   });
+  assert(byProv);
   expect(byProv.title).toBe("Discovery (Remastered)");
   expect(byProv.trackIds).toEqual([]);
 
@@ -318,6 +332,7 @@ test("upsertAlbum inserts + updates by source-provider identity", async () => {
     membershipComplete: false,
   });
   const preserved = await t.query(api.example.getAlbum, { id });
+  assert(preserved);
   expect(preserved.trackIds).toEqual([trackId]);
   expect(preserved.membershipComplete).toBe(false);
 
@@ -338,6 +353,7 @@ test("upsertAlbum inserts + updates by source-provider identity", async () => {
     membershipComplete: false,
   });
   const stillPartial = await t.query(api.example.getAlbum, { id: partialId });
+  assert(stillPartial);
   expect(stillPartial.trackIds).toEqual([trackId]);
   expect(stillPartial.membershipComplete).toBe(false);
 

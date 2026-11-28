@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, assert, expect, test, vi } from "vitest";
 import { api } from "./_generated/api.js";
 import schema from "./schema.js";
 import { register } from "../../src/test.js";
@@ -63,11 +63,13 @@ test("importArtist by providerId promotes the artist + completes the request", a
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
+  assert(request);
   expect(request.status).toBe("completed");
-  expect(request.resolvedArtistId).toBeDefined();
+  assert(request.resolvedArtistId);
   const artist = await t.query(api.example.getArtist, {
     id: request.resolvedArtistId,
   });
+  assert(artist);
   expect(artist.name).toBe("Daft Punk");
 });
 
@@ -106,6 +108,7 @@ test("importArtist by name with no search hit fails the request", async () => {
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
+  assert(request);
   expect(request.status).toBe("failed");
   expect(request.errorSummary).toContain("no artist found");
 });
@@ -153,10 +156,12 @@ test("importArtist withTracks promotes the artist's ISRC-bearing top tracks", as
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
+  assert(request);
   expect(request.resultSummary).toContain("+1 tracks");
   const track = await t.query(api.example.getTrackByIsrc, {
     isrc: "FR1234567890",
   });
+  assert(track);
   expect(track.title).toBe("Genesis");
 });
 
@@ -175,6 +180,7 @@ test("withTracks tolerates a tracks-step failure: artist completes, tracks parti
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
+  assert(request);
   expect(request.resultSummary).toContain("tracks partial");
 });
 
@@ -218,6 +224,7 @@ test("importArtist tracks:'all' promotes ISRC tracks across the artist's albums"
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
+  assert(request);
   expect(request.resultSummary).toContain("+1 tracks");
 });
 
@@ -247,6 +254,7 @@ test("importTrack promotes the track + its credited artists (with + without id)"
   const track = await t.query(api.example.getTrackByIsrc, {
     isrc: "FR1234567890",
   });
+  assert(track);
   expect(track.title).toBe("Genesis");
   expect(track.artistIds).toHaveLength(1);
 });
@@ -299,11 +307,14 @@ test("importPlaylist promotes ISRC tracks + ENRICHES the ISRC-less ones", async 
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
+  assert(request);
   // t1 (had ISRC) + t2 (enriched) = 2; t3 stays ISRC-less and is dropped
   expect(request.resultSummary).toContain("2 tracks");
+  assert(request.resolvedPlaylistId);
   const playlist = await t.query(api.example.getPlaylist, {
     id: request.resolvedPlaylistId,
   });
+  assert(playlist);
   expect(playlist.title).toBe("Top Hits");
   expect(playlist.trackIds).toHaveLength(2);
 });
@@ -367,6 +378,7 @@ test("importPlaylist on a provider without batch fetch drops ISRC-less tracks", 
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
+  assert(request);
   expect(request.resultSummary).toContain("1 tracks");
 });
 
@@ -397,6 +409,7 @@ test("importPlaylist caps tracks at the given limit", async () => {
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
+  assert(request);
   expect(request.resultSummary).toContain("1 tracks");
 });
 
@@ -468,8 +481,11 @@ test("importAlbum promotes ISRC tracks (+enrich) + artists + stores the album", 
   const result = await t.action(api.example.importAlbum, { provider: "spotify", providerId: "al1" });
   expect(result.status).toBe("completed");
   const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  assert(request);
   expect(request.resultSummary).toContain("2 tracks");
+  assert(request.resolvedAlbumId);
   const album = await t.query(api.example.getAlbum, { id: request.resolvedAlbumId });
+  assert(album);
   expect(album.title).toBe("Discovery");
   expect(album.trackIds).toHaveLength(2);
   expect(album.artistIds).toHaveLength(1);
@@ -506,6 +522,7 @@ test("importAlbum caps tracks at the limit (every track already has an ISRC)", a
   ]);
   const result = await t.action(api.example.importAlbum, { provider: "spotify", providerId: "al2", limit: 1 });
   const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  assert(request);
   expect(request.resultSummary).toContain("1 tracks");
 });
 
@@ -527,6 +544,7 @@ test("importAlbum on a provider without batch fetch drops ISRC-less tracks", asy
   ]);
   const result = await t.action(api.example.importAlbum, { provider: "deezer", providerId: "9" });
   const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  assert(request);
   expect(request.resultSummary).toContain("1 tracks");
 });
 
@@ -560,6 +578,7 @@ test("importTrack withAlbum also imports the track's album", async () => {
     provider: "spotify",
     providerId: "al1",
   });
+  assert(album);
   expect(album.title).toBe("Discovery");
 });
 
@@ -631,11 +650,13 @@ test("importArtist tracks:'all' promotes more tracks than one upsert batch holds
     tracks: "all",
   });
   const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  assert(request);
   expect(request.resultSummary).toContain("+120 tracks");
   for (const index of [0, 49, 50, 119]) {
     const row = await t.query(api.example.getTrackByIsrc, {
       isrc: `GBBAT${String(index).padStart(7, "0")}`,
     });
+    assert(row);
     expect(row.title).toBe(`Batch ${String(index)}`);
   }
 });
@@ -669,6 +690,7 @@ test("a track that fails to upsert marks tracks partial while the rest are promo
   });
   expect(result.status).toBe("completed");
   const request = await t.query(api.example.getImportRequest, { requestId: result.requestId });
+  assert(request);
   expect(request.resultSummary).toMatch(/tracks partial: Error: .*changed ISRC/);
-  expect((await t.query(api.example.getTrackByIsrc, { isrc: "FR0000000003" })).title).toBe("Fine");
+  expect((await t.query(api.example.getTrackByIsrc, { isrc: "FR0000000003" }))?.title).toBe("Fine");
 });

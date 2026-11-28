@@ -15,11 +15,11 @@ function setup() {
 }
 
 const putArgs = {
-  kind: "track",
-  provider: "spotify",
+  kind: "track" as const,
+  provider: "spotify" as const,
   externalId: "t1",
   value: { title: "Song", artists: [{ name: "Artist" }] },
-} as const;
+};
 
 test.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
   "put rejects invalid ttlMs %s",
