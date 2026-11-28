@@ -7,6 +7,7 @@ settings:
 overrides:
   minimatch@>=7.0.0 <11.0.1: 11.0.5
   handlebars: ^4.7.10
+  ws: ^8.23.0
   esbuild: ^0.28.1
   deepmerge-ts@<8.0.0: ^8.0.2
 
@@ -2672,8 +2673,8 @@ packages:
     engines: {node: '>=6', npm: '>=5'}
     hasBin: true
 
-  ws@8.21.0:
-    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
+  ws@8.23.0:
+    resolution: {integrity: sha512-wCkmX8QMOrKjgO8HW2WyDbTSGeqkocxgDzS9iR79rEAexty6/2qzilx3Ag8Tqf9ykop3irLKle0MtVn5qjVnoQ==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -3838,7 +3839,7 @@ snapshots:
     dependencies:
       esbuild: 0.28.2
       prettier: 3.10.1
-      ws: 8.21.0
+      ws: 8.23.0
     optionalDependencies:
       react: 19.3.1
     transitivePeerDependencies:
@@ -5468,7 +5469,7 @@ snapshots:
       too-wordy: 0.3.6
       weasel-words: 0.1.1
 
-  ws@8.21.0: {}
+  ws@8.23.0: {}
 
   xml-name-validator@5.0.0: {}
 
