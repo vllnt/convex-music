@@ -1,5 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "ignoreDeps": ["convex"]
+  "ignoreDeps": ["convex"],
+  "minimumReleaseAge": "7 days",
+  "packageRules": [
+    {
+      "description": "Matches minimumReleaseAgeExclude in pnpm-workspace.yaml.",
+      "matchPackageNames": ["@vllnt/**"],
+      "minimumReleaseAge": null
+    }
+  ]
 }

@@ -78,10 +78,6 @@
       "esbuild": "^0.28.1",
       "deepmerge-ts@<8.0.0": "^8.0.2"
     },
-    "minimumReleaseAge": 10080,
-    "minimumReleaseAgeExclude": [
-      "@vllnt/*"
-    ],
     "ignoredBuiltDependencies": [
       "esbuild"
     ]
