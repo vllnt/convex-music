@@ -53,6 +53,9 @@ publishing and provenance; nothing is published from a local machine.
   publishes one under the `canary` dist-tag; you can also run the workflow manually on `main`.
 - Stable (`@latest`): merge a PR that sets `package.json` `version` and adds a matching
   `## [X.Y.Z]` entry to `CHANGELOG.md`, then push the tag `vX.Y.Z` on that `main` commit.
+- `CHANGELOG.md` has no `[Unreleased]` section (`scripts/changelog.test.mjs` enforces this): the
+  first change after a release bumps `package.json` `version` and adds `## [X.Y.Z] - Unreleased`
+  in the same PR. Before tagging, the owner replaces "Unreleased" with the release date.
 
 ## Reporting Issues
 

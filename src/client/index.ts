@@ -45,24 +45,28 @@ export type ImportArtistInput = {
   priority?: "high" | "normal" | "low";
 };
 
-/** Arguments to import a track into the catalog. */
-export type ImportTrackInput = {
+/** Arguments shared by every import of an entity by provider id. */
+type ImportByProviderIdInput = {
   provider: Provider;
   providerId: string;
-  /** Also import the track's album (when the provider exposes an album id). */
-  withAlbum?: boolean;
   mode?: "import" | "refresh" | "reimport" | "repair";
   priority?: "high" | "normal" | "low";
 };
 
+/** Arguments to import a track into the catalog. */
+export type ImportTrackInput = ImportByProviderIdInput & {
+  /** Also import the track's album (when the provider exposes an album id). */
+  withAlbum?: boolean;
+};
+
 /** Arguments to import a playlist (+ its tracks) into the catalog. */
-export type ImportPlaylistInput = ImportTrackInput & {
+export type ImportPlaylistInput = ImportByProviderIdInput & {
   /** Cap how many of the playlist's tracks to import. */
   limit?: number;
 };
 
 /** Arguments to import an album by provider id (+ its tracks + artists). */
-export type ImportAlbumInput = ImportTrackInput & {
+export type ImportAlbumInput = ImportByProviderIdInput & {
   /** Cap how many of the album's tracks to import. */
   limit?: number;
 };

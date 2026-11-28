@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - Unreleased
 
 ### Added
 
@@ -13,43 +13,6 @@ All notable changes to this project are documented here. The format is based on
   files with relative paths, and a test fails when a required file is missing from the tarball.
 - `docs/API.md` documents the entry points and the public component functions that have no
   `Music` client method.
-
-### Changed
-
-- Every push to `main` that changes the package or its shipped docs publishes a `canary` build;
-  it no longer depends on a repository variable.
-- Import entry points run their traversal in the same action instead of a nested
-  `ctx.runAction` (-1 action invocation per import, and per auto-import / refresh source), and
-  name-targeted artist imports search through the adapter directly (-1 more action).
-- Import requests move `queued -> claimed -> running` in one internal mutation (-1 mutation call
-  per import).
-- Imported tracks are upserted in batches of up to 50 per mutation instead of one mutation per
-  track (an artist `tracks: "all"` import of 120 tracks: 3 mutation calls instead of 120). A
-  failing track no longer blocks the rest of its batch; the import still reports the first error.
-- The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
-  enabled source is due, so an idle deployment runs no action.
-- Dependency updates: runtime `@convex-dev/action-cache` 0.3.2; development `convex` 1.51.0,
-  `convex-test` 0.0.73, `vitest` / `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and
-  `@vllnt/typescript` 3 (its new strictness flags are on, except `exactOptionalPropertyTypes`,
-  which would change the public types). The `ws` override moves to ^8.23.0 for
-  GHSA-37g9-w4hg-h9qr (dev-only, through the `convex` CLI). The `convex` peer range is unchanged.
-
-### Fixed
-
-- Docs drift: `NormalizedTrack` lists `genres`, `popularity` and `albumId`; `recoverStuckSyncs` is no
-  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports; the
-  README track example includes the required `genres`.
-
-## [0.2.0] - Unreleased
-
-### Fixed
-
-- Reject invalid input with typed `ConvexError`s instead of storing bad rows or silently dropping
-  results: non-finite `ttlMs` on `put` (`INVALID_TTL`), non-positive-integer `limit` / `scanLimit` /
-  `count` on searches, `selectEligible`, album/playlist imports, the refresh and auto-import sweeps and
-  `consumeBudget` (`INVALID_LIMIT`, `INVALID_COUNT`), non-positive `cadenceMs` on `addSource`
-  (`INVALID_CADENCE`), and empty identifiers on `put` and the catalog upserts / `addSource`
-  (`INVALID_ARGUMENT`). Error codes are listed in `docs/API.md`.
 
 ### Changed
 
@@ -63,8 +26,41 @@ All notable changes to this project are documented here. The format is based on
   `fetchArtist` / `fetchTrack` instead. A breaking change in a `0.x` package ships as a minor, so this
   release is `0.2.0`.
 - Unit-test files are no longer included in the published tarball.
-- Update `@convex-dev/rate-limiter` to `^0.4.2` and refresh the dev toolchain.
+- Runtime dependencies: `@convex-dev/rate-limiter` ^0.3.2 -> ^0.4.3 and `@convex-dev/action-cache`
+  ^0.3.1 -> ^0.3.2. rate-limiter 0.4 adds a nested `batchWorker` child component and a
+  `pendingUpdates` table; the next deploy creates them, and the host needs no migration.
 - Document how to use the `/test` entry in a consuming app (needs `convex-test` and `vitest`).
+- Every push to `main` that changes the package or its shipped docs publishes a `canary` build;
+  it no longer depends on a repository variable.
+- Import entry points run their traversal in the same action instead of a nested
+  `ctx.runAction` (-1 action invocation per import, and per auto-import / refresh source), and
+  name-targeted artist imports search through the adapter directly (-1 more action).
+- Import requests move `queued -> claimed -> running` in one internal mutation (-1 mutation call
+  per import).
+- Imported tracks are upserted in batches of up to 50 per mutation instead of one mutation per
+  track (an artist `tracks: "all"` import of 120 tracks: 3 mutation calls instead of 120). A
+  failing track no longer blocks the rest of its batch; the import still reports the first error.
+- The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
+  enabled source is due, so an idle deployment runs no action.
+- Development dependency updates: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` /
+  `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and `@vllnt/typescript` 3 (its new strictness flags are on, except `exactOptionalPropertyTypes`,
+  which would change the public types). The `ws` override moves to ^8.23.0 for
+  GHSA-37g9-w4hg-h9qr (dev-only, through the `convex` CLI). The `convex` peer range is unchanged.
+
+### Fixed
+
+- Reject invalid input with typed `ConvexError`s instead of storing bad rows or silently dropping
+  results: non-finite `ttlMs` on `put` (`INVALID_TTL`), non-positive-integer `limit` / `scanLimit` /
+  `count` on searches, `selectEligible`, album/playlist imports, the refresh and auto-import sweeps and
+  `consumeBudget` (`INVALID_LIMIT`, `INVALID_COUNT`), non-positive `cadenceMs` on `addSource`
+  (`INVALID_CADENCE`), and empty identifiers on `put` and the catalog upserts / `addSource`
+  (`INVALID_ARGUMENT`). Error codes are listed in `docs/API.md`.
+- Docs drift: `NormalizedTrack` lists `genres`, `popularity` and `albumId`; `recoverStuckSyncs` is no
+  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports; the
+  README track example includes the required `genres`.
+- `ImportPlaylistInput` and `ImportAlbumInput` no longer accept `withAlbum`. The component's
+  `importPlaylist` / `importAlbum` validators never accepted it, so a call that set it type-checked
+  but failed at runtime with an extra-field error. `withAlbum` stays on `ImportTrackInput`.
 
 ## [0.1.0] - 2026-09-01
 
