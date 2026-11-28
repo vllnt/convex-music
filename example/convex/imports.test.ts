@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test } from "vitest";
+import { assert, expect, test } from "vitest";
 import { api } from "./_generated/api.js";
 import schema from "./schema.js";
 import { register } from "../../src/test.js";
@@ -29,6 +29,7 @@ test("createImportRequest inserts a queued request with defaults", async () => {
   const request = await t.query(api.example.getImportRequest, {
     requestId: result.requestId,
   });
+  assert(request);
   expect(request.status).toBe("queued");
   expect(request.priority).toBe("normal");
   expect(request.retryCount).toBe(0);
@@ -60,6 +61,7 @@ test("a different target or withTracks does not dedup", async () => {
   const cReq = await t.query(api.example.getImportRequest, {
     requestId: c.requestId,
   });
+  assert(cReq);
   expect(cReq.priority).toBe("high");
 });
 
@@ -75,7 +77,7 @@ test("maintenance recovers abandoned imports and prunes terminal history", async
     }),
   ).toBe(1);
   expect(
-    (await t.query(api.example.getImportRequest, { requestId: first.requestId })).status,
+    (await t.query(api.example.getImportRequest, { requestId: first.requestId }))?.status,
   ).toBe("stale");
 
   const retry = await t.mutation(api.example.createImportRequest, artistByName);

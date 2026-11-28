@@ -45,6 +45,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck:ci
+      - run: pnpm typecheck:tests
 
   test:
     name: Test
@@ -79,3 +80,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:package
+      - run: bash scripts/test-check-package-contents.sh
