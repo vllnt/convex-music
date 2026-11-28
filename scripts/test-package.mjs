@@ -106,13 +106,16 @@ try {
     `
 import { Music } from "@vllnt/convex-music";
 import type { ComponentApi } from "@vllnt/convex-music/_generated/component.js";
+import type { ComponentApi as BareComponentApi } from "@vllnt/convex-music/_generated/component";
 import config from "@vllnt/convex-music/convex.config.js";
+import bareConfig from "@vllnt/convex-music/convex.config";
 import { useArtist } from "@vllnt/convex-music/react";
 import { defineApp } from "convex/server";
 declare const component: ComponentApi;
+declare const bareComponent: BareComponentApi;
 const client = new Music(component);
-const app = defineApp(); app.use(config);
-void client; void app; void useArtist;
+const app = defineApp(); app.use(config); app.use(bareConfig, { name: "music2" });
+void client; void new Music(bareComponent); void app; void useArtist;
 `,
   );
   typecheck("NodeNext", ["consumer.ts"]);
