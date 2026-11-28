@@ -211,9 +211,13 @@ When any of these change, update the matching docs in the SAME commit:
 |--------|--------|
 | Client method signature (`src/client/index.ts`) | `docs/API.md`, README API table, `llms.txt` context |
 | Schema / table fields (`src/component/schema.ts`) | this file (Architecture), `docs/API.md` Types |
-| New feature / breaking change | `CHANGELOG.md`, README Features, `ROADMAP.md` |
+| New feature / breaking change | `CHANGELOG.md`, README (API table, Limits and gotchas), `ROADMAP.md` |
 | `peerDependencies.convex` range | `llms.txt` context line, `docs/API.md` Compatibility line |
 | New planned capability | tag `[planned]` in README; do NOT add to `docs/API.md` |
+
+README, `llms.txt` and `docs/` follow the shared docs contract in
+`scripts/check-documentation.mjs`, run by `pnpm test:package`. Every README `ts` example
+type-checks against the packed package; the Testing example also runs under Vitest.
 
 ## Generated code
 

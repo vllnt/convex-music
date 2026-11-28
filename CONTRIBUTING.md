@@ -42,7 +42,9 @@ at least one adversarial test (auth-denied, invalid input, boundary).
 - Target `main`
 - One logical change per PR
 - Include tests for new behavior or bug fixes
-- Ensure all checks pass: `pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm build`
+- Ensure all checks pass: `pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm build`,
+  then `pnpm test:package` (packs the tarball and checks the README, `llms.txt` and `docs/`
+  against `scripts/check-documentation.mjs`)
 
 ## Releases
 
