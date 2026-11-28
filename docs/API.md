@@ -1,7 +1,11 @@
 # API Reference — @vllnt/convex-music
 
 **Compatibility:** `convex@^1.45.0`; optional `react@^18.0.0 || ^19.0.0` for
-`./react`.
+`./react`. `pnpm test:package` installs and type-checks the packed package with
+convex 1.45.0. A transitive dependency (`@convex-dev/rate-limiter` 0.4.3 →
+`@convex-dev/batch-worker` 0.3.5 → `convex-helpers`) declares a newer convex
+peer (`^1.46.0` in 0.1.136, `^1.49.0` in 0.1.137), so installs below that print
+an unmet-peer warning.
 
 ## Entry points
 
@@ -62,7 +66,7 @@ getByIsrc(ctx, isrc: string): Promise<CacheEntry[]>
 ```
 
 Returns every unexpired `kind: "track"` entry with this `isrc`, across
-providers. It reads all cached rows for the ISRC.
+providers. It reads every cached track row for the ISRC, fresh or expired.
 
 ### `invalidate`
 
@@ -242,8 +246,10 @@ Throws when the provider's track has no ISRC.
 search(ctx, input: SearchInput): Promise<SearchHit[]>
 ```
 
-Searches the provider and returns normalized hits. Writes nothing. MusicBrainz
-and Wikidata return `[]` for `type: "track"`.
+Searches the provider and returns normalized hits. Writes no catalog or cache
+rows; a Spotify or Apple Music call may store the provider token in the
+`action-cache` child component. MusicBrainz and Wikidata return `[]` for
+`type: "track"`.
 
 ### `resolveByIsrc`
 
@@ -315,8 +321,9 @@ they are not resumable. When an active request has the same target, mode,
 track depth and `withAlbum`, they return that request and its current status
 without running; `limit` and `priority` are not compared. A
 provider or credential error does not throw: the import returns
-`status: "failed"` and the error text, prefixed `Error: `, is in the request's
-`errorSummary` (read it
+`status: "failed"` and the error text (`String(error)`, for example
+`Error: no artist found for "x"` or `ProviderHttpError: deezer API error 404:
+...`) is in the request's `errorSummary` (read it
 with [`imports.queries.getRequest`](#component-functions-without-a-client-method)).
 `mode` (`"import" | "refresh" | "reimport" | "repair"`, default `"import"`) and
 `priority` (`"high" | "normal" | "low"`, default `"normal"`) are stored on the
@@ -748,8 +755,11 @@ Call these from your own host functions with `ctx.runQuery`,
 sweep only imports artists by `name` or `providerId` and tracks, playlists and
 albums by `providerId`. Any other pair makes the sweep throw
 `unsupported source target` at that source. A source is due when it was never
-imported, or when `cadenceMs` has passed since its last import; without
-`cadenceMs` it is imported once. A source without `provider` is skipped. The
+imported, or when `cadenceMs` has passed since its last import. A source is
+marked imported only when its import completes, so a failing source is retried
+every hour; without `cadenceMs` it stops after the first successful import.
+Each run takes at most 10 due sources; sources without `provider` count toward
+those 10 and are then skipped. The
 full argument validators are in `src/component/`, which ships in the package.
 
 ## Scheduled jobs
@@ -765,8 +775,9 @@ Every mount runs these crons:
 | 24 hours | `markStale` for artists and for tracks; `pruneTerminal` for each final import status (30 days)    |
 
 An artist or track row becomes stale after its freshness window: 7 days when
-`popularity` is 70 or more, 30 days when 40 or more, otherwise 90 days. Albums
-and playlists are never marked stale or refreshed. Auto-import and refresh
+`popularity` is 70 or more, 30 days when 40 or more, otherwise 90 days. This
+freshness refresh covers only artists and tracks; albums and playlists update
+only through a source's `cadenceMs` or a manual import. Auto-import and refresh
 each consume a token-bucket budget of 60 per hour.
 
 ## Errors
@@ -781,7 +792,7 @@ Invalid input throws a `ConvexError` whose `data` is `{ code, message }`.
 | `INVALID_COUNT`     | `sources.actions.consumeBudget`: `count` not a positive integer                                                                                     |
 | `INVALID_CADENCE`   | `sources.mutations.addSource`: `cadenceMs` not a positive finite number                                                                             |
 | `INVALID_BATCH`     | `imports.mutations.recoverAbandoned`, `imports.mutations.pruneTerminal`: `batch` outside 1..500                                                    |
-| `IMPORT_LEASE_LOST` | Internal `imports.mutations.heartbeat` only; the host never sees it. The import then throws the plain `Error` `Invalid import transition: stale -> failed` |
+| `IMPORT_LEASE_LOST` | Internal `imports.mutations.heartbeat` only; the host never sees it. Happens when the request left `running` mid-import, for example after a host call to `recoverAbandoned` with a later `before`; the import then throws the plain `Error` `Invalid import transition: stale -> failed` |
 
 Missing and expired reads return `null` or `[]` instead of throwing. Plain
 `Error` messages (credentials, provider HTTP errors, missing ISRC) and their

@@ -77,9 +77,9 @@ export const importArtist = action({
 });
 
 export const searchArtists = query({
-  args: { query: v.string() },
+  args: { query: v.string(), limit: v.optional(v.number()) },
   returns: v.array(v.any()),
-  handler: (ctx, args) => music.searchArtists(ctx, args.query, 10),
+  handler: (ctx, args) => music.searchArtists(ctx, args.query, args.limit),
 });
 ```
 
@@ -129,7 +129,7 @@ Full reference: [docs/API.md](docs/API.md).
 | [`selectEligible(ctx, input)`](docs/API.md#selecteligible)                                  | `Music` method, query                       | Stable daily rotation of artists or tracks                           |
 | [`fetchArtist(ctx, input)`](docs/API.md#fetchartist)                                        | `Music` method, action                      | Catalog artist, fetched from the provider when missing               |
 | [`fetchTrack(ctx, input)`](docs/API.md#fetchtrack)                                          | `Music` method, action                      | Catalog track, fetched from the provider when missing                |
-| [`search(ctx, input)`](docs/API.md#search)                                                  | `Music` method, action                      | Search a provider; stores nothing                                    |
+| [`search(ctx, input)`](docs/API.md#search)                                                  | `Music` method, action                      | Search a provider; writes no catalog or cache rows                   |
 | [`resolveByIsrc(ctx, isrc, provider)`](docs/API.md#resolvebyisrc)                           | `Music` method, action                      | Catalog track by ISRC, else look it up on a provider and store it    |
 | [`configure(ctx, provider, secrets)`](docs/API.md#configure)                                | `Music` method, mutation                    | Store or replace a provider's credentials                            |
 | [`importArtist(ctx, input)`](docs/API.md#importartist)                                      | `Music` method, action                      | Import an artist by name or id, optionally with tracks               |
@@ -371,15 +371,16 @@ it in the host with `error instanceof ConvexError` and read `error.data.code`.
 | `INVALID_LIMIT`     | `limit must be a positive integer` (or `scanLimit`)             | `searchArtists`, `searchTracks`, `selectEligible`, `importPlaylist`, `importAlbum`, `runRefresh` or `runAutoImport` got a limit below 1 or fractional | Pass a positive integer, or omit it                                            |
 | `INVALID_LIMIT`     | `limit must be an integer between 1 and 500`                    | `sync.mutations.markStale` got a limit outside 1..500                                                                                                 | Pass 1..500, or omit it (default 200)                                          |
 | `INVALID_COUNT`     | `count must be a positive integer`                              | `sources.actions.consumeBudget` got a count below 1 or fractional                                                                                     | Pass a positive integer                                                        |
-| `INVALID_CADENCE`   | `cadenceMs must be a positive finite number of milliseconds`    | `addSource` got `cadenceMs` 0, negative, `NaN` or `Infinity`                                                                                          | Pass a positive number, or omit it to import the source once                   |
+| `INVALID_CADENCE`   | `cadenceMs must be a positive finite number of milliseconds`    | `addSource` got `cadenceMs` 0, negative, `NaN` or `Infinity`                                                                                          | Pass a positive number, or omit it to stop after the first successful import   |
 | `INVALID_BATCH`     | `batch must be an integer between 1 and 500`                    | `imports.mutations.recoverAbandoned` or `pruneTerminal` got a batch outside 1..500                                                                    | Pass 1..500, or omit it (default 100)                                          |
-| `IMPORT_LEASE_LOST` | `import request is no longer running`                           | Internal; the host never sees this code. The import's request left `running` while the import ran (the recovery cron marks requests not updated for 30 minutes `stale`), and the import then throws the plain `Error` `Invalid import transition: stale -> failed` | Import less per call (a lower `limit`, `tracks: "top"`), then start the import again |
+| `IMPORT_LEASE_LOST` | `import request is no longer running`                           | Internal; the host never sees this code. The import's request left `running` while the import ran, for example because the host called `imports.mutations.recoverAbandoned` with a `before` later than the request's last heartbeat. The import then throws the plain `Error` `Invalid import transition: stale -> failed` | Call `recoverAbandoned` with its default `before` (30 minutes for `running`; live imports renew their request at each step), then start the import again |
 
 These are thrown as a plain `Error` (no code). `fetchArtist`, `fetchTrack`,
 `search`, `resolveByIsrc` and the catalog upserts throw them. Import methods
 catch them instead: the import returns `status: "failed"` and stores the
-error text, prefixed `Error: `, in the request's `errorSummary` (all but
-`Invalid import transition`, which the import throws).
+error text (`String(error)`) in the request's `errorSummary`, for example
+`Error: no artist found for "x"` or `ProviderHttpError: deezer API error 404:
+...`. The exception is `Invalid import transition`, which the import throws.
 
 | Message                                                                     | Cause                                                                                              | Fix                                                                                      |
 | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -387,7 +388,8 @@ error text, prefixed `Error: `, in the request's `errorSummary` (all but
 | `provider <p> id <id> changed ISRC <old> -> <new>; refusing to silently re-link` | A provider id already linked to a track with another ISRC                                        | Check the provider data; the existing link is kept                                       |
 | `No credentials configured for provider "<p>". Call configure() first.`     | A Spotify or Apple call before `configure`                                                         | Call `configure` for that provider                                                       |
 | `Missing required credential: <key>`                                        | The stored secrets lack `clientId` / `clientSecret` (Spotify) or `issuer` / `keyId` / `privateKeyPem` (Apple), or one is empty | Call `configure` again with every key                                         |
-| `Apple private key PEM is empty` / `Apple private key PEM is malformed`     | `privateKeyPem` is not a PKCS#8 PEM key                                                            | Pass the `.p8` key text, including its header and footer lines                           |
+| `Apple private key PEM is empty` / `Apple private key PEM is malformed`     | `privateKeyPem` has no key body, or its body is not valid base64 (for example literal `\n` escapes) | Pass the `.p8` key text with real line breaks, including its header and footer lines     |
+| A Web Crypto `importKey` error                                              | `privateKeyPem` is valid base64 but not a PKCS#8 P-256 key, for example a `BEGIN EC PRIVATE KEY` key | Convert it with `openssl pkcs8 -topk8 -nocrypt -in key.pem`, or pass the original `.p8` |
 | `<provider> API error <status>: <body>`                                     | The provider answered a non-retryable status, or a retryable one on the last attempt                | Check the id and credentials; retry later on `429` / `5xx`                               |
 | `<provider> API timeout after <ms>ms`                                       | The last attempt took longer than 15 seconds                                                       | Retry later                                                                              |
 | `musicbrainz: <method> not supported (facts-only provider)` (or `wikidata:`) | A track, album, playlist or artist-tracks call on MusicBrainz or Wikidata                         | Use Spotify, Apple or Deezer for those; MusicBrainz and Wikidata supply artist facts     |
@@ -407,8 +409,8 @@ rejected by Convex argument validation before the component runs.
   that are never picked.
 - `get` and `getByIsrc` hide expired entries, but the rows stay until the
   hourly prune deletes them, 100 per batch. `stats` counts expired rows too.
-  `getByIsrc` reads every cached row for the ISRC and returns only `kind:
-  "track"` entries.
+  `getByIsrc` reads every cached track row for the ISRC, fresh or expired,
+  and returns the fresh ones.
 - `put` without `ttlMs` never expires. A `ttlMs` of 0 or less writes an entry
   that is already expired.
 - Catalog tracks need an ISRC. Imports skip provider tracks without one.
@@ -422,19 +424,24 @@ rejected by Convex argument validation before the component runs.
 - An import runs inside one action; it is not resumable. A second import with
   the same target, mode, track depth and `withAlbum` while one is active
   returns that request and its current status without running again; `limit`
-  and `priority` are not compared, so a different `limit` is ignored. `ImportResult.status` is typed `string`; the
-  values are `queued`, `claimed`, `running`, `retry_waiting`, `completed`,
-  `failed`, `canceled` and `stale`.
+  and `priority` are not compared, so a different `limit` is ignored.
+  `ImportResult.status` is typed `string`; the values are `queued`, `claimed`,
+  `running`, `retry_waiting`, `completed`, `failed`, `canceled` and `stale`.
 - An artist import that fails while importing tracks still completes; the
   error is in the request's `resultSummary`.
 - The component's crons always run. Every 24 hours artist and track rows past
-  their freshness window (popularity 70+: 7 days, 40+: 30 days, else 90 days) are marked
-  `stale`, and every 6 hours up to 10 stale artists and 10 stale tracks are
+  their freshness window (popularity 70+: 7 days, 40+: 30 days, else 90 days)
+  are marked `stale`, and every 6 hours up to 10 stale artists and 10 stale tracks are
   imported again from their providers. Imports and refreshes each have a budget
-  of 60 per hour. Albums and playlists are never refreshed automatically.
-- The auto-import sweep reads the first 100 enabled sources and imports at most
-  10 due ones per hourly run. A source without `provider` is skipped. A source
-  without `cadenceMs` is imported once. It imports artists by `name` or
+  of 60 per hour. This freshness refresh covers only artists and tracks;
+  albums and playlists update only through a source's `cadenceMs` or a manual
+  import.
+- The auto-import sweep reads the first 100 enabled sources and takes at most
+  10 due ones per hourly run. Sources without `provider` count toward those 10
+  and are then skipped, so 10 of them block every other source. A source is
+  marked imported only when its import completes: a source without `cadenceMs`
+  is imported once after its first success, and a failing source is retried
+  every hour. The sweep imports artists by `name` or
   `providerId`, and tracks, playlists and albums by `providerId`; any other
   pair stops the sweep at that source every run.
 - Import requests in a final state are deleted after 30 days. Active requests
@@ -448,8 +455,13 @@ rejected by Convex argument validation before the component runs.
 ## Compatibility
 
 - Peer dependency `convex@^1.45.0`. CI runs the unit tests on the locked convex
-  version (1.51.0), and type-checks and runs the packed package against convex
-  1.45.0.
+  version (1.51.0), and `pnpm test:package` installs, type-checks and runs the
+  packed package against convex 1.45.0.
+- Installing with an older convex can print an unmet-peer warning: a
+  transitive dependency (`@convex-dev/rate-limiter` 0.4.3 →
+  `@convex-dev/batch-worker` 0.3.5 → `convex-helpers` ^0.1.127) declares a
+  newer convex peer. `convex-helpers` 0.1.136 declares `convex@^1.46.0`;
+  0.1.137, the latest today, declares `convex@^1.49.0`.
 - Optional peer dependency `react@^18.0.0 || ^19.0.0`, only for
   `@vllnt/convex-music/react`.
 - ES modules only. The component runs in the default Convex runtime, not
@@ -498,7 +510,10 @@ test("searchArtists finds an artist in the catalog", async () => {
       value: { name: "Daft Punk", genres: ["french house"] },
     });
   });
-  const artists = await t.query(api.music.searchArtists, { query: "Daft" });
+  const artists = await t.query(api.music.searchArtists, {
+    query: "Daft",
+    limit: 10,
+  });
   expect(artists).toMatchObject([{ name: "Daft Punk" }]);
 });
 ```

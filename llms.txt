@@ -3,8 +3,11 @@
 > TypeScript Convex component for a cached music catalog: tracks, artists, albums and playlists from Spotify, Apple Music and Deezer, plus MusicBrainz artists.
 
 Install `@vllnt/convex-music` (unreleased builds from `main` use the `canary`
-dist-tag). Peer dependency `convex@^1.45.0`; optional `react@^18 || ^19` for
-the `./react` hooks. Mount it with `app.use(music)` from
+dist-tag). Peer dependency `convex@^1.45.0` (tested with 1.45.0; a transitive
+dependency, `convex-helpers` via `@convex-dev/rate-limiter`, declares
+a newer convex peer, `^1.49.0` in its latest release, and warns below that);
+optional `react@^18 || ^19` for the
+`./react` hooks. Mount it with `app.use(music)` from
 `@vllnt/convex-music/convex.config` and call it through
 `new Music(components.music)` from host queries, mutations and actions.
 

@@ -49,7 +49,8 @@ All notable changes to this project are documented here. The format is based on
   track (an artist `tracks: "all"` import of 120 tracks: 3 mutation calls instead of 120). A
   failing track no longer blocks the rest of its batch; the import still reports the first error.
 - The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
-  enabled source is due, so an idle deployment runs no action.
+  enabled source is due, so no auto-import action runs while no source is due. The two 6-hourly
+  refresh actions (artists and tracks) still run.
 - Development dependency updates: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` /
   `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and `@vllnt/typescript` 3 (its new
   strictness flags are on, except `exactOptionalPropertyTypes`, which would change the public
@@ -65,8 +66,7 @@ All notable changes to this project are documented here. The format is based on
   (`INVALID_CADENCE`), and empty identifiers on `put` and the catalog upserts / `addSource`
   (`INVALID_ARGUMENT`). Error codes are listed in `docs/API.md`.
 - Docs drift: `NormalizedTrack` lists `genres`, `popularity` and `albumId`; `recoverStuckSyncs` is no
-  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports; the
-  README track example includes the required `genres`.
+  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports.
 - `ImportPlaylistInput` and `ImportAlbumInput` no longer accept `withAlbum`. The component's
   `importPlaylist` / `importAlbum` validators never accepted it, so a call that set it type-checked
   but failed at runtime with an extra-field error. `withAlbum` stays on `ImportTrackInput`.
