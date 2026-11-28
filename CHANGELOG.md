@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - Unreleased
 
 ### Added
 
@@ -16,6 +16,18 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- **Breaking:** eight worker functions that only the component itself calls are now
+  `internalQuery` / `internalMutation` / `internalAction`, so a host can no longer call them through
+  `components.music`: `catalog.queries.getArtistByProvider`, `catalog.queries.getTrackByProvider`,
+  `imports.actions.runArtistImport`, `imports.actions.runTrackImport`,
+  `imports.actions.runPlaylistImport`, `imports.actions.runAlbumImport`,
+  `sources.mutations.touchSource` and `sync.mutations.claimNextStale`. None is on the `Music` client or
+  in `docs/API.md`; use `importArtist` / `importTrack` / `importPlaylist` / `importAlbum` and
+  `fetchArtist` / `fetchTrack` instead. A breaking change in a `0.x` package ships as a minor, so this
+  release is `0.2.0`.
+- Unit-test files are no longer included in the published tarball.
+- Update `@convex-dev/rate-limiter` to `^0.4.2` and refresh the dev toolchain.
+- Document how to use the `/test` entry in a consuming app (needs `convex-test` and `vitest`).
 - Every push to `main` that changes the package or its shipped docs publishes a `canary` build;
   it no longer depends on a repository variable.
 - Import entry points run their traversal in the same action instead of a nested
@@ -36,35 +48,17 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
-- Docs drift: `NormalizedTrack` lists `genres`, `popularity` and `albumId`; `recoverStuckSyncs` is no
-  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports; the
-  README track example includes the required `genres`.
-
-## [0.2.0] - Unreleased
-
-### Fixed
-
 - Reject invalid input with typed `ConvexError`s instead of storing bad rows or silently dropping
   results: non-finite `ttlMs` on `put` (`INVALID_TTL`), non-positive-integer `limit` / `scanLimit` /
   `count` on searches, `selectEligible`, album/playlist imports, the refresh and auto-import sweeps and
   `consumeBudget` (`INVALID_LIMIT`, `INVALID_COUNT`), non-positive `cadenceMs` on `addSource`
   (`INVALID_CADENCE`), and empty identifiers on `put` and the catalog upserts / `addSource`
   (`INVALID_ARGUMENT`). Error codes are listed in `docs/API.md`.
-
-### Changed
-
-- **Breaking:** eight worker functions that only the component itself calls are now
-  `internalQuery` / `internalMutation` / `internalAction`, so a host can no longer call them through
-  `components.music`: `catalog.queries.getArtistByProvider`, `catalog.queries.getTrackByProvider`,
-  `imports.actions.runArtistImport`, `imports.actions.runTrackImport`,
-  `imports.actions.runPlaylistImport`, `imports.actions.runAlbumImport`,
-  `sources.mutations.touchSource` and `sync.mutations.claimNextStale`. None is on the `Music` client or
-  in `docs/API.md`; use `importArtist` / `importTrack` / `importPlaylist` / `importAlbum` and
-  `fetchArtist` / `fetchTrack` instead. A breaking change in a `0.x` package ships as a minor, so this
-  release is `0.2.0`.
-- Unit-test files are no longer included in the published tarball.
-- Update `@convex-dev/rate-limiter` to `^0.4.2` and refresh the dev toolchain.
-- Document how to use the `/test` entry in a consuming app (needs `convex-test` and `vitest`).
+- Docs drift: `NormalizedTrack` lists `genres`, `popularity` and `albumId`; `recoverStuckSyncs` is no
+  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports; the
+  README track example includes the required `genres`.
+- `CHANGELOG.md` keeps one section for the next version: a test fails when an `[Unreleased]`
+  section sits beside it or when the `package.json` version has no section.
 
 ## [0.1.0] - 2026-09-01
 
