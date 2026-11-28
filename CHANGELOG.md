@@ -13,6 +13,13 @@ All notable changes to this project are documented here. The format is based on
   files with relative paths, and a test fails when a required file is missing from the tarball.
 - `docs/API.md` documents the entry points and the public component functions that have no
   `Music` client method.
+- README, `docs/API.md` and `llms.txt` follow the shared vllnt docs layout: When to use, Quick
+  start, an API table of every export, an errors table of every error code and message, limits,
+  compatibility and links. `docs/API.md` has one heading per export and `Music` method and lists
+  the component crons. Every export has a TSDoc summary.
+- `pnpm test:package` packs the tarball, installs it in a temporary project with `convex` 1.45.0,
+  checks the docs contract (`scripts/check-documentation.mjs`), type-checks every README example
+  against the packed package and runs the README test example. CI and the publish workflow run it.
 
 ### Changed
 
@@ -26,6 +33,7 @@ All notable changes to this project are documented here. The format is based on
   `fetchArtist` / `fetchTrack` instead. A breaking change in a `0.x` package ships as a minor, so this
   release is `0.2.0`.
 - Unit-test files are no longer included in the published tarball.
+- `package.json` `description` and `keywords` name the stack and the supported providers.
 - Runtime dependencies: `@convex-dev/rate-limiter` ^0.3.2 -> ^0.4.3 and `@convex-dev/action-cache`
   ^0.3.1 -> ^0.3.2. rate-limiter 0.4 adds a nested `batchWorker` child component and a
   `pendingUpdates` table; the next deploy creates them, and the host needs no migration.
@@ -43,8 +51,9 @@ All notable changes to this project are documented here. The format is based on
 - The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
   enabled source is due, so an idle deployment runs no action.
 - Development dependency updates: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` /
-  `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and `@vllnt/typescript` 3 (its new strictness flags are on, except `exactOptionalPropertyTypes`,
-  which would change the public types). The `ws` override moves to ^8.23.0 for
+  `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and `@vllnt/typescript` 3 (its new
+  strictness flags are on, except `exactOptionalPropertyTypes`, which would change the public
+  types). The `ws` override moves to ^8.23.0 for
   GHSA-37g9-w4hg-h9qr (dev-only, through the `convex` CLI). The `convex` peer range is unchanged.
 
 ### Fixed
