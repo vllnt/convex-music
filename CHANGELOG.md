@@ -28,6 +28,11 @@ All notable changes to this project are documented here. The format is based on
   failing track no longer blocks the rest of its batch; the import still reports the first error.
 - The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
   enabled source is due, so an idle deployment runs no action.
+- Dependency updates: runtime `@convex-dev/action-cache` 0.3.2; development `convex` 1.51.0,
+  `convex-test` 0.0.73, `vitest` / `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and
+  `@vllnt/typescript` 3 (its new strictness flags are on, except `exactOptionalPropertyTypes`,
+  which would change the public types). The `ws` override moves to ^8.23.0 for
+  GHSA-37g9-w4hg-h9qr (dev-only, through the `convex` CLI). The `convex` peer range is unchanged.
 
 ### Fixed
 
