@@ -13,6 +13,13 @@ All notable changes to this project are documented here. The format is based on
   files with relative paths, and a test fails when a required file is missing from the tarball.
 - `docs/API.md` documents the entry points and the public component functions that have no
   `Music` client method.
+- README, `docs/API.md` and `llms.txt` follow the shared vllnt docs layout: When to use, Quick
+  start, an API table of every export, an errors table of every error code and message, limits,
+  compatibility and links. `docs/API.md` has one heading per export and `Music` method and lists
+  the component crons. Every export has a TSDoc summary.
+- `pnpm test:package` packs the tarball, installs it in a temporary project with `convex` 1.45.0,
+  checks the docs contract (`scripts/check-documentation.mjs`), type-checks every README example
+  against the packed package and runs the README test example. CI and the publish workflow run it.
 
 ### Changed
 
@@ -26,6 +33,7 @@ All notable changes to this project are documented here. The format is based on
   `fetchArtist` / `fetchTrack` instead. A breaking change in a `0.x` package ships as a minor, so this
   release is `0.2.0`.
 - Unit-test files are no longer included in the published tarball.
+- `package.json` `description` and `keywords` name the stack and the supported providers.
 - Runtime dependencies: `@convex-dev/rate-limiter` ^0.3.2 -> ^0.4.3 and `@convex-dev/action-cache`
   ^0.3.1 -> ^0.3.2. rate-limiter 0.4 adds a nested `batchWorker` child component and a
   `pendingUpdates` table; the next deploy creates them, and the host needs no migration.
@@ -41,10 +49,12 @@ All notable changes to this project are documented here. The format is based on
   track (an artist `tracks: "all"` import of 120 tracks: 3 mutation calls instead of 120). A
   failing track no longer blocks the rest of its batch; the import still reports the first error.
 - The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
-  enabled source is due, so an idle deployment runs no action.
+  enabled source is due, so no auto-import action runs while no source is due. The two 6-hourly
+  refresh actions (artists and tracks) still run.
 - Development dependency updates: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` /
-  `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and `@vllnt/typescript` 3 (its new strictness flags are on, except `exactOptionalPropertyTypes`,
-  which would change the public types). The `ws` override moves to ^8.23.0 for
+  `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and `@vllnt/typescript` 3 (its new
+  strictness flags are on, except `exactOptionalPropertyTypes`, which would change the public
+  types). The `ws` override moves to ^8.23.0 for
   GHSA-37g9-w4hg-h9qr (dev-only, through the `convex` CLI). The `convex` peer range is unchanged.
 
 ### Fixed
@@ -56,8 +66,7 @@ All notable changes to this project are documented here. The format is based on
   (`INVALID_CADENCE`), and empty identifiers on `put` and the catalog upserts / `addSource`
   (`INVALID_ARGUMENT`). Error codes are listed in `docs/API.md`.
 - Docs drift: `NormalizedTrack` lists `genres`, `popularity` and `albumId`; `recoverStuckSyncs` is no
-  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports; the
-  README track example includes the required `genres`.
+  longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports.
 - `ImportPlaylistInput` and `ImportAlbumInput` no longer accept `withAlbum`. The component's
   `importPlaylist` / `importAlbum` validators never accepted it, so a call that set it type-checked
   but failed at runtime with an extra-field error. `withAlbum` stays on `ImportTrackInput`.

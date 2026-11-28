@@ -1,31 +1,57 @@
 # @vllnt/convex-music
 
-> Provider-neutral, cached music catalog as a Convex component — Spotify, Apple Music, and more behind one API.
+> TypeScript Convex component for a cached music catalog: tracks, artists, albums and playlists from Spotify, Apple Music and Deezer, plus MusicBrainz artists.
 
-`@vllnt/convex-music` is a publishable Convex component targeting `convex@^1.45.0`. It caches
-normalized music facts — tracks, artists, and albums — in its own sandboxed tables, keyed by an
-opaque provider id and cross-referenced by ISRC, each entry with an optional TTL. One typed API
-spans every provider (Spotify, Apple Music, Deezer, MusicBrainz, and Wikidata adapters).
-The host owns auth; the component owns the factual catalog and the host keeps gameplay + editorial,
-referencing catalog rows by id / ISRC. The raw cache API includes `put`, `get`, `getByIsrc`,
-`invalidate`, `pruneExpired`, and `stats`. The durable catalog (artists/tracks/albums/playlists),
-provider adapters, read-through fetch, the in-component import/sync engine, and an optional
-tree-shakeable `./react` hooks layer (`useArtist` / `useTrack` / `useArtistImage` / `useTrackPreview`
-/ `useSearchArtists` / `useSearchTracks`) are implemented;
-artist-image auto-sync and multi-catalog remain planned (see the README).
-`configure` persists provider credentials in the sandboxed `providerConfig` table;
-the host must keep credential setup authorized and never return secrets to clients.
+Install `@vllnt/convex-music` (unreleased builds from `main` use the `canary`
+dist-tag). Peer dependency `convex@^1.45.0` (tested with 1.45.0; a transitive
+dependency, `convex-helpers` via `@convex-dev/rate-limiter`, declares
+a newer convex peer, `^1.49.0` in its latest release, and warns below that);
+optional `react@^18 || ^19` for the
+`./react` hooks. Mount it with `app.use(music)` from
+`@vllnt/convex-music/convex.config` and call it through
+`new Music(components.music)` from host queries, mutations and actions.
+
+Two stores in the component's own tables: a raw cache (`put`, `get`,
+`getByIsrc`, `invalidate`, `pruneExpired`, `stats`; optional TTL per entry)
+and a durable catalog of artists, tracks (keyed by ISRC), albums and playlists
+(`upsert*`, `get*`,
+`searchArtists`, `searchTracks`, `selectEligible`). Artists and tracks merge
+every provider's facts into one row; albums and playlists keep one row per
+provider id. Actions call providers:
+`fetchArtist`, `fetchTrack`, `search`, `resolveByIsrc` and the imports
+`importArtist`, `importTrack`, `importPlaylist`, `importAlbum`, which return
+`{ requestId, status }` and record provider errors on the request instead of
+throwing. Providers: Spotify and Apple Music (credentials passed with
+`configure`, since a component cannot read environment variables), Deezer,
+MusicBrainz and Wikidata (no credentials; MusicBrainz and Wikidata supply
+artists only). Built-in crons prune the cache, mark rows stale and refresh
+them, and import registered sources (`sources.mutations.addSource`). Invalid
+input throws `ConvexError` with `data.code` `INVALID_ARGUMENT`, `INVALID_TTL`,
+`INVALID_LIMIT`, `INVALID_COUNT`, `INVALID_CADENCE` or `INVALID_BATCH`. The
+host owns auth and gameplay or editorial data.
+Multiple catalogs per mount and artist-image auto-sync are planned, not built.
+
+## When to use
+
+- Use it when a Convex app needs a music catalog that it can search and read in
+  queries: artists, tracks keyed by ISRC, albums and playlists.
+- Use it when artist and track facts come from more than one provider and must
+  merge into one row.
+- Use it when imports and periodic refreshes should run inside Convex.
+- Do not use it when you only need to cache one provider API call: use
+  `@convex-dev/action-cache`.
 
 ## For coding agents
 
-The docs are bundled in the npm package at `node_modules/@vllnt/convex-music/docs/`, next to
-`CHANGELOG.md`, this `llms.txt`, and the TypeScript sources in `src/`. They match the installed
-version. Read them before writing code against this package.
+The docs are bundled in the package at `node_modules/@vllnt/convex-music/` and
+match the installed version. Read them, and the shipped `src/`, before writing
+code. The links below to `./` paths are files inside the installed package.
 
 ## Docs
 
-- [README](./README.md): Overview, installation, usage, API summary
-- [API Reference](./docs/API.md): Entry points, client methods, value shapes, TTL/cache semantics, error codes
+- [README](./README.md): Install, quick start, common tasks, limits
+- [API Reference](./docs/API.md): Every export, signature, return shape, cron and validation rule
+- [Errors and fixes](./README.md#errors-and-fixes): Every error code and message, its cause and the fix
 - [Changelog](./CHANGELOG.md): Version history and release notes
 - [Client source](./src/client/index.ts): The `Music` class and its input types
 - [Contributing](https://github.com/vllnt/convex-music/blob/main/CONTRIBUTING.md): Development setup, validation commands, release workflow (repository only)
@@ -35,15 +61,20 @@ version. Read them before writing code against this package.
 Not in the npm package; these link to the repository.
 
 - [Example component wrapper](https://github.com/vllnt/convex-music/blob/main/example/convex/example.ts): Host-app wrapper functions
-- [Example tests](https://github.com/vllnt/convex-music/blob/main/example/convex/example.test.ts): End-to-end usage coverage with `convex-test`
-
-## Ecosystem
-
-- [vllnt oss](https://oss.vllnt.com/llms.txt): Index of every `@vllnt` package
+- [Example tests](https://github.com/vllnt/convex-music/blob/main/example/convex/example.test.ts): Usage coverage with `convex-test`
 
 ## Optional
 
-- [AGENTS](https://github.com/vllnt/convex-music/blob/main/AGENTS.md): Agent instructions for contributors to this repository
+- [AGENTS](https://github.com/vllnt/convex-music/blob/main/AGENTS.md): Contributor instructions for working in this repository (repository only)
 - [Security Policy](https://github.com/vllnt/convex-music/blob/main/SECURITY.md): Vulnerability reporting policy
 - [Code of Conduct](https://github.com/vllnt/convex-music/blob/main/CODE_OF_CONDUCT.md): Community participation guidelines
 - [License](./LICENSE): MIT license
+
+## Ecosystem
+
+- [Package page](https://oss.vllnt.com/packages/convex-music)
+- [Release feed](https://oss.vllnt.com/packages/convex-music/rss.xml)
+- [All @vllnt packages](https://oss.vllnt.com/llms.txt)
+- [Search vllnt packages and docs](https://index.vllnt.com)
+- [vllnt](https://vllnt.com/llms.txt)
+- [Author](https://bntvllnt.com)

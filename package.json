@@ -1,7 +1,7 @@
 {
   "name": "@vllnt/convex-music",
   "version": "0.2.0",
-  "description": "Provider-neutral, cached music catalog as a Convex component — Spotify, Apple Music, and more behind one API",
+  "description": "TypeScript Convex component for a cached music catalog: tracks, artists, albums and playlists from Spotify, Apple Music and Deezer, plus MusicBrainz artists.",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.34.8",
@@ -53,6 +53,7 @@
     "test:watch": "vitest --typecheck --clearScreen false",
     "test:coverage": "vitest run --coverage --coverage.reporter=text",
     "preversion": "pnpm install --frozen-lockfile && pnpm build && pnpm test:coverage && pnpm typecheck",
+    "test:package": "node scripts/test-package.mjs",
     "check:agents": "node -e \"const f=require('node:fs');if(!f.existsSync('AGENTS.md')||f.existsSync('CLAUDE.md')||f.existsSync('.claude'))process.exit(1)\"",
     "codegen": "pnpm convex codegen --component-dir ./src/component"
   },
@@ -131,10 +132,15 @@
   "keywords": [
     "convex",
     "convex-component",
+    "typescript",
     "music",
+    "music-catalog",
+    "music-metadata",
     "spotify",
     "apple-music",
-    "catalog",
+    "deezer",
+    "musicbrainz",
+    "isrc",
     "cache"
   ]
 }

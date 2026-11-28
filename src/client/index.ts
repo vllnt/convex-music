@@ -342,6 +342,8 @@ interface RunActionCtx {
  * const music = new Music(components.music);
  * const hit = await music.get(ctx, { kind: "track", provider: "spotify", externalId: id });
  * ```
+ *
+ * @see https://oss.vllnt.com/packages/convex-music
  */
 export class Music {
   constructor(private readonly component: MusicComponent) {}
