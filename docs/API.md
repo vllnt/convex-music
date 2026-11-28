@@ -758,8 +758,9 @@ albums by `providerId`. Any other pair makes the sweep throw
 imported, or when `cadenceMs` has passed since its last import. A source is
 marked imported only when its import completes, so a failing source is retried
 every hour; without `cadenceMs` it stops after the first successful import.
-Each run takes at most 10 due sources; sources without `provider` count toward
-those 10 and are then skipped. The
+Each run takes at most 10 due sources, in creation order. Sources without
+`provider` are skipped but never marked imported, so they stay due and take up
+the 10-per-run slots: 10 of them block every source created after them. The
 full argument validators are in `src/component/`, which ships in the package.
 
 ## Scheduled jobs
@@ -777,7 +778,8 @@ Every mount runs these crons:
 An artist or track row becomes stale after its freshness window: 7 days when
 `popularity` is 70 or more, 30 days when 40 or more, otherwise 90 days. This
 freshness refresh covers only artists and tracks; albums and playlists update
-only through a source's `cadenceMs` or a manual import. Auto-import and refresh
+only through a source's `cadenceMs`, a manual import, or a host `upsertAlbum` /
+`upsertPlaylist` call. Auto-import and refresh
 each consume a token-bucket budget of 60 per hour.
 
 ## Errors
@@ -792,7 +794,7 @@ Invalid input throws a `ConvexError` whose `data` is `{ code, message }`.
 | `INVALID_COUNT`     | `sources.actions.consumeBudget`: `count` not a positive integer                                                                                     |
 | `INVALID_CADENCE`   | `sources.mutations.addSource`: `cadenceMs` not a positive finite number                                                                             |
 | `INVALID_BATCH`     | `imports.mutations.recoverAbandoned`, `imports.mutations.pruneTerminal`: `batch` outside 1..500                                                    |
-| `IMPORT_LEASE_LOST` | Internal `imports.mutations.heartbeat` only; the host never sees it. Happens when the request left `running` mid-import, for example after a host call to `recoverAbandoned` with a later `before`; the import then throws the plain `Error` `Invalid import transition: stale -> failed` |
+| `IMPORT_LEASE_LOST` | Internal `imports.mutations.heartbeat` only; the host never sees it. Happens when the request left `running` mid-import, for example after a host call to `recoverAbandoned` with a later `before`; the import then throws the plain `Error` `Invalid import transition: stale -> failed` (an internal `stale -> completed` error from `markCompleted` is caught first and replaced by it) |
 
 Missing and expired reads return `null` or `[]` instead of throwing. Plain
 `Error` messages (credentials, provider HTTP errors, missing ISRC) and their
