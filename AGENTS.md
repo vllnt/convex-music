@@ -10,6 +10,13 @@ Convex agent skills for common tasks can be installed by running `npx convex ai-
 
 <!-- convex-ai-end -->
 
+The guidelines file is generated and not committed (`.gitignore` ignores
+`example/convex/_generated/ai/`), so a fresh clone lacks it. If it is missing, run
+`pnpm exec convex ai-files install`: it downloads the file and needs network, but no deployment or
+login. It also writes a `CLAUDE.md` and installs agent skills; `pnpm check:agents` rejects
+`CLAUDE.md` and `.claude/`, so remove whichever of them it creates before you commit. If the
+command cannot run, follow https://docs.convex.dev and treat the guidelines as unavailable.
+
 # @vllnt/convex-music
 
 `@vllnt/convex-music` is a provider-neutral, cached music catalog as a Convex component. It caches
