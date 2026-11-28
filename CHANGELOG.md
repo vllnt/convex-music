@@ -26,7 +26,9 @@ All notable changes to this project are documented here. The format is based on
   `fetchArtist` / `fetchTrack` instead. A breaking change in a `0.x` package ships as a minor, so this
   release is `0.2.0`.
 - Unit-test files are no longer included in the published tarball.
-- Update `@convex-dev/rate-limiter` to `^0.4.2` and refresh the dev toolchain.
+- Runtime dependencies: `@convex-dev/rate-limiter` ^0.3.2 -> ^0.4.3 and `@convex-dev/action-cache`
+  ^0.3.1 -> ^0.3.2. rate-limiter 0.4 adds a nested `batchWorker` child component and a
+  `pendingUpdates` table; the next deploy creates them, and the host needs no migration.
 - Document how to use the `/test` entry in a consuming app (needs `convex-test` and `vitest`).
 - Every push to `main` that changes the package or its shipped docs publishes a `canary` build;
   it no longer depends on a repository variable.
@@ -40,9 +42,8 @@ All notable changes to this project are documented here. The format is based on
   failing track no longer blocks the rest of its batch; the import still reports the first error.
 - The hourly auto-import cron runs a mutation that schedules the auto-import action only when an
   enabled source is due, so an idle deployment runs no action.
-- Dependency updates: runtime `@convex-dev/action-cache` 0.3.2; development `convex` 1.51.0,
-  `convex-test` 0.0.73, `vitest` / `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and
-  `@vllnt/typescript` 3 (its new strictness flags are on, except `exactOptionalPropertyTypes`,
+- Development dependency updates: `convex` 1.51.0, `convex-test` 0.0.73, `vitest` /
+  `@vitest/coverage-v8` 5.1.1, `eslint` 10, `jsdom` 31 and `@vllnt/typescript` 3 (its new strictness flags are on, except `exactOptionalPropertyTypes`,
   which would change the public types). The `ws` override moves to ^8.23.0 for
   GHSA-37g9-w4hg-h9qr (dev-only, through the `convex` CLI). The `convex` peer range is unchanged.
 
@@ -60,8 +61,6 @@ All notable changes to this project are documented here. The format is based on
 - `ImportPlaylistInput` and `ImportAlbumInput` no longer accept `withAlbum`. The component's
   `importPlaylist` / `importAlbum` validators never accepted it, so a call that set it type-checked
   but failed at runtime with an extra-field error. `withAlbum` stays on `ImportTrackInput`.
-- `CHANGELOG.md` keeps one section for the next version: a test fails when an `[Unreleased]`
-  section sits beside it or when the `package.json` version has no section.
 
 ## [0.1.0] - 2026-09-01
 
