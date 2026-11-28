@@ -61,10 +61,11 @@ try {
       type: "module",
     }),
   );
+  // The root workspace file carries the release-age gate, so the consumer install keeps it.
   // pnpm 11 reads the build-script policy from the workspace file, pnpm 10 from package.json.
   writeFileSync(
     join(temporary, "pnpm-workspace.yaml"),
-    "allowBuilds:\n  esbuild: false\n",
+    `${readFileSync(join(root, "pnpm-workspace.yaml"), "utf8")}allowBuilds:\n  esbuild: false\n`,
   );
   // The lowest supported convex peer; react for the ./react entry.
   run("pnpm", [
