@@ -1,9 +1,10 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
-import { api } from "./_generated/api.js";
+import { api, components } from "./_generated/api.js";
 import schema from "./schema.js";
 import { register } from "../../src/test.js";
+import { PROVIDER } from "../../src/shared.js";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -165,3 +166,19 @@ test.each([Number.NaN, 0, -1, 1.5])(
     ).rejects.toThrow(/INVALID_COUNT/);
   },
 );
+
+test("the component's playlist and album import validators reject withAlbum", async () => {
+  const t = setup();
+  const withAlbum = {
+    provider: PROVIDER.spotify,
+    providerId: "p1",
+    withAlbum: true,
+  };
+  const { importPlaylist, importAlbum } = components.music.imports.actions;
+  await expect(
+    t.action((ctx) => ctx.runAction(importPlaylist, withAlbum)),
+  ).rejects.toThrow(/withAlbum/);
+  await expect(
+    t.action((ctx) => ctx.runAction(importAlbum, withAlbum)),
+  ).rejects.toThrow(/withAlbum/);
+});

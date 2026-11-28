@@ -57,6 +57,9 @@ All notable changes to this project are documented here. The format is based on
 - Docs drift: `NormalizedTrack` lists `genres`, `popularity` and `albumId`; `recoverStuckSyncs` is no
   longer listed as throwing `INVALID_LIMIT`; `addSource` lists the targets the sweep imports; the
   README track example includes the required `genres`.
+- `ImportPlaylistInput` and `ImportAlbumInput` no longer accept `withAlbum`. The component's
+  `importPlaylist` / `importAlbum` validators never accepted it, so a call that set it type-checked
+  but failed at runtime with an extra-field error. `withAlbum` stays on `ImportTrackInput`.
 - `CHANGELOG.md` keeps one section for the next version: a test fails when an `[Unreleased]`
   section sits beside it or when the `package.json` version has no section.
 
