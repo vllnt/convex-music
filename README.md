@@ -373,7 +373,7 @@ it in the host with `error instanceof ConvexError` and read `error.data.code`.
 | `INVALID_COUNT`     | `count must be a positive integer`                              | `sources.actions.consumeBudget` got a count below 1 or fractional                                                                                     | Pass a positive integer                                                        |
 | `INVALID_CADENCE`   | `cadenceMs must be a positive finite number of milliseconds`    | `addSource` got `cadenceMs` 0, negative, `NaN` or `Infinity`                                                                                          | Pass a positive number, or omit it to stop after the first successful import   |
 | `INVALID_BATCH`     | `batch must be an integer between 1 and 500`                    | `imports.mutations.recoverAbandoned` or `pruneTerminal` got a batch outside 1..500                                                                    | Pass 1..500, or omit it (default 100)                                          |
-| `IMPORT_LEASE_LOST` | `import request is no longer running`                           | Internal; the host never sees this code. The import's request left `running` while the import ran, for example because the host called `imports.mutations.recoverAbandoned` with a `before` later than the request's last heartbeat. The import then throws the plain `Error` `Invalid import transition: stale -> failed`; when the lease is lost in an artist's tracks step, the internal `stale -> completed` error is caught first and replaced by this one | Call `recoverAbandoned` with its default `before` (30 minutes for `running`; live imports renew their request at each step), then start the import again |
+| `IMPORT_LEASE_LOST` | `import request is no longer running`                           | Internal; the host never sees this code. The import's request left `running` while the import ran, for example because the host called `imports.mutations.recoverAbandoned` with a `before` later than the request's last heartbeat. The import then throws the plain `Error` `Invalid import transition: stale -> failed` (an internal `stale -> completed` error from `markCompleted` is caught first and replaced by it) | Call `recoverAbandoned` with its default `before` (30 minutes for `running`; live imports renew their request at each step), then start the import again |
 
 These are thrown as a plain `Error` (no code). `fetchArtist`, `fetchTrack`,
 `search`, `resolveByIsrc` and the catalog upserts throw them. Import methods
@@ -437,9 +437,11 @@ rejected by Convex argument validation before the component runs.
   albums and playlists update only through a source's `cadenceMs`, a manual
   import, or a host `upsertAlbum` / `upsertPlaylist` call.
 - The auto-import sweep reads the first 100 enabled sources and takes at most
-  10 due ones per hourly run, in creation order. Sources without `provider` are
-  skipped but never marked imported, so they stay due and take up the
-  10-per-run slots: 10 of them block every source created after them. A source is
+  10 due ones per hourly run, in index order: never-imported sources first
+  (oldest created first), then imported sources by oldest `lastImportedAt`.
+  Sources without `provider` are skipped but never marked imported, so they
+  stay first in that order and take up the slots: 10 of them block every other
+  source except never-imported ones created before them. A source is
   marked imported only when its import completes: a source without `cadenceMs`
   is imported once after its first success, and a failing source is retried
   every hour. The sweep imports artists by `name` or

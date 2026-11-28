@@ -758,9 +758,11 @@ albums by `providerId`. Any other pair makes the sweep throw
 imported, or when `cadenceMs` has passed since its last import. A source is
 marked imported only when its import completes, so a failing source is retried
 every hour; without `cadenceMs` it stops after the first successful import.
-Each run takes at most 10 due sources, in creation order. Sources without
-`provider` are skipped but never marked imported, so they stay due and take up
-the 10-per-run slots: 10 of them block every source created after them. The
+Each run takes at most 10 due sources, in index order: never-imported sources
+first (oldest created first), then imported sources by oldest `lastImportedAt`.
+Sources without `provider` are skipped but never marked imported, so they stay
+first in that order and take up the slots: 10 of them block every other source
+except never-imported ones created before them. The
 full argument validators are in `src/component/`, which ships in the package.
 
 ## Scheduled jobs
